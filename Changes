@@ -1,14 +1,26 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.03 Wed Dec 8 21:55:27 2004 UTC
+    - Bug fix: Leading 0s could be omitted from paths because of the
+      difference between while($p) versus while(defined($p)).
+    - An assembled pattern can be generated with whitespace. This can be
+      used in conjunction with the /x modifier, and also for debugging.
+    - Code profiled: dead code paths removed, hotspots rewritten to run
+      more quickly.
+    - Documentation typos and wordos.
+	- assemble script now accepts a number of command line switches to
+	  control its behaviour.
+    - More tests. Now with Test::Pod.
+
 0.02  Fri Nov 19 11:16:33 2004 UTC
     - An R::A object that has had nothing added to it now produces a
       pattern that explicitly matches nothing (the original behaviour would
       match anything).
     - An object can now chomp its own input. Useful for slurping files. It
-	  can also filter the input tokens and discard patterns that don't adhere
-	  to what's expected (sanity checking e.g.: don't want spaces).
+      can also filter the input tokens and discard patterns that don't adhere
+      to what's expected (sanity checking e.g.: don't want spaces).
     - Documented and added functions to allow for the lexer pattern to be
-	  manipulated.
+      manipulated.
     - The reset() method was commented out (and the test suite didn't catch
       the fact).
     - Detabbed the Assemble.pm, eg/* and t/* files (I like interpreting
@@ -17,8 +29,8 @@ Revision history for Perl extension Regexp::Assemble.
     - t/00_basic.t test counts were wrong. This showed up if Test::Deep was
       not installed.
     - t/02_reduce.t does not need to 'use Data::Dumper'.
-	- Tweaked eg/hostmatch/hostmatch; added eg/assemble, eg/assemble-check
+    - Tweaked eg/hostmatch/hostmatch; added eg/assemble, eg/assemble-check
     - Typos, corrections and addtions to the documentation.
 
-0.01  Fri Jul  9 21:05:18 2004 UTC
+0.01  Fri Jul 9 21:05:18 2004 UTC
     - original version; created by h2xs 1.19 (seriously!)

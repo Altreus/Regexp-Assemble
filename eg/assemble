@@ -1,20 +1,97 @@
-#! /usr/local/bin/perl -wl
+#! /usr/local/bin/perl -w
 #
 # assemble - read lines from STDIN and assemble them into a pattern
 #
 # Copyright (C) David Landgren 2004
 
-
+use strict;
+use Getopt::Std;
 use Regexp::Assemble;
 
-print Regexp::Assemble->new(chomp=>1)->add(<>)->as_string;
+getopts( 'di:nprt:', \my %opt );
 
-__DATA__
-showless
-showiness
-showianess
-showiponess
-showerless
-showeriness
-showerianess
-showeriponess
+my $ra = Regexp::Assemble->new(
+	chomp  => 1,
+	debug  => $opt{d} || 0,
+	reduce => exists $opt{r} ? 0 : 1,
+)
+->add( <> );
+
+if( $opt{p} or $opt{i} ) {
+	print $ra->as_string( indent => $opt{i} || 0 );
+	print "\n" unless $opt{n};
+}
+
+if( $opt{t} ) {
+	my $error = 0;
+	my $file = $opt{t};
+	open IN, $file or die "Cannot open $file for input: $!\n";
+	while( <IN> ) {
+		chomp;
+		next if /$ra/;
+		print "FAIL <$_>\n";
+		++$error;
+	}
+	close IN;
+	exit $error ? 1 : 0;
+}
+
+=head1 NAME
+
+assemble - Assemble a list of regular expressions into a file
+
+=head1 SYNOPSIS
+
+B<assemble> [B<-dinprt>] file [...]
+
+=head1 DESCRIPTION
+
+Assemble a list of regular expression either from standard input or a
+file, using the Regexp::Assemble module.
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<-d>
+
+Debug. Turns on debugging output. See L<Regexp::Assemble> for suitable values.
+
+=item B<-i>
+
+Indent. Print the regular expression using and indent of n to display
+nesting. A.k.a pretty-printing. Implies -p.
+
+=item B<-n>
+
+No newline. Do not print a newline after the pattern. Useful when interpolating
+the output into a templating system or similar.
+
+=item B<-p>
+
+Print. Print the pattern. (Should perhaps happen by default).
+
+=item B<-t>
+
+Test. Test the assembled expression against the contents of a file. Each line is
+read from the file and is matched against the pattern. Lines that fail to
+match are printed. In other words, no output is good output. In this mode of
+operation, error status is 1 in the case of a failure, 0 if all lines matched.
+
+=back
+
+=head1 SEE ALSO
+
+L<Regexp::Assemble>
+
+=head1 AUTHOR
+
+David Landgren, <david@landgren.net>
+
+Copyright 2004 David Landgren. All rights reserved.
+
+=head1 LICENSE
+
+This script is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+

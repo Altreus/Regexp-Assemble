@@ -622,7 +622,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
 }
 
 {
-    my $node = [ 't', {
+    my $curr = [ 't', {
             'a' => ['a'],
             'i' => ['i'],
         },
@@ -634,7 +634,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         },
         's',
     ];
-    my $res = Regexp::Assemble::_insert( $node, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
     cmp_deeply( $res,
         [
             't',
@@ -647,12 +647,12 @@ skip 'Test::Deep not installed on this system', deep_testcount
                 's' => ['s'],
             },
         ],
-        '_insert sit/sat -> bit/bat',
+        '_insert_path sit/sat -> bit/bat',
     ) or print Dumper($res),"\n";
 }
 
 {
-    my $node = [ 't', {
+    my $curr = [ 't', {
             'a' => ['a'],
             'i' => ['i'],
         },
@@ -667,7 +667,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         },
         'f',
     ];
-    my $res = Regexp::Assemble::_insert( $node, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
     cmp_deeply( $res,
         [
             't',
@@ -681,12 +681,12 @@ skip 'Test::Deep not installed on this system', deep_testcount
                 's' => ['s'],
             },
         ],
-        '_insert fit/fat -> sit/sat, bit/bat',
+        '_insert_path fit/fat -> sit/sat, bit/bat',
     ) or print Regexp::Assemble::_dump($res), "\n";
 }
 
 {
-    my $node = [ 't', {
+    my $curr = [ 't', {
             ''  => undef,
             'a' => ['a'],
         },
@@ -698,7 +698,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         },
         'e', 's',
     ];
-    my $res = Regexp::Assemble::_insert( $node, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
     cmp_deeply( $res,
         [
             't',
@@ -712,12 +712,12 @@ skip 'Test::Deep not installed on this system', deep_testcount
                 's' => ['s'],
             },
         ],
-        '_insert seat/set -> beat/bet',
+        '_insert_path seat/set -> beat/bet',
     );
 }
 
 {
-    my $node = [ 'd', 'i',
+    my $curr = [ 'd', 'i',
         {
             ''  => undef,
             'o' => ['o'],
@@ -731,7 +731,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         },
         't', 'a', 'b',
     ];
-    my $res = Regexp::Assemble::_insert( $node, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
     cmp_deeply( $res,
         [
             'd', 'i',
@@ -745,12 +745,12 @@ skip 'Test::Deep not installed on this system', deep_testcount
                 'y' => ['y', 'd'],
             },
         ],
-        '_insert dio?tyd -> dio?tab',
+        '_insert_path dio?tyd -> dio?tab',
     ) or print '# ', Regexp::Assemble::_dump( $res ). "\n";
 }
 
 {
-    my $node = [ 'd', 'i',
+    my $curr = [ 'd', 'i',
         {
             ''  => undef,
             'o' => ['o'],
@@ -768,7 +768,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         },
         't', 'm', 'x',
     ];
-    my $res = Regexp::Assemble::_insert( $node, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
     cmp_deeply( $res,
         [
             'd', 'i',
@@ -783,12 +783,12 @@ skip 'Test::Deep not installed on this system', deep_testcount
                 'y' => ['y', 'd'],
             },
         ],
-        '_insert dio?tmx -> dio?t(ab|yd)',
+        '_insert_path dio?tmx -> dio?t(ab|yd)',
     ) or print '# ', Regexp::Assemble::_dump( $res ). "\n";
 }
 
 {
-    my $node = [ 'd', 'i',
+    my $curr = [ 'd', 'i',
         {
             ''  => undef,
             'o' => ['o'],
@@ -806,7 +806,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         },
         't', 'a', 'x',
     ];
-    my $res = Regexp::Assemble::_insert( $node, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
     cmp_deeply( $res,
         [
             'd', 'i',
@@ -825,7 +825,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
                 'y' => ['y', 'd'],
             },
         ],
-        '_insert dio?tax -> dio?t(ab|yd)',
+        '_insert_path dio?tax -> dio?t(ab|yd)',
     ) or print '# ', Regexp::Assemble::_dump( $res ). "\n";
 }
 {

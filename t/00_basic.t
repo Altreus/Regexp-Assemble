@@ -119,7 +119,7 @@ ok( Regexp::Assemble::_node_eq(
 
 ok( Regexp::Assemble::_node_eq(
         {'a'=>['a','b']},
-        {'a'=>['a','b'],''=>undef,},
+        {'a'=>['a','b'], '' => undef},
     ) == 0, 'ne {a}'
 );
 
@@ -281,56 +281,56 @@ SKIP: {
     cmp_deeply( $rt->_path, [], 'path is empty' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path(
-        [0, 1], ),
+        [0, 1], 0, 0),
         [1, 0], 'path(0,1)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path(
-        [qw[ ab cd ef ]], ),
+        [qw[ ab cd ef ]], 0, 0),
         [qw[ ef cd ab ]], 'path(ab,cd,ef)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path( Regexp::Assemble::_unrev_path(
-        [qw[ ab cd ef ]], )),
+        [qw[ ab cd ef ]], 0, 0), 0, 0),
         [qw[ ab cd ef ]], 'path(ab,cd,ef) back' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path(
-        [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], ),
+        [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], 0, 0),
         [qw[ mno jkl ghi \\D \\d+ ef cd ab ]], 'path(ab cd...)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path( Regexp::Assemble::_unrev_path(
-        [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], )),
+        [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], 0, 0), 0, 0),
         [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], 'path(ab cd...) back' ),
 
     cmp_deeply( Regexp::Assemble::_unrev_node(
-        { 0 => [0, 1]}),
+        { 0 => [0, 1]}, 0, 0),
         { 1 => [1, 0]},
         'node(0)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_node(
-        { 0 => [0, 1], 2 => [2, 0]}),
+        { 0 => [0, 1], 2 => [2, 0]}, 0, 0),
         { 1 => [1, 0], 0 => [0, 2]},
         'node(0,2)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_node(
-        { '' => undef, a => [qw[a b]] }),
+        { '' => undef, a => [qw[a b]] }, 0, 0),
         { '' => undef, b => [qw[b a]] },
         'node(*,a,b)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_node(
-        { '' => undef, a => [qw[a b]], b => [qw[b c d e f g]] }),
+        { '' => undef, a => [qw[a b]], b => [qw[b c d e f g]] }, 0, 0),
         { '' => undef, b => [qw[b a]], g => [qw[g f e d c b]] },
         'node(*a,b2)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_node(
-        { ab => [qw[ab bc]], bc => [qw[bc cd de ef fg gh]], ef => [qw[ef gh ij]] }),
+        { ab => [qw[ab bc]], bc => [qw[bc cd de ef fg gh]], ef => [qw[ef gh ij]] }, 0, 0),
         { bc => [qw[bc ab]], gh => [qw[gh fg ef de cd bc]], ij => [qw[ij gh ef]] },
         'node(ab,bc,ef)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path(
-        [qw[ ab cd ef ], {x1 => [qw[x1 y2 z\\d]], mx => [qw[mx us ca]] }], ),
+        [qw[ ab cd ef ], {x1 => [qw[x1 y2 z\\d]], mx => [qw[mx us ca]] }], 0, 0 ),
         [{ 'z\\d' => [qw[z\\d y2 x1]], ca => [qw[ca us mx]]}, qw[ef cd ab]], 'path(node)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path(
-        [qw[a b], {c=>[qw[c d e]], f=>[qw[f g h]], i=>[qw[i j], {k => [qw[k l m]], n=>[qw[n o p]]}, 'x' ]}]),
+        [qw[a b], {c=>[qw[c d e]], f=>[qw[f g h]], i=>[qw[i j], {k => [qw[k l m]], n=>[qw[n o p]]}, 'x' ]}], 0, 0),
         [{e=>[qw[e d c]], h=>[qw[h g f]], x=>['x', {m=>[qw[m l k]], p=>[qw[p o n]]}, qw[j i]]}, qw[b a]],
         'path(node(path))');
 

@@ -11,9 +11,10 @@ TESTING
 
 This module requires the following modules for thorough testing:
 
-    Test::More
     Test::Deep
     Test::File::Contents
+    Test::More
+	Test::Pod
 
 I suspect I could rewrite the tests with out Test::Deep these days;
 Test::More should be sufficient. This is mainly the result of legacy
@@ -97,7 +98,7 @@ Add 'construct':
         |s => [s t r u c t
         |                 | '' => undef
         |                 \ i => [i v e]
-		|     ]
+        |     ]
         |t => [t a i n m e n t]
         \f => [f i n e m e n t]
   ]
@@ -109,10 +110,10 @@ pattern /construct(?:ive)?/ . Or for a longer path 'constructively':
         |s => [s t r u c t
         |                 | '' => undef
         |                 \ i => [i v e
-	    |                              | '' => undef
-	    |                              \ l => [l y]
-		|                        ]
-		|     ]
+        |                              | '' => undef
+        |                              \ l => [l y]
+        |                        ]
+        |     ]
         |t => [t a i n m e n t]
         \f => [f i n e m e n t]
   ]
@@ -134,21 +135,24 @@ own R::A object and see what comes out:
 Gives:
 
   [t n e m
-		  | n => [n i a t]
-          \ e => [ e n i f]
+          | n => [n i a t]
+          \ e => [e n i f]
   ]
 
-When the process examines the other path s => [s t r u c t ...], the
-process behaves differently. Whenever a null-path appears, no
-reduction is performed at that node level. The resulting path would
-otherwise begin to admit matches that are are not permitted by any
-of the initial patterns.
+When the algorithm visits the other path (s => [s t r u c t ...]),
+it behaves differently. When a null path is seen, no reduction is
+performed at that node level. The resulting path would otherwise
+begin to admit matches that are are not permitted by any of the
+initial patterns. For instance, with bat, cat, and catty, you can
+hardly try to merge 'bat' and 'cat' to produce [bc]at, otherwise the
+resulting pattern would become [bc]at(ty)?, and that would incorrectly
+match 'batty'.
 
-After having examined the s, t, and f paths, then, we have the result
-that t and f were reduced, but s failed. The only positive outcome is
-when all paths are reduced into a node with one path. Given that s is
-apart, t and f are unreversed, all three are combined, and a failure
-is recorded.
+After having visited the s, t, and f paths, the
+result is that t and f were reduced, and s failed. We therefore
+unreverse everything, and signal that this node cannot participate in
+any more reduction (the failures percolate up the tree back to the
+root).
 
 Unreversing the t, f reduction gives:
 
@@ -161,26 +165,72 @@ When all is said and done, the final result gives
         |s => [s t r u c t
         |                 | '' => undef
         |                 \ i => [i v e
-	    |                              | '' => undef
-	    |                              \ l => [l y]
-		|                        ]
-		|     ]
+        |                              | '' => undef
+        |                              \ l => [l y]
+        |                        ]
+        |     ]
         [ t => [t a i n]
           f => [f i n e] m e n t ]
   ]
 
-When this is traversed to build the pattern, it gives
+When this data structure is traversed to build the pattern, it gives
 
   con(struct(ive(ly)?)?|(fine|tain)ment)
 
 NB: The capturing syntax is used here, instead of the grouping
 syntax for readability issues only.
 
+On the other hand, if the s path contained only [s t r u c t], then
+the reduction would have gone succeeded. We would have a common
+head [t], shared by all three paths.
+
+  [t
+    | c => [c u r t s]
+    \ n => [n e m
+                 | n => [n i a t]
+                 \ e => [e n i f]
+           ]
+  ]
+
+And then consider that the path [c o u r t] had also been added to
+the object. We would then be able to reduce the t from the above
+reduction, and the t in [c o u r t]
+
+  [c o
+      | n => [n
+      |        | s => [s t r u c t]
+      |        | t => [t a i n m e n t]
+      |        \ f => [f i n e m e n t]
+      |      ]
+      \ u => [u r t]
+  ]
+
+gives
+
+  [c o
+      | n => [n
+      |        | s => [s t r u c]
+      |        \ f => [
+      |                 f => [f i n e]
+      |                 t => [t a i n]
+      |                 m e n
+      |               ]
+      |      ]
+      \ u => [u r]
+   t
+  ]
+
+(Here ends my ASCII art talents).
+
+The above structure would give
+
+  co(n(struc|(fine|tai)men)|ur)t
+
 In a nutshell, that's it. Seems like the code would be simple, huh?
 It turns out that no, there are lots of fiddly edge cases,
-especially sets of paths are similar to other sets of paths
-apart from an internal optional sub-path. The canonical example
-that the test suite deals with is:
+especially sets of paths are the same as other sets of paths
+except for an optional sub-path. The canonical example that the
+test suite deals with is:
 
   showeriness, showerless, showiness, showless.
 
@@ -189,12 +239,11 @@ The final pattern is
   show(er)?(in|l)ess
 
 If there are bugs to be found, it will be in cases that are even
-more pathological than this, e.g., something that produces
+more pathological than this, e.g., something like:
 
   show(er)?(i(a|po)?n|l)ess
 
-(although such a pattern can be assembled given the right word
-list...)
+(although the above actually *does* work, I tried it)
 
 This is the area that needs to be tested much more extensively.
 Until now I haven't had the time (or motivation) to do so, mainly
@@ -203,8 +252,8 @@ On the other hand, I can say with a reasonable level of confidence
 is in the case of a bug, the algorithm will splice a part of the
 tree into oblivion. When this happens, part of the pattern will be
 lost, and the resulting pattern will fail to match all that the
-original patterns do. It will (or should!) in no case ever match
-more things than the original patterns do.
+original patterns do. It will in no case ever match more things
+than the original patterns do.
 
 If you are truly paranoid, take a look at the hostmatch.t test
 file. The code therein does exactly that: it takes a list of
@@ -219,7 +268,7 @@ assembled pattern doesn't match, then none of the original
 patterns should match.
 
 The two scripts assemble and assemble-check, supplied as examples,
-can help with this process.
+can also help you play around with this process.
 
 DEBUGGING NOTES
 

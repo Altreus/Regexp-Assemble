@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-use Test::More tests => 29;
+use Test::More tests => 30;
 
 use constant NR_GOOD  => 45;
 use constant NR_BAD   => 529;
@@ -61,13 +61,14 @@ $ra->reset->filter( sub { not grep { $_ !~ /[\d ]/ } @_ } );
 
 $ra->add( '1 2 4' );
 
-ok( '3 4 1 2' !~ /$ra/, 'filter ok 3 4 1 2' );
-ok( '3 1 2 4' =~ /$ra/, 'filter nok 3 1 2 4' );
+ok( '3 4 1 2' !~ /$ra/, 'filter nok 3 4 1 2' );
+ok( '3 1 2 4' =~ /$ra/, 'filter ok 3 1 2 4' );
+ok( '5 2 3 4' !~ /$ra/, 'filter ok 5 2 3 4' );
 
-$ra->add( '1 2 a' );
+$ra->add( '2 3 a' );
 
-ok( '5 1 2 4' =~ /$ra/, 'filter ok 5 1 2 4' );
-ok( '5 1 2 a' !~ /$ra/, 'filter nok 5 1 2 a' );
+ok( '5 2 3 4' !~ /$ra/, 'filter ok 5 2 3 4 (2)' );
+ok( '5 2 3 a' !~ /$ra/, 'filter nok 5 2 3 a' );
 
 $ra->reset->filter( undef );
 

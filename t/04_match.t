@@ -6,7 +6,7 @@
 # copyright (C) 2004 David Landgren
 
 use strict;
-use Test::Simple tests => 4190;
+use Test::Simple tests => 4219;
 use Regexp::Assemble;
 
 sub match {
@@ -96,6 +96,11 @@ match( 't.*(at|en)', qw[ tachygen taen taheen taimen taken talipat tannogen
     trawlboat treat treen trichogen trichromat troat trodden trudgen trusten
     truvat trypsinogen tryptogen tubicen tugboat tungsten turbitteen tureen
     turfen turken turncoat twat tween twiggen twitten tyken ]);
+
+match( 'ti[aeinost]+', qw[ tiao tie tien tin tine tinea tinean tineine
+    tininess tinnet tinniness tinosa tinstone tint tinta tintie tintiness
+    tintist tisane tit titanate titania titanite titano tite titi titian
+    titien tittie ]);
 
 match( '[aeinost]+', qw[ a aa ae aenean aeon aeonian aeonist aes ai ainoi aint
     aion ait aitesis aition an ana anan anana ananas anastasis anastate

@@ -18,7 +18,7 @@ use strict;
 use Regexp::Assemble;
 
 use constant simple_testcount  => 15;      # tests not requiring Test::Deep
-use constant deep_testcount    => 16;      # tests requiring Test::Deep
+use constant deep_testcount    => 19;      # tests requiring Test::Deep
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
 use Test::More tests => simple_testcount + deep_testcount + permute_testcount;
@@ -82,7 +82,7 @@ skip 'Test::Deep not installed on this system',
     my $rt = Regexp::Assemble->new;
     $rt->insert( undef );
     cmp_deeply( $rt->_path,
-        [{'' => undef}],
+        [],
         '// (from undef)'
     );
 }
@@ -93,6 +93,15 @@ skip 'Test::Deep not installed on this system',
     cmp_deeply( $rt->_path,
         [{'' => undef}],
         q{// (from '')},
+    );
+}
+
+{
+    my $rt = Regexp::Assemble->new;
+    $rt->insert( '0' );
+    cmp_deeply( $rt->_path,
+        [0],
+        q{/0/},
     );
 }
 
@@ -129,6 +138,40 @@ skip 'Test::Deep not installed on this system',
     cmp_deeply( $rt->_path,
         [qw/d a b/],
         '/dab/',
+    );
+}
+
+{
+    my $rt = Regexp::Assemble->new;
+    $rt->insert( qw/0 1/ );
+    $rt->insert( qw/0 2/ );
+    cmp_deeply( $rt->_path,
+        [
+            0,
+            {
+                '1' => ['1'],
+                '2' => ['2'],
+            },
+        ],
+        '/01/ /02/',
+    );
+}
+
+{
+    my $rt = Regexp::Assemble->new;
+    $rt->insert( qw/0/ );
+    $rt->insert( qw/0 1/ );
+    $rt->insert( qw/0 2/ );
+    cmp_deeply( $rt->_path,
+        [
+            0,
+            {
+                '1' => ['1'],
+                '2' => ['2'],
+                ''  => undef,
+            },
+        ],
+        '/0/ /01/ /02/',
     );
 }
 
