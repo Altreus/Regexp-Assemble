@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char/;
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.08 of Regexp::Assemble,
-released 2005-01-03.
+This document describes version 0.09 of Regexp::Assemble,
+released 2005-01-22.
 
 =head1 SYNOPSIS
 
@@ -70,10 +70,10 @@ use constant DEBUG_ADD     => 1;
 use constant DEBUG_TAIL    => 2;
 
 # The following pattern was generated using naive.pl and pasted in here
-$Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[aefnrtdDwWsS.+*?]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
+$Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[aefnrtdDwWsS.+*?(){}[\]\\]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
 
-# Charact class candidates
-$Single_Char = qr/^(?:\\(?:[aDdefnrSstWw]|0\d{2}|x[\da-fA-F]{2}|c?\.|[*+?()@^$\/[])|.)$/;
+# Character class candidates
+$Single_Char = qr/^(?:\\(?:[aDdefnrSstWw*+?@^$(){}\/\[\]]|0\d{2}|x[\da-fA-F]{2}|c?\.)|.)$/;
 
 =head1 METHODS
 
@@ -997,25 +997,25 @@ sub _insert_node {
         $debug and print 'to=', _dump([$token]),"\n";
         $debug and print '@_=', _dump([@_]),"\n";
         if( exists($path_end->[0]{$token_key}) ) {
-			if( @$path_end > 1 ) {
-				my $path_key = _re_path([$path_end->[0]]);
-				my $new = {
-					$path_key  => [ @$path_end ],
-					$token_key => [ $token, @_ ],
-				};
-				print "  +bifurcate new=@{[_dump([$new])]}\n" if $debug;
-				splice( @$path, $offset, @$path_end, $new );
-			}
-			else {
-            	my $sub_path = $path_end->[0]{$token_key};
-            	shift @$sub_path;
-            	print "  +_insert_path sub_path=@{[_dump([$sub_path])]}\n"
-                	if $debug;
-            	my $new = _insert_path( $path_end->[0]{$token_key}, $debug, @_ );
-            	$path_end->[0]{$token_key} = [$token, @$new];
-            	print "  +_insert_path result=@{[_dump($path_end)]}\n" if $debug;
-            	splice( @$path, $offset, @$path_end, @$path_end );
-			}
+            if( @$path_end > 1 ) {
+                my $path_key = _re_path([$path_end->[0]]);
+                my $new = {
+                    $path_key  => [ @$path_end ],
+                    $token_key => [ $token, @_ ],
+                };
+                print "  +bifurcate new=@{[_dump([$new])]}\n" if $debug;
+                splice( @$path, $offset, @$path_end, $new );
+            }
+            else {
+                my $sub_path = $path_end->[0]{$token_key};
+                shift @$sub_path;
+                print "  +_insert_path sub_path=@{[_dump([$sub_path])]}\n"
+                    if $debug;
+                my $new = _insert_path( $path_end->[0]{$token_key}, $debug, @_ );
+                $path_end->[0]{$token_key} = [$token, @$new];
+                print "  +_insert_path result=@{[_dump($path_end)]}\n" if $debug;
+                splice( @$path, $offset, @$path_end, @$path_end );
+            }
         }
         elsif( not _node_eq( $path_end->[0], $token )) {
             if( @$path_end > 1 ) {
@@ -1507,6 +1507,7 @@ sub _node_key {
 #####################################################################
 
 sub _make_class {
+    return '' unless @_;
     my %set = map { ($_,1) } @_;
     return '.' if exists $set{'.'}
         or (exists $set{'\\d'} and exists $set{'\\D'})
@@ -1532,6 +1533,63 @@ sub _make_class {
     "[$dash$class$caret]";
 }
 
+sub _lookahead_array {
+    my $in = shift;
+    my @head;
+    my $path;
+    for $path( @$in ) {
+        if( ref($path) eq 'HASH' ) {
+            push @head, _lookahead_hash( $path );
+        }
+        elsif( ref($path) eq 'ARRAY' ) {
+            push @head, _lookahead_array( $path );
+        }
+        #else {
+        # nop - don't care
+        # we can get here (ref($path) eq '') but we don't want to do anything
+        #}
+    }
+    @head;
+}
+
+sub _lookahead_hash {
+    my $in = shift;
+    my @head;
+    my $path;
+    for $path( keys %$in ) {
+        if( ref($in->{$path}) eq 'HASH' ) {
+            my $p;
+            for $p (keys %{$in->{$path}}) {
+                push @head, _lookahead_array( $p );
+            }
+        }
+        elsif( ref($in->{$path}) eq 'ARRAY' ) {
+            if( ref($in->{$path}[0]) eq 'HASH' ) {
+                push @head, _lookahead_hash( $in->{$path}[0] );
+            }
+            else {
+                push @head, $in->{$path}[0];
+            }
+        }
+        #else {
+        # nop - don't care
+        #}
+    }
+    @head;
+}
+
+sub _combine {
+    my $type = shift;
+    '('
+    . $type
+    . do {
+        my( @short, @long );
+        push @{ /^$Single_Char$/ ? \@short : \@long}, $_ for @_;
+        join( '|', ( _make_class(@short), sort( _re_sort @long )))
+    }
+    . ')';
+}
+
 sub _re_path {
     my $in  = shift;
     ref($in) ne 'ARRAY'
@@ -1542,8 +1600,9 @@ sub _re_path {
             $out .= $p;
         }
         elsif( ref($p) eq 'ARRAY' ) {
-			$out .= _re_path($p);
-		}
+            # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_array($p) );
+            $out .= _re_path($p);
+        }
         else {
             my $path = [
                 map { _re_path( $p->{$_} ) }
@@ -1559,6 +1618,8 @@ sub _re_path {
                 $out .= _make_class(@$path);
             }
             else {
+                # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_hash($p) );
+                # $out .= '?' if exists $p->{''};
                 if( $nr_one < 2 ) {
                     $out .= '(?:'
                         . join( '|' => sort _re_sort @$path )
@@ -1566,14 +1627,7 @@ sub _re_path {
                     ;
                 }
                 else {
-                    $out .= '(?:'
-                        . do {
-                            my( @short, @long );
-                            push @{ /^$Single_Char$/ ? \@short : \@long}, $_ for @$path;
-                            join( '|', ( sort( _re_sort @long ), _make_class(@short) ))
-                        }
-                        . ')'
-                    ;
+                    $out .= _combine( '?:', @$path );
                 }
             }
             $out .= '?' if exists $p->{''};
@@ -1640,8 +1694,9 @@ sub _re_path_pretty {
             $prev_was_paren = 0;
         }
         elsif( ref($in->[$p]) eq 'ARRAY' ) {
-			$out .= _re_path($in->[$p]);
-		}
+            # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_array($in->[$p]) );
+            $out .= _re_path($in->[$p]);
+        }
         else {
             my $path = [
                 map { _re_path_pretty( $in->[$p]{$_}, $arg ) }
@@ -1660,6 +1715,8 @@ sub _re_path_pretty {
             else {
                 $out .= "\n" if length $out;
                 $out .= $pre if $p or $prev_was_paren;
+                # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_hash($in->[$p]) );
+                # $out .= '?' if exists $in->[$p]{''};
                 $out .= "(?:\n$indent";
                 if( $nr_one < 2 ) {
                     my $r = 0;

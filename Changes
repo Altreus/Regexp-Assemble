@@ -1,5 +1,22 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.09 Sat Jan 22 9:28:21 2005 UTC
+    - Added lookahead assertions at nodes. (This concept is
+      shamelessly pinched from Dan Kogai's Regexp::Optimizer).
+      The code is currently commented out, because in all my
+      benchmarks the resulting regexps are slower with them.
+      Look for calls to _combine if you want to play around
+      with this.
+    - $Default_Lexer and $Single_Char regexps updated to fix
+      a bug where backslashed characters were broken apart
+      between the backslash and the character, resulting in
+      uncompilable regexps.
+    - Character classes are now sorted to the left of a list of
+      alternations.
+    - Corrected license info in META.yml
+    - Started to switch from ok() to cmp_ok() in the test to
+      produce human-readable test failures.
+
 0.08 Mon Jan 3 11:23:50 2005 UTC
     - Bug in insert_node fixed: did not deal with the following
       correctly: qw/bcktx bckx bdix bdktx bdkx/ (The assymetry

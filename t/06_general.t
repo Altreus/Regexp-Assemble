@@ -3,7 +3,7 @@
 # Test suite for Regexp::Assemble
 # Check out the general functionality, now that all the subsystems have been exercised
 #
-# copyright (C) 2004 David Landgren
+# copyright (C) 2004-2005 David Landgren
 
 use strict;
 use Regexp::Assemble;

@@ -3,7 +3,7 @@
 # Test suite for Regexp::Assemble
 # Tests to see than an assembled regexp matches all that it is supposed to
 #
-# copyright (C) 2004 David Landgren
+# copyright (C) 2004-2005 David Landgren
 
 use strict;
 use Test::More tests => 4249;

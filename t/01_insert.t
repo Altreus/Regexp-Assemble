@@ -12,7 +12,7 @@
 # built up from repeated add() calls produce a structure that the
 # subsequent coalescing and reduction routines can operate upon correctly.
 #
-# copyright (C) 2004 David Landgren
+# copyright (C) 2004-2005 David Landgren
 
 use strict;
 use Regexp::Assemble;

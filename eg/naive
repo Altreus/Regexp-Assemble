@@ -12,7 +12,7 @@
 
 use strict;
 
-my $meta     = q{\\\\[aefnrtdDwWsS.+*?]};
+my $meta     = q{\\\\[aefnrtdDwWsS.+*?(){}[\\]\\\\]};
 my $octal    = q{\\\\0\d{2}};
 my $hex      = q{\\\\x(?:[\da-fA-F]{2}|\{[\da-fA-F]{4}\})};
 my $ctrl     = q{\\\\c.};

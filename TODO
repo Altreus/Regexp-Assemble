@@ -14,8 +14,6 @@ testing.
 
 6. Store callbacks per tracked pattern.
 
-7. Sort character classes before single letters => (?:[a-z]+\d+|x(?:ab|cd))
+7. Deal with [:punct:] character classes
 
-8. Deal with [:punct:] character classes
-
-9. saw this foo(?:\.|-)bar but the test checks out ok
+8. saw this foo(?:\.|-)bar but the test checks out ok

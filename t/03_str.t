@@ -3,10 +3,10 @@
 # Test suite for Regexp::Assemble
 # Make sure the basic stuff works
 #
-# copyright (C) 2004 David Landgren
+# copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::Simple tests => 76;
+use Test::More tests => 80;
 
 use Regexp::Assemble;
 
@@ -144,34 +144,34 @@ ok( ($_ = Regexp::Assemble->new
     ->insert( 'p' )
     ->as_string) eq '[.p]', '/\./ /p/' ) or warn "# $_\n";
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\w' )
     ->insert( '5' )
     ->insert( '1' )
     ->insert( '0' )
     ->insert( 'a' )
     ->insert( '_' )
-    ->as_string) eq '\\w', '/\w/ /_/ /a/ /0/ /5/ /1/' ) or warn "# $_\n";
+    ->as_string, 'eq', '\\w', '/\w/ /_/ /a/ /0/ /5/ /1/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\d' )
     ->insert( '\\^' )
     ->insert( '' )
-    ->as_string) eq '[\\d^]?', '/\d/ /^/ //' ) or warn "# $_\n";
+    ->as_string, 'eq', '[\\d^]?', '/\d/ /^/ //' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'a', "\@", 'z' )
     ->insert( 'a', "\?", 'z' )
-    ->as_string eq 'a[?@]z', '/a\@z/ /a\?z/' );
+    ->as_string, 'eq', 'a[?@]z', '/a\@z/ /a\?z/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\+' )
-    ->as_string) eq '\\+', '/\+/' ) or warn "# $_\n";
+    ->as_string, 'eq', '\\+', '/\+/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\+' )
     ->insert( '\\*' )
-    ->as_string) eq '[*+]', '/\+/ /\*/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[*+]', '/\+/ /\*/' );
 
 ok( ($_ = Regexp::Assemble->new
     ->insert( '-' )
@@ -315,21 +315,42 @@ ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'r', 'k' )
     ->as_string eq 'da(?:m[ep]|r[kt])', '/dame/ /damp/ /dark/ /dart/' );
 
-ok( Regexp::Assemble->new
-	->add( qw/bcktx bckx bdix bdktx bdkx/ )
-	->as_string eq 'b(?:d(?:kt?|i)|ckt?)x', 'bcktx bckx bdix bdktx bdkx' );
+cmp_ok( Regexp::Assemble->new
+    ->add( qw/ amz adnz aenz agrwz agqwz ahwz / )
+    ->as_string, 'eq', 'a(?:(?:g[qr]|h)w|[de]n|m)z', 'amz adnz aenz agrwz agqwz ahwz' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( qw/adktwz aeftwz aeguwz aehuwz afwz agmvz ahnvz aijmvz/ )
+    ->as_string, 'eq', 'a(?:(?:e(?:[gh]u|ft)|dkt|f)w|(?:(?:ij|g)m|hn)v)z',
+    'adktwz aeftwz aeguwz aehuwz afwz agmvz ahnvz aijmvz' );
 
 ok( Regexp::Assemble->new
+    ->add( qw/bcktx bckx bdix bdktx bdkx/ )
+    ->as_string eq 'b(?:d(?:kt?|i)|ckt?)x', 'bcktx bckx bdix bdktx bdkx' );
+
+cmp_ok( Regexp::Assemble->new
     ->add( qw/ dldrt dndrt dldt dndt dx / )
-    ->as_string eq 'd(?:[ln]dr?t|x)', 'dldrt dndrt dldt dndt dx' );
+    ->as_string, 'eq', 'd(?:[ln]dr?t|x)', 'dldrt dndrt dldt dndt dx' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/ dldt dndt dlpt dnpt dx / )
-    ->as_string eq 'd(?:[ln][dp]t|x)', q/ dldt dndt dlpt dnpt dx / );
+    ->as_string, 'eq', 'd(?:[ln][dp]t|x)', q/ dldt dndt dlpt dnpt dx / );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/ dldrt dndrt dldmt dndmt dlprt dnprt dlpmt dnpmt dx / )
-    ->as_string eq 'd(?:[ln][dp][mr]t|x)', 'dldrt dndrt dldmt dndmt dlprt dnprt dlpmt dnpmt dx' );
+    ->as_string, 'eq', 'd(?:[ln][dp][mr]t|x)',
+    'dldrt dndrt dldmt dndmt dlprt dnprt dlpmt dnpmt dx' );
+
+# note: \d+ does not (currently) absorb 7
+cmp_ok( Regexp::Assemble->new
+    ->add( qw/ abz acdez a5txz a7z /, 'a\\d+z', 'a\\d+-\\d+z' ) # 5.6.0 kluge
+    ->as_string, 'eq', 'a(?:[7b]|(?:\d+-)?\d+|5tx|cde)z',
+    'abz a\\d+z acdez a\\d+-\\d+z a5txz a7z' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( '\\*mens', '\\(scan', '\\[mail' )
+    ->as_string, 'eq', '(?:\(scan|\*mens|\[mail)',
+    '\\*mens \\(scan \\[mail' );
 
 ok( Regexp::Assemble->new
     ->add( qw/ dldrt dndrt dldt dndt dx / )

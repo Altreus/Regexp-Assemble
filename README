@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.08
+The file is the README for Regexp::Assemble version 0.09
 
 INSTALLATION
 
@@ -14,7 +14,7 @@ This module requires the following modules for thorough testing:
     Test::File::Contents
     Test::More
     Test::Pod
-	Test::Simple
+    Test::Simple
 
 UNINSTALLATION
 
@@ -416,6 +416,14 @@ the following:
 A more compact representation can also be obtained with
 
   print Regexp::Assemble::_dump($r->_path);
+
+All that said, I'm now reasonably confident that it deals
+correctly with pretty much anything you're likely to throw at it.
+The two most recent bugs were easy to spot in the code, and the
+fix was a couple of lines. Adding lookahead assertion was pretty
+simple to, even if it did result in a certain amount of code
+factoring. So I think that in general the structure of the code
+is a good one.
 
 STATUS
 
