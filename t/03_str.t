@@ -6,7 +6,7 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 80;
+use Test::More tests => 82;
 
 use Regexp::Assemble;
 
@@ -210,6 +210,20 @@ ok( ($_ = Regexp::Assemble->new
     ->insert( '-' )
     ->insert( '0' )
     ->as_string) eq '[-\w^]', '/^/ /-/ /0/ /\w/ /z/' ) or warn "# $_\n";
+
+cmp_ok( Regexp::Assemble->new
+	->add( quotemeta( 'a%d' ))
+	->add( quotemeta( 'a=b' ))
+	->add( quotemeta( 'a%e' ))
+	->add( quotemeta( 'a=c' ))
+	->as_string, 'eq', 'a(?:\%[de]|\=[bc])'
+);
+
+cmp_ok( Regexp::Assemble->new
+	->add( quotemeta( '^:' ))
+	->add( quotemeta( '^,' ))
+	->as_string, 'eq', '\\^[\\,\\:]' # TODO: unescape this
+);
 
 ok( ($_ = Regexp::Assemble->new
     ->insert( '0' )

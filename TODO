@@ -17,3 +17,6 @@ testing.
 7. Deal with [:punct:] character classes
 
 8. saw this foo(?:\.|-)bar but the test checks out ok
+
+9. Deal with excessively backslashed quotemeta'ed tokens (see test marked
+   TODO in t/03_str.t).

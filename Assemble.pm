@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char/;
-$VERSION = '0.09';
+$VERSION = '0.10';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.09 of Regexp::Assemble,
-released 2005-01-22.
+This document describes version 0.10 of Regexp::Assemble,
+released 2005-03-29.
 
 =head1 SYNOPSIS
 
@@ -70,10 +70,10 @@ use constant DEBUG_ADD     => 1;
 use constant DEBUG_TAIL    => 2;
 
 # The following pattern was generated using naive.pl and pasted in here
-$Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[aefnrtdDwWsS.+*?(){}[\]\\]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
+$Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[-aefnrtdDwWsS.,=+*:%|?<>(){}[\]\\\200-\377^]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
 
 # Character class candidates
-$Single_Char = qr/^(?:\\(?:[aDdefnrSstWw*+?@^$(){}\/\[\]]|0\d{2}|x[\da-fA-F]{2}|c?\.)|.)$/;
+$Single_Char = qr/^(?:\\(?:[-aefnrtdDwWsS.,=+*:%|?<>(){}[\]\\\200-\377^]|0\d{2}|x[\da-fA-F]{2}|c?\.)|.)$/;
 
 =head1 METHODS
 
@@ -1730,7 +1730,7 @@ sub _re_path_pretty {
                 else {
                     $out .= do {
                             my( @short, @long );
-                            push @{length $_ > 1 ? \@long : @short}, $_ for @$path;
+                            push @{length $_ > 1 ? \@long : \@short}, $_ for @$path;
                             join( "\n$indent|" => ( sort( _re_sort @long ), _make_class(@short) ));
                         }
                     ;

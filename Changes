@@ -1,5 +1,13 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.10 Tue Mar 29 09:01:49 2005 UTC
+	- Correct Default_Lexer$ pattern to deal with the
+	  excessively backslashed tokens that C<quotemeta>
+	  likes to produce. Bug spotted by Walter Roberson.
+	- Added a fix to an obscure bug that Devel::Cover
+	  uncovered. The next release will fold in similar
+	  improvements found by using Devel::Cover.
+
 0.09 Sat Jan 22 9:28:21 2005 UTC
     - Added lookahead assertions at nodes. (This concept is
       shamelessly pinched from Dan Kogai's Regexp::Optimizer).

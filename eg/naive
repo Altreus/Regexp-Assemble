@@ -8,11 +8,11 @@
 # uses to pick apart a string into tokens suitable for being assembled. If it
 # isn't sufficiently sophisticated, you will have to supply your own lexer.
 #
-# Copyright (C) David Landgren 2004
+# Copyright (C) David Landgren 2004-2005
 
 use strict;
 
-my $meta     = q{\\\\[aefnrtdDwWsS.+*?(){}[\\]\\\\]};
+my $meta     = q{\\\\[aefnrtdDwWsS.,=+*:%|?<>(){}[\\]\\\\\\200-\\377]};
 my $octal    = q{\\\\0\d{2}};
 my $hex      = q{\\\\x(?:[\da-fA-F]{2}|\{[\da-fA-F]{4}\})};
 my $ctrl     = q{\\\\c.};
