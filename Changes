@@ -1,5 +1,9 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.07 Fri Dec 17 19:31:18 2004 UTC
+    - It would have been nice to have remembered to update the
+      release date in the POD, and the version in the README.
+
 0.06 Fri Dec 17 17:38:41 2004 UTC
     - Can now track regular expressions. Given a match, it is
       possible to determine which original pattern gave rise to the
@@ -23,10 +27,10 @@ Revision history for Perl extension Regexp::Assemble.
       installed.
 
 0.04 Fri Dec 9 22:29:56 2004 UTC
-	- In 5.6.0, the backlashes in a quoted word list, qw[ \\d ],
-	  will have their backslashes doubled up. In this case, don't
-	  run the tests. (Reading from a file or getting input from
-	  some other source other than qw[] operators works just fine).
+    - In 5.6.0, the backlashes in a quoted word list, qw[ \\d ],
+      will have their backslashes doubled up. In this case, don't
+      run the tests. (Reading from a file or getting input from
+      some other source other than qw[] operators works just fine).
 
 0.03 Wed Dec 8 21:55:27 2004 UTC
     - Bug fix: Leading 0s could be omitted from paths because of the

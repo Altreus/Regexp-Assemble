@@ -5,7 +5,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char/;
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.06 of Regexp::Assemble,
-released xxxx-xx-xx.
+This document describes version 0.07 of Regexp::Assemble,
+released 2004-12-17.
 
 =head1 SYNOPSIS
 
