@@ -6,7 +6,7 @@
 # copyright (C) 2004 David Landgren
 
 use strict;
-use Test::Simple tests => 4219;
+use Test::More tests => 4249;
 use Regexp::Assemble;
 
 sub match {
@@ -16,10 +16,82 @@ sub match {
     for $str (@_) {
         $r->insert(split //, $str);
     }
-    my $re = $r->re;
+    my $re = $r->as_string;
+    $re = $r->re;
     for $str (@_) {
-        ok( $str =~ /^$re$/, "$tag $str" ) or print "# $str\n# $re\n";
+        ok( $str =~ /^$re$/, "$tag: $str" ) or print "# fail $str\n# in $re\n";
     }
+}
+
+sub match_list {
+    my $tag  = shift;
+    my $patt = shift;
+    my $test = shift;
+    my $re = Regexp::Assemble->new->add(@$patt);
+    for my $str (@$test) {
+        ok( $str =~ /^$re$/, "$tag: $str" ) or print "# fail $str\n# in $re\n";
+    }
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( 'de' )
+        ->re;
+    ok( $re eq '(?-xism:de)', 'de' ) or die $re;
+}
+
+{
+
+    my $re = Regexp::Assemble->new
+        ->add( '^ab' )
+        ->add( '^ac' )
+        ->add( 'de' )
+        ->re;
+    ok( $re eq '(?-xism:(?:^a[bc]|de))', 'ab, ac, de' );
+}
+
+{
+    my $re = Regexp::Assemble->new( flags => 'i' )
+        ->add( '^ab' )
+        ->add( '^ac' )
+        ->add( 'de' )
+        ->re;
+    ok( $re eq '(?-xism:(?i:(?:^a[bc]|de)))', 'ab, ac, de /i' );
+}
+
+{
+    my $re = Regexp::Assemble->new( flags => 'i' )
+        ->add( '^fg' )
+        ->re;
+    ok( 'fgx' =~ /$re/, 'fgx/i' );
+    ok( 'Fgx' =~ /$re/, 'Fgx/i' );
+    ok( 'FGx' =~ /$re/, 'FGx/i' );
+    ok( 'fGx' =~ /$re/, 'fGx/i' );
+    ok( 'F'   !~ /$re/, 'F/i' );
+}
+
+{
+    my $re = Regexp::Assemble->new( flags => 'x' )
+        ->add( '^fish' )
+        ->add( '^flash' )
+        ->add( '^fetish' )
+        ->add( '^foolish' )
+        ->re( indent => 2 );
+    ok( 'fish'    =~ /$re/, 'fish/x' );
+    ok( 'flash'   =~ /$re/, 'flash/x' );
+    ok( 'fetish'  =~ /$re/, 'fetish/x' );
+    ok( 'foolish' =~ /$re/, 'foolish/x' );
+    ok( 'fetch'   !~ /$re/, 'fetch/x' );
+}
+
+match_list( 'a.x', [qw[ abx adx a.x ]] , [qw[ aax abx acx azx a4x a%x a+x a?x ]] );
+
+match_list( 'c.z', [qw[ c^z c-z c5z cmz ]] , [qw[ c^z c-z c5z cmz ]] );
+
+SKIP: {
+    skip 'backslashes in qw// operator give incorrect results in 5.6.0', 5 if $] eq '5.006';
+
+    match_list( '\d, \D', [qw[ b\\d b\\D ]] , [qw[ b4 bX b% b. b? ]] );
 }
 
 match( 'foo', qw[ foo bar rat quux ]);
@@ -38,26 +110,21 @@ match( 'g.*it', qw[ gait git grapefruit grassquit grit guitguit ]);
 
 match( 'show.*ess', qw[ showeriness showerless showiness showless ]);
 
+match( 's.*at 1', qw[ sat sweat sailbat ]);
+
 match( 'm[eant]+', qw[ ma mae man mana manatee mane manent manna mannan mant
     manta mat mate matta matte me mean meant meat meet meeten men met meta
     metate mete ]);
+
+match( 'ti[aeinost]+', qw[ tiao tie tien tin tine tinea tinean tineine
+    tininess tinnet tinniness tinosa tinstone tint tinta tintie tintiness
+    tintist tisane tit titanate titania titanite titano tite titi titian
+    titien tittie ]);
 
 match( 'v.*meter', qw[ vacuometer vaginometer vaporimeter variometer velocimeter
     velometer ventometer vertimeter viameter viatometer vibrometer vinometer
     viscometer viscosimeter visuometer voltaelectrometer voltameter voltammeter
     voltmeter volumenometer volumeter volumometer votometer ]);
-
-match( 's.*at 1', qw[ sat sweat sailbat ]);
-
-match( 's.*at 2', qw[ sabbat sailboat salariat salat saltcat saltfat sandheat
-    sat sauceboat savssat scapegoat scat sceat scelerat schochat scrat
-    scratchcat seat secretariat seraskierat shat sheat shellycoat sheriat shoat
-    shopocrat shortcoat shortschat shovegroat showboat siderostat skat skellat
-    slat slavocrat slipcoat smoothcoat snobocrat snobscat sociocrat somewhat
-    spat speedboat splat sprat sproat spyboat squat standpat stanechat
-    starthroat steamboat stoat stoneboat stonechat stratocrat strikeboat subplat
-    suclat superfat superheat supplicat surat surcoat surfboat swat sweat
-    sweetmeat ]);
 
 match( 'pro.*', qw[ proamendment proappropriation proapproval procompromise
     procrastinating procrastinatingly proctosigmoidectomy procuratorate
@@ -74,6 +141,16 @@ match( 'a.*(al|ic)', qw[ aal abactinal abasic abaxial abbatial abdal
     academical acanonical acapnial acatalectic acatastatic acaudal accessional
     accidental accipitral acclinal accompanimental accretal accultural
     accusatival ]);
+
+match( 's.*at 2', qw[ sabbat sailboat salariat salat saltcat saltfat sandheat
+    sat sauceboat savssat scapegoat scat sceat scelerat schochat scrat
+    scratchcat seat secretariat seraskierat shat sheat shellycoat sheriat shoat
+    shopocrat shortcoat shortschat shovegroat showboat siderostat skat skellat
+    slat slavocrat slipcoat smoothcoat snobocrat snobscat sociocrat somewhat
+    spat speedboat splat sprat sproat spyboat squat standpat stanechat
+    starthroat steamboat stoat stoneboat stonechat stratocrat strikeboat subplat
+    suclat superfat superheat supplicat surat surcoat surfboat swat sweat
+    sweetmeat ]);
 
 match( 'gh.*en[dt]', qw[ gabblement gangrenescent garment garnisheement
     garnishment gayment gazement gent gerent gigglement glabrescent glaucescent
@@ -97,12 +174,8 @@ match( 't.*(at|en)', qw[ tachygen taen taheen taimen taken talipat tannogen
     truvat trypsinogen tryptogen tubicen tugboat tungsten turbitteen tureen
     turfen turken turncoat twat tween twiggen twitten tyken ]);
 
-match( 'ti[aeinost]+', qw[ tiao tie tien tin tine tinea tinean tineine
-    tininess tinnet tinniness tinosa tinstone tint tinta tintie tintiness
-    tintist tisane tit titanate titania titanite titano tite titi titian
-    titien tittie ]);
-
-match( '[aeinost]+', qw[ a aa ae aenean aeon aeonian aeonist aes ai ainoi aint
+match( '[aeinost]+', qw[
+    a aa ae aenean aeon aeonian aeonist aes ai ainoi aint
     aion ait aitesis aition an ana anan anana ananas anastasis anastate
     anatase anatine anenst anent anes anesis ani aniente anion anis anisate
     anise anisette anisoin ann anna annat annates annatto annet annite
@@ -177,7 +250,8 @@ match( '[aeinost]+', qw[ a aa ae aenean aeon aeonian aeonist aes ai ainoi aint
     titania titanite titano tite titi titian titien tittie to toa toast
     toastee toastiness toat toatoa toe toetoe toi toise toit ton tonant
     tonation tone tonite tontine too toon toot toss tost toston tot
-    totanine tote totient toto tsantsa tsetse tsia tsine tst ]);
+    totanine tote totient toto tsantsa tsetse tsia tsine tst
+]);
 
 match( '[pg].*(ess|ous)', qw[ 
     gaddishness gainfulness gainless gainlessness gainliness gaiterless
@@ -259,7 +333,6 @@ match( '[pg].*(ess|ous)', qw[
     gynandrous gynantherous gynecomorphous gynecophorous gynobaseous gynodioecious
     gynodioeciously gynomonecious gynomonoeciously gypseous gypsiferous
     gypsophilous gypsous gyrencephalous gyrous ]);
-
 
 match( '[pg].*(ess|ous)', qw[ 
     pabulous pachycarpous pachycephalous pachycladous pachydactylous
@@ -854,4 +927,3 @@ match( '[su].*ess', qw[
     unworriedness unworthiness unwoundableness unzealousness
     uprighteousness uproariness uproariousness urinousness
     usuriousness utmostness uxoriousness ]);
-

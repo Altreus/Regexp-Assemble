@@ -1,15 +1,32 @@
 Revision history for Perl extension Regexp::Assemble.
 
-0.05 Fri Dec 10 11:52:13 2004
+0.06 Fri Dec 17 17:38:41 2004 UTC
+    - Can now track regular expressions. Given a match, it is
+      possible to determine which original pattern gave rise to the
+      match.
+    - Improved character class generation: . (anychar) was not
+      special-cased, which would have lead to a.b axb giving a[.x]b
+      Also takes into account single-char width metachars like \t
+      \e et al. Filters out digits if \d appears, and for similar
+      metachars (\D, \s, \W...)
+    - Added a pre_filter method, to perform input filtering prior
+      to the pattern being lexed.
+    - Added a flags method, to allow for (?imsx) pattern modifiers.
+    - enhanced the assemble script: added -b, -c, -d, -v;
+      documented -r
+    - Additions to the README
+    - Added Test::Simple and Test::More as prerequisites.
+
+0.05 Fri Dec 10 11:52:13 2004 UTC
     - Bug fix in tests. The skip test in version 0.04 did not deal
       correctly with non-5.6.0 perls that do not have Test::Deep
       installed.
 
-0.04 Thu Dec 9 22:07:38 2004
-    - Bug fix in tests. Someone smoke tested this on 5.6.0, and in
-      doing so tripped up on 5.6.0's broken handling of backslashes
-      in qw//. The tests have been amended to skip over the tests
-      in question.
+0.04 Fri Dec 9 22:29:56 2004 UTC
+	- In 5.6.0, the backlashes in a quoted word list, qw[ \\d ],
+	  will have their backslashes doubled up. In this case, don't
+	  run the tests. (Reading from a file or getting input from
+	  some other source other than qw[] operators works just fine).
 
 0.03 Wed Dec 8 21:55:27 2004 UTC
     - Bug fix: Leading 0s could be omitted from paths because of the

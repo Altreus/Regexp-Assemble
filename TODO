@@ -1,23 +1,15 @@
-1. Clean up the code in _insert. There is too much redundancy, and much
-can be factored out.
-Has been improved in v0.03 
-
-2. Tree equivalencies. Currently, /contend/ /content/ /resend/ /resent/
+1. Tree equivalencies. Currently, /contend/ /content/ /resend/ /resent/
 produces (?:conten[dt]|resend[dt]) but it is possible to produce
 (?:cont|res)en[dt] if one can spot the common tail nodes (and walk back
 the equivalent paths).
 
-3. Investigate how (?>foo) works. Can it be applied?
+2. Investigate how (?>foo) works. Can it be applied?
 
-4. Investigate how to note which original pattern triggered the match
-Coming along nicely: found a bug in perl (#32840)
-
-5. Devel::Coverage testing to ensure all code paths are exercised. More
+3. Devel::Coverage testing to ensure all code paths are exercised. More
 testing.
 
-6. Factor out slide procedure.
+4. Factor out slide procedure.
 
-7. Allow pretty-printed multiline RE output
+5. How can a tracked pattern be serialised? (Add freeze and thaw methods).
 
-8. _scan_node and _reduce_node are too computationally expensive.
-
+6. Store callbacks per tracked pattern.

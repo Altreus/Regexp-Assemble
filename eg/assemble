@@ -8,16 +8,40 @@ use strict;
 use Getopt::Std;
 use Regexp::Assemble;
 
-getopts( 'di:nprt:', \my %opt );
+use vars '$VERSION'; $VERSION = '0.2';
+
+getopts( 'bcd:i:nprt:v', \my %opt );
+
+print "$VERSION\n" and exit if $opt{v};
 
 my $ra = Regexp::Assemble->new(
 	chomp  => 1,
 	debug  => $opt{d} || 0,
 	reduce => exists $opt{r} ? 0 : 1,
-)
-->add( <> );
+);
 
-if( $opt{p} or $opt{i} ) {
+if( $opt{b} or $opt{c} ) {
+	if( !$opt{b} ) {
+		# filter comments
+		$ra->pre_filter( sub { $_[0] =~ s/\s*#.*$//; 1 } );
+	}
+	elsif( !$opt{c} ) {
+		# filter blank lines
+		$ra->pre_filter( sub { length(shift) } );
+	}
+	else {
+		# filter comments and blank lines.
+		# (removing a comment may can cause a line to become blank
+		$ra->pre_filter( sub {
+			$_[0] =~ s/\s*#.*$//;
+			length($_[0])
+		} );
+	}
+}
+
+$ra->add( <> );
+
+if( $opt{i} or $opt{p} or not $opt{t} ) {
 	print $ra->as_string( indent => $opt{i} || 0 );
 	print "\n" unless $opt{n};
 }
@@ -42,7 +66,7 @@ assemble - Assemble a list of regular expressions into a file
 
 =head1 SYNOPSIS
 
-B<assemble> [B<-dinprt>] file [...]
+B<assemble> [B<-bcdinprt>] file [...]
 
 =head1 DESCRIPTION
 
@@ -52,6 +76,14 @@ file, using the Regexp::Assemble module.
 =head1 OPTIONS
 
 =over 5
+
+=item B<-b>
+
+Blank. Ignore blank lines.
+
+=item B<-c>
+
+Comment. Basic comment filtering. Strip off perl/shell comments (C<\s*#.*$/>).
 
 =item B<-d>
 
@@ -64,19 +96,36 @@ nesting. A.k.a pretty-printing. Implies -p.
 
 =item B<-n>
 
-No newline. Do not print a newline after the pattern. Useful when interpolating
-the output into a templating system or similar.
+No newline. Do not print a newline after the pattern. Useful when
+interpolating the output into a templating system or similar.
 
 =item B<-p>
 
-Print. Print the pattern. (Should perhaps happen by default).
+Print. Print the pattern. This is the default, however, it is
+required when the -t switch is enabled (because if you want to test
+patterns ordinarily you don't care what the the assembled pattern
+looks like).
+
+=item B<-r>
+Reduce. The default behaviour is to reduce the assembled pattern.
+Enabling this switch causes the reduction algorithm to be switched
+off. This can help you determine how much reduction is performed.
+
+  assemble pattern.file | wc
+  # versus
+  assemble -r pattern.file | wc
 
 =item B<-t>
 
-Test. Test the assembled expression against the contents of a file. Each line is
-read from the file and is matched against the pattern. Lines that fail to
-match are printed. In other words, no output is good output. In this mode of
-operation, error status is 1 in the case of a failure, 0 if all lines matched.
+Test. Test the assembled expression against the contents of a file.
+Each line is read from the file and is matched against the pattern.
+Lines that fail to match are printed. In other words, no output is
+good output. In this mode of operation, error status is 1 in the
+case of a failure, 0 if all lines matched.
+
+=item B<-v>
+
+Version. Print the version of the assemble script.
 
 =back
 

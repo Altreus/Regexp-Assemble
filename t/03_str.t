@@ -6,7 +6,7 @@
 # copyright (C) 2004 David Landgren
 
 use strict;
-use Test::Simple tests => 45;
+use Test::Simple tests => 70;
 
 use Regexp::Assemble;
 
@@ -58,6 +58,155 @@ ok( Regexp::Assemble->new
     ->as_string eq '(?:do|a)?', '// /a/ /do/' );
 
 ok( Regexp::Assemble->new
+    ->insert( 'x' )
+    ->insert( '.' )
+    ->as_string eq '.', '/x/ /./' );
+
+ok( Regexp::Assemble->new
+    ->insert( '\033' )
+    ->insert( '.' )
+    ->as_string eq '.', '/\x033/ /./' );
+
+ok( Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '\\s' )
+    ->insert( '.' )
+    ->as_string eq '.', '/\d/ /\s/ /./' );
+
+ok( Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '\\D' )
+    ->as_string eq '.', '/\d/ /\D/' );
+
+ok( Regexp::Assemble->new
+    ->insert( '\\s' )
+    ->insert( '\\S' )
+    ->as_string eq '.', '/\s/ /\S/' );
+
+ok( Regexp::Assemble->new
+    ->insert( '\\w' )
+    ->insert( '\\W' )
+    ->as_string eq '.', '/\w/ /\W/' );
+
+ok( Regexp::Assemble->new
+    ->insert( '\\w' )
+    ->insert( '\\W' )
+    ->insert( '	' ) # that's a TAB character, by the way
+    ->as_string eq '.', '/\w/ /\W/ /\t/' );
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '5' )
+    ->as_string) eq '\\d', '/\d/ /5/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '5' )
+    ->insert( '' )
+    ->as_string) eq '\\d?', '/\d/ /5/ //' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\s' )
+    ->insert( ' ' )
+    ->as_string) eq '\\s', '/\s/ / /' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\s' )
+    ->insert( '' )
+    ->as_string) eq '\\s?', '/\s/ //' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '5' )
+    ->insert( '7' )
+    ->insert( '0' )
+    ->as_string) eq '\\d', '/\d/ /0/ /5/ /7/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( 'x' )
+    ->insert( '5' )
+    ->insert( '7' )
+    ->insert( '0' )
+    ->as_string) eq '[\\dx]', '/\d/ /x/ /0/ /5/ /7/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '\\s' )
+    ->insert( ' ' )
+    ->insert( '5' )
+    ->insert( '7' )
+    ->insert( '0' )
+    ->as_string) eq '[\\d\\s]', '/\d/ /\s/ / / /0/ /5/ /7/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\.' )
+    ->insert( 'p' )
+    ->as_string) eq '[.p]', '/\./ /p/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\w' )
+    ->insert( '5' )
+    ->insert( '1' )
+    ->insert( '0' )
+    ->insert( 'a' )
+    ->insert( '_' )
+    ->as_string) eq '\\w', '/\w/ /_/ /a/ /0/ /5/ /1/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '\\^' )
+    ->insert( '' )
+    ->as_string) eq '[\\d^]?', '/\d/ /^/ //' ) or warn "# $_\n";
+
+ok( Regexp::Assemble->new
+    ->insert( 'a', "\@", 'z' )
+    ->insert( 'a', "\?", 'z' )
+    ->as_string eq 'a[?@]z', '/a\@z/ /a\?z/' );
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\+' )
+    ->as_string) eq '\\+', '/\+/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '\\+' )
+    ->insert( '\\*' )
+    ->as_string) eq '[*+]', '/\+/ /\*/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '-' )
+    ->insert( 'z' )
+    ->insert( '0' )
+    ->as_string) eq '[-0z]', '/-/ /0/ /z/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '-' )
+    ->insert( '\\+' )
+    ->insert( '\\*' )
+    ->as_string) eq '[-*+]', '/-/ /\+/ /\*/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '^' )
+    ->insert( 'z' )
+    ->insert( '0' )
+    ->as_string) eq '[0z^]', '/^/ /0/ /z/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '^' )
+    ->insert( 'z' )
+    ->insert( '-' )
+    ->insert( '0' )
+    ->as_string) eq '[-0z^]', '/^/ /-/ /0/ /z/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
+    ->insert( '^' )
+    ->insert( '\w' )
+    ->insert( 'z' )
+    ->insert( '-' )
+    ->insert( '0' )
+    ->as_string) eq '[-\w^]', '/^/ /-/ /0/ /\w/ /z/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
     ->insert( '0' )
     ->insert( '1' )
     ->insert( '2' )
@@ -68,7 +217,7 @@ ok( Regexp::Assemble->new
     ->insert( '7' )
     ->insert( '8' )
     ->insert( '9' )
-    ->as_string eq '\\d', '/0/ .. /9/' );
+    ->as_string) eq '\\d', '/0/ .. /9/' ) or warn "# $_\n";
 
 ok( Regexp::Assemble->new
     ->insert( 'x' )

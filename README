@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.05
+The file is the README for Regexp::Assemble version 0.04
 
 INSTALLATION
 
@@ -19,6 +19,16 @@ This module requires the following modules for thorough testing:
 I suspect I could rewrite the tests with out Test::Deep these days;
 Test::More should be sufficient. This is mainly the result of legacy
 architectural decisions that no longer hold true.
+
+UNINSTALLATION
+
+This is a pure-Perl module. The following one-liner should print
+out the canonical path of the file:
+
+  perl -MRegexp::Assemble -le 'print $INC{"Regexp/Assemble.pm"}'
+
+Just delete this file. There is also the question of the man page.
+Finding that is left as an exercise to the reader.
 
 BASIC USAGE
 
@@ -52,6 +62,122 @@ print Regexp::Assemble->new->add(@word)->reduce(0)->as_string;
 
 See the ./eg directory for some example scripts. More will be added
 in subsequent releases.
+
+ADVANCED USAGE
+
+If you want to match things with exceptions, you can use a two
+stage process to build a pattern with negative lookbehind. Consider
+the following script:
+
+== example begin ==
+use Regexp::Assemble;
+
+my $set = [
+    {
+        accept => [qw[ .cnn.net .cnn.com ]],
+        refuse => [qw[ ^media video ]],
+    },
+    {
+        accept => [qw[ .yahoo.com ]],
+    },
+];
+
+my $ra = Regexp::Assemble->new;
+
+for my $s( @$set ) {
+    my $refuse = do {
+        if( not exists $s->{refuse} ) {
+            '';
+        }
+        else {
+            '(?<!'
+            . Regexp::Assemble->new->add( @{$s->{refuse}} )->as_string
+            . ')'
+        }
+    };
+    $ra->add( map { s/\./\\./g; "$refuse$_\$" } @{$s->{accept}} );
+}
+
+my $re = $ra->re;
+
+print $ra->as_string, "\n";
+
+while( <> ) {
+    print;
+    chomp;
+    print "\t", (/$re/ ? 'yep' : 'nope'), "\n";
+}
+
+== example end ==
+
+and a datafile to run it on:
+
+== data begin ==
+media.cnn.com
+more.video.cnn.net
+super.media.cnn.com
+video.cnn.net
+video.yahoo.com
+www.cnn.com
+www.cnn.net
+www.yahoo.com
+== data end ==
+
+This lets us match arbitrary hosts within a domain, but at the same
+time excluding a subset of hosts that we wish to ignore.
+
+TRACKING REGULAR EXPRESSION MATCHES
+
+Regexp::Assemble can emit regular expressions that, when used correctly,
+can let you determine which original pattern gave rise to the match.
+This technique is known as tracking.
+
+== example begin ==
+
+use strict;
+use Regexp::Assemble;
+
+my $dispatch = {
+    'a-(\\d+)'        => sub { my $v = shift; print "speed $v->[1]\n"; },
+    'a-(\\d+)-(\\d+)' => sub { my $v = shift; print "pressure $v->[1] over $v->[2]\n"; },
+    'a-(\\w+)-(\\w+)' => sub { my $v = shift; print "message $v->[1] from $v->[2]\n"; },
+};
+
+my $re = Regexp::Assemble->new( track => 1 )->add( keys %$dispatch );
+
+while( <> ) {
+    chomp;
+    if( $re->match($_) ) {
+        $dispatch->{ $re->matched }( $re->mvar() );
+    }
+    else {
+        last if /q/;
+        print "\tignored\n";
+    }
+}
+
+== example end ==
+
+Run this and enter lines like a-234, a-654, a-345-345, a-dog-cat and so
+on. When the pattern matches a string, you can retrieve the pattern
+that caused the match to occur, and dispatch it to a routine that knows
+what to do about it. You can retrieve captured values too. In the above
+example, just remember that $v->[1] eq $1. $v->[0], a.k.a $re->mvar(0)
+happens to be the the same as the input parameter to match (although
+this is worked out from first principles, more or less, not simply by
+copying the parameter).
+
+I initially hoped that $^R would handle this sort of stuff for me, but
+there's a bug. Consider the following pattern:
+
+    a(?{1}) (?: b(?{2}) )?
+
+(whitespace added for clarity). This pattern will match both the strings
+'a' and 'ab', however, in both cases, $^R will be set to 1 aftewards. I
+would have hoped that after matching 'ab', that $^R would be set to 2.
+
+Until such time as this is fixed, tracking is bound to be a little
+cumbersome.
 
 IMPLEMENTATION
 
@@ -269,6 +395,14 @@ patterns should match.
 
 The two scripts assemble and assemble-check, supplied as examples,
 can also help you play around with this process.
+
+When tracking is in use, no reduction is performed.
+
+Pretty-printed (indented), and tracking is handled merely by calling
+different output routines. Each routine emits things in a different
+way, but the underlying structure remains the same. Which is one
+reason why you can't have pretty-printed tracked patterns (Well you
+can, but I haven't written the routine that would do so).
 
 DEBUGGING NOTES
 

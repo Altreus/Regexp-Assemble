@@ -4,8 +4,8 @@
 
 package Regexp::Assemble;
 
-use vars qw/$VERSION $have_Storable $Default_Lexer/;
-$VERSION = '0.05';
+use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char/;
+$VERSION = '0.06';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.05 of Regexp::Assemble,
-released 2004-12-10.
+This document describes version 0.06 of Regexp::Assemble,
+released xxxx-xx-xx.
 
 =head1 SYNOPSIS
 
@@ -29,17 +29,18 @@ released 2004-12-10.
 
 =head1 DESCRIPTION
 
-Regexp::Assemble takes a number of regular expressions and assembles
-them into a single regular expression (or RE) that matches all that
-the individual REs match, only what they match and nothing else.
+Regexp::Assemble allows you to take a number of regular expressions
+and assemble them into a single regular expression (or RE) that
+will match everything that any of the individual REs match, only what
+they match and nothing else.
 
-The assembled RE is more sophisticated than a brute force C<join(
-'|', @list)> concatenation. Common subexpressions are shared;
-alternations are introduced only when patterns diverge. As a result,
-backtracking is kept to a minimum. If a given path fails... there
-are no other paths to try and so the expression fails quickly. If
-no wildcards like C<.*> appear, no backtracking will be performed.
-In very large expressions, this can provide a large speed boost.
+The assembled RE is more sophisticated than a brute force C<join( '|', @list)>
+concatenation. Common subexpressions are shared; alternations are
+introduced only when patterns diverge. As a result, backtracking
+is kept to a minimum. If a given path fails... there are no other
+paths to try and so the expression fails quickly. If no wildcards
+like C<.*> appear, no backtracking will be performed.  In very large
+expressions, this can provide a large speed boost.
 
 As a result, instead of having a large list of expressions to loop
 over, the string only needs to be tested against one expression.
@@ -47,11 +48,15 @@ This is especially interesting when on average the expression fails
 to match most of the time.
 
 This is useful when you have a large number of patterns that you
-want to apply against a string. If you only that one of the
-patterns matched then this module is for you. Nonetheless, large
-numbers of alternations are dealt with in O(n) time, not O(1). If
-you are still having performance problems, you should look at using
-a trie.
+want to apply against a string. It is also possible to track the
+orginal patterns, so that you can determine which, among the source
+patterns that form the assembled pattern, was the one that caused
+the match to occur.
+
+You should realise that large numbers of alternations are processed
+in perl's regular expression engine in O(n) time, not O(1). If you
+are still having performance problems, you should look at using a
+trie.
 
 Some more examples of usage appear in the accompanying README.
 
@@ -66,6 +71,9 @@ use constant DEBUG_TAIL    => 2;
 # The following pattern was generated using naive.pl and pasted in here
 $Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[aefnrtdDwWsS.+*?]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
 
+# Charact class candidates
+$Single_Char = qr/^(?:\\(?:[aDdefnrSstWw]|0\d{2}|x[\da-fA-F]{2}|c?\.|[*+?()@^$\/[])|.)$/;
+
 =head1 METHODS
 
 =over 8
@@ -76,12 +84,29 @@ Creates a new Regexp::Assemble object. A set of key/value parameters
 can be supplied to control the finer details of the object's
 behaviour.
 
+B<flags>, sets the flags C<imsx> that should be applied to the
+resulting pattern. Warning: no error checking is done, you should
+ensure that the flags you pass are understood by the version of
+Perl in use.
+
 B<chomp>, controls whether the pattern should be chomped before being
 lexed. Handy if you are reading lines from a file. By default, no
 chomping is performed.
 
+B<track>, controls whether you want know which of the initial patterns
+was the one that matched. See the C<matched> method for more details.
+Note that in this mode of operation THERE ARE SECURITY IMPLICATIONS OF
+WHICH YOU YOU SHOULD BE AWARE.
+
+B<pre_filter>, allows you to add a callback to enable sanity checks
+on the pattern being loaded. This callback is triggered before the
+pattern is split apart by the lexer. In other words, it operates
+on the entire pattern. If you are loading patterns from a file,
+this would be an appropriate place to remove comments.
+
 B<filter>, allows you to add a callback to enable sanity checks on
-the pattern being loaded.
+the pattern being loaded. This callback is triggered after the
+pattern has been split apart by the lexer.
 
 B<mutable>, controls whether new patterns can be added to the object
 after the RE is generated.
@@ -110,14 +135,17 @@ sub new {
     my $class = shift;
     my %args = @_;
     bless {
-        re      => undef,
-        str     => undef,
-        lex     => exists $args{lex}     ? qr/$args{lex}/ : qr/$Default_Lexer/,
-        chomp   => exists $args{chomp}   ? $args{chomp}   : 0,
-        reduce  => exists $args{reduce}  ? $args{reduce}  : 1,
-        mutable => exists $args{mutable} ? $args{mutable} : 0,
-        debug   => exists $args{debug}   ? $args{debug}   : 0,
-        filter  => $args{filter}, # don't care if it's not there
+        re         => undef,
+        str        => undef,
+        lex        => exists $args{lex}     ? qr/$args{lex}/ : qr/$Default_Lexer/,
+        flags      => exists $args{flags}   ? $args{flags}   : '',
+        chomp      => exists $args{chomp}   ? $args{chomp}   : 0,
+        track      => exists $args{track}   ? $args{track}   : 0,
+        reduce     => exists $args{reduce}  ? $args{reduce}  : 1,
+        mutable    => exists $args{mutable} ? $args{mutable} : 0,
+        debug      => exists $args{debug}   ? $args{debug}   : 0,
+        filter     => $args{filter}, # don't care if it's not there
+        pre_filter => $args{pre_filter}, # don't care if it's not there
         path    => [],
     },
     $class;
@@ -138,14 +166,17 @@ otherwise the cloning will be performed using a pure perl approach.
 sub clone {
     my $self = shift;
     my $clone = {
-        re      => $self->{re},
-        str     => $self->{str},
-        lex     => $self->{lex},
-        chomp   => $self->{chomp},
-        reduce  => $self->{reduce},
-        mutable => $self->{mutable},
-        debug   => $self->{debug},
-        path    => _path_clone($self->_path),
+        re         => $self->{re},
+        str        => $self->{str},
+        lex        => $self->{lex},
+        chomp      => $self->{chomp},
+        track      => $self->{track},
+        reduce     => $self->{reduce},
+        mutable    => $self->{mutable},
+        debug      => $self->{debug},
+        filter     => $self->{filter},
+        pre_filter => $self->{pre_filter},
+        path       => _path_clone($self->_path),
     };
     bless $clone, ref($self);
 }
@@ -184,6 +215,9 @@ get files to work correctly:
     my $re = Regexp::Assemble->new;
     $re->chomp(1)->add( <IN> );
 
+The pre_filter method provides allows you to filter input on a
+line-by-line basis.
+
 This method is chainable.
 
 =cut
@@ -191,8 +225,9 @@ This method is chainable.
 sub _lex {
     my $self   = shift;
     my $record = shift;
+    return () if $record eq '';
     my @path   = ();
-    while( $record =~  s/($self->{lex})// ) {
+    while( $record =~  s/^($self->{lex})// ) {
         length($1) or croak
             "lexed a zero-length token, an infinite loop would ensue\nlex=$self->{lex}\nrecord=$record\n";
         push @path, $1;
@@ -204,8 +239,10 @@ sub _lex {
 sub add {
     my $self = shift;
     my $record;
-    while( defined( $record = pop @_ )) {
+    while( defined( $record = shift @_ )) {
         chomp($record) if $self->{chomp};
+        next if $self->{pre_filter} and not $self->{pre_filter}->($record);
+        print "record=<$record>\n" if $self->{debug} == DEBUG_ADD;
         $self->insert( $self->_lex($record) );
     }
     $self;
@@ -226,6 +263,9 @@ This method is chainable, I<e.g.>:
 
 The C<add> method calls C<insert> internally.
 
+The C<filter> method allows you to accept or reject the
+addition of the entire pattern on a token-by-token basis.
+
 =cut
 
 sub insert {
@@ -233,7 +273,7 @@ sub insert {
     my $debug = $self->_debug(DEBUG_ADD);
     return $self if $self->{filter} and not $self->{filter}->(@_);
     $self->{path} = _insert_path( $self->_path, $debug, @_ );
-    $self->{str}  = $self->{re} = undef;
+    $self->{str} = $self->{re} = undef;
     $self;
 }
 
@@ -254,7 +294,8 @@ even more synthetic view of the pattern:
 
 The result of the above is quite readable. Remember to backslash the
 spaces appearing in your own patterns if you wish to use an indented
-pattern in an C<m/.../x> construct.
+pattern in an C<m/.../x> construct. Indenting is ignored if tracking
+is enabled.
 
 If you have not set the B<mutable> attribute on the object, calling this
 method will drain the internal data structure. Large numbers of patterns
@@ -268,35 +309,40 @@ after an assembled pattern has been produced.
 sub as_string {
     my $self = shift;
     if( not defined $self->{str} ) {
-        $self->_reduce if not $self->{mutable} and $self->{reduce};
-        my $arg  = {@_};
-        if( exists $arg->{indent} and $arg->{indent} > 0 ) {
-            $arg->{depth} = 0;
-            $self->{str}  = _re_path_pretty($self->_path, $arg);
+        if( $self->{track} ) {
+            $self->{m}      = undef;
+            $self->{mcount} = 0;
+            $self->{mlist}  = [];
+            $self->{str}    = _re_path_track($self, $self->_path, '', '');
         }
         else {
-            $self->{str}  = _re_path($self->_path);
+            $self->_reduce unless ($self->{mutable} or not $self->{reduce});
+            my $arg  = {@_};
+            if( exists $arg->{indent} and $arg->{indent} > 0 ) {
+                $arg->{depth} = 0;
+                $self->{str}  = _re_path_pretty($self->_path, $arg);
+            }
+            else {
+                $self->{str}  = _re_path($self->_path);
+            }
         }
         $self->{path} = [] unless $self->{mutable};
     }
-    # if no string, do not match anything
+    # the assembled pattern, otherwise explicitly match nothing
     $self->{str} || '^a\bz';
 }
 
 =item re
 
-Assembles the pattern and return it as a compiled RE, using the C<qr//>
-operator. Note that there is no way of specifying flags to the qr
-operator. If you need to do something fancy, then you should retrieve
-the string using the B<as_string> operator and apply the required
-C<qr//imx>-type flags yourself.
-
-The B<indent> attribute, documented in the C<as_string> method can be
-used here.
+Assembles the pattern and return it as a compiled RE, using the
+C<qr//> operator.
 
 As with C<as_string>, calling this method will reset the internal data
 structures to free the memory used in assembling the RE. This behaviour
 can be controlled with the C<mutable> attribute.
+
+The B<indent> attribute, documented in the C<as_string> method, can be
+used here (it will be ignored if tracking is enabled).
 
 With method chaining, it is possible to produce a RE without having
 a temporary C<Regexp::Assemble> object lying around, I<e.g.>:
@@ -314,10 +360,10 @@ directly:
     /$re/ and print "Something in [$_] matched\n";
   )
 
-Note that when a C<Regexp::Assemble> object is used in string context
-(hence, within an C<m//> operator), the C<re> method is called, so
-you don't even need to save the RE in a separate variable. The
-following will work as expected:
+The C<re> method is called when the object is used in string context
+(hence, withing an C<m//> operator), so by and large you do not even
+need to save the RE in a separate variable. The following will work
+as expected:
 
   my $re = Regexp::Assemble->new->add( qw[ fee fie foe fum ] );
   while( <IN> ) {
@@ -326,13 +372,16 @@ following will work as expected:
     }
   }
 
+This approach does not work with tracked patterns. The
+C<match> and C<matched> methods must be used instead, see below.
+
 =cut
 
 sub re {
     my $self = shift;
     if( not defined $self->{re} ) {
         my $re = $self->as_string(@_);
-        $self->{re} = qr/$re/;
+        $self->{re} = length $self->{flags} ? qr/(?$self->{flags}:$re)/ : qr/$re/;
     }
     $self->{re};
 }
@@ -343,6 +392,146 @@ sub re {
 # showing me this technique.
 
 use overload '""' => sub { $#_ = 0; goto &re };
+
+=item match(SCALAR)
+
+If pattern tracking is in use, you must C<use re 'eval'> in order
+to make things work correctly. At a minimum, this will make your
+code look like this:
+
+    my $did_match = do { use re 'eval'; $target =~ /$ra/ }
+    if( $did_match ) {
+        print "matched ", $ra->matched, "\n";
+    }
+
+(The main reason is that the C<$^R> variable is currently broken
+and an ugly workaround is required. See Perl bug #32840 for more
+information if you are curious. The README also contains more
+information).
+
+The important thing to note is that with C<use re 'eval'>, THERE
+ARE SECURITY IMPLICATIONS WHICH YOU IGNORE AT YOUR PERIL. The problem
+is this: if you do not have strict control over the patterns being
+fed to C<Regexp::Assemble> when tracking is enabled, and someone
+slips you a pattern such as C</^(?{system 'rm -rf /'})/> and you
+attempt to match a string against the resulting pattern, you will
+know Fear and Loathing.
+
+What is more, the C<$^R> workaround means that that tracking does
+not work if you perform a bare C</$re/> pattern match as shown
+above. You have to instead call the C<match> method, in order to
+supply the necessary context to take care of the tracking housekeeping
+details.
+
+   if( defined( my $match = $ra->match($_)) ) {
+       print "  $_ matched by $match\n";
+   }
+
+In the case of a successul match, the original matched pattern
+is returned directly. The matched pattern will also be available
+through the C<matched> method.
+
+(Except that the above is not true for 5.6.0: the C<match> method
+returns true or undef, and the C<matched> method always returns
+undef).
+
+If you are capturing parts of the pattern I<e.g.> C<foo(bar)rat>
+you will want to get at the captures. See the C<mbegin>, C<mend>
+and C<mvar> methods. If you are not using captures then you may
+safely ignore this section.
+
+=cut
+
+sub match {
+    my $self = shift;
+    my $target = shift;
+    if( !$self->{re} ) {
+        my $str = $self->as_string;
+        use re 'eval';
+        $self->{re} = qr/$str/;
+    }
+    $self->{m}    = undef;
+    $self->{mvar} = [];
+    if( not $target =~ /$self->{re}/ ) {
+        $self->{mbegin} = [];
+        $self->{mend}   = [];
+        return undef;
+    }
+# warn "\n# $self->{re} <$self->{m}>\n";
+    $self->{mbegin} = _path_copy([@-]);
+    $self->{mend}   = _path_copy([@+]);
+    my $n = 0;
+    for( my $n = 0; $n < @-; ++$n ) {
+        push @{$self->{mvar}}, substr($target, $-[$n], $+[$n] - $-[$n])
+            if defined $-[$n] and defined $+[$n];
+    }
+    # warn "\n# m=<$self->{m}>\n";
+    $self->{track} and defined $self->{m} ? $self->{mlist}[$self->{m}] : 1;
+}
+
+=item mbegin
+
+This method returns a copy of C<@-> at the moment of the
+last match. You should ordinarily not need to bother with
+this, C<mvar> should be able to supply all your needs.
+
+=cut
+
+sub mbegin {
+    my $self = shift;
+    exists $self->{mbegin} ? $self->{mbegin} : [];
+}
+
+=item mend
+
+This method returns a copy of C<@+> at the moment of the
+last match.
+
+=cut
+
+sub mend {
+    my $self = shift;
+    exists $self->{mend} ? $self->{mend} : [];
+}
+
+=item mvar(NUMBER)
+
+The C<mvar> method returns the captures of the last match.
+C<mvar(1)> corresponds to $1, C<mvar(2)> to $2, and so on.
+C<mvar(0)> happens to return the target string matched,
+as a byproduct of walking down the C<@-> and C<@+> arrays
+after the match.
+
+If called without a parameter, C<mvar> will return a
+reference to an array containing all captures.
+
+=cut
+
+sub mvar {
+    my $self = shift;
+    return undef unless exists $self->{mvar};
+    defined($_[0]) ? $self->{mvar}[$_[0]] : $self->{mvar};
+}
+
+=item matched
+
+If pattern tracking has been set, via the C<track> attribute,
+or through the C<track> method, this method will return the
+original pattern of the last successful match. Returns undef
+match has yet been performed, or tracking has not been enabled.
+
+See below in the NOTES section for additional subtleties of
+which you should be aware of when tracking patterns.
+
+Note that this method is not available in 5.6.0, due to
+limitations in the implementation of C<(?{...})> at the time.
+
+=cut
+
+sub matched {
+    my $self = shift;
+    defined $self->{m} ? $self->{mlist}[$self->{m}] : undef;
+}
 
 =item debug(NUMBER)
 
@@ -388,13 +577,84 @@ sub chomp {
     $self;
 }
 
+=item flags(STRING)
+
+Sets the flags that govern how the pattern behaves (for
+versions of Perl up to 5.9 or so, these are C<imsx>). By
+default no flags are enabled.
+
+=cut
+
+sub flags {
+    my $self = shift;
+    $self->{flags} = defined($_[0]) ? $_[0] : '';
+    $self;
+}
+
+=item track(0|1)
+
+Turns tracking on or off. When this attribute is enabled,
+additional housekeeping information is inserted into the
+assembled expression using C<({...}> embedded code
+constructs. This provides the necessary information to
+determine which, of the original patterns added, was the
+one that caused the match.
+
+  $re->track( 1 );
+  if( $target =~ /$re/ ) {
+    print "$target matched by ", $re->matched, "\n";
+  }
+
+Note that when this functionality is enabled, no
+reduction is performed and no character classes are
+generated. In other words, C<brag|tag> is not
+reduced down to C<(?:br|t)ag> and C<dig|dim> is not
+reduced to C<di[gm]>.
+
+=cut
+
+sub track {
+    my $self = shift;
+    $self->{track} = defined($_[0]) ? $_[0] : 1;
+    $self;
+}
+
+=item pre_filter(CODE)
+
+Allows you to install a callback to check that the pattern being
+loaded contains valid input. It receives the pattern as a whole
+to be added, before it been tokenised by the lexer. It may to return 0 or undef to
+indicate that the pattern should not be added, any true value
+indicates that the contents are fine.
+
+TODO: how to remove comments
+
+If you want to remove the filter, pass C<undef> as a parameter.
+
+  $ra->pre_filter(undef);
+
+This method is chainable.
+
+=cut
+
+sub pre_filter {
+    my $self   = shift;
+    my $pre_filter = shift;
+    if( defined $pre_filter and ref($pre_filter) ne 'CODE' ) {
+        croak "pre_filter method not passed a coderef\n";
+    }
+    $self->{pre_filter} = $pre_filter;
+    $self;
+}
+
+
 =item filter(CODE)
 
-Allows you to install a callback to check that the pattern
-being loaded contains valid input. It receives a list on
-input. It is expected to return 0 to indicate that the
-pattern should not be added, anything else indicates
-that the contents are fine.
+Allows you to install a callback to check that the pattern being
+loaded contains valid input. It receives a list on input, after it
+has been tokenised by the lexer. It may to return 0 or undef to
+indicate that the pattern should not be added, any true value
+indicates that the contents are fine.
 
 If you know that all patterns you expect to assemble contain
 a restricted set of of tokens (e.g. no spaces), you could do
@@ -433,6 +693,7 @@ sub filter {
 =item lex(SCALAR)
 
 Change the pattern used to break a string apart into tokens.
+You can study the C<eg/naive> script as a starting point.
 
 =cut
 
@@ -500,7 +761,7 @@ sub mutable {
 Resets the internal state of the object, as if no C<add> or
 C<insert> methods had been called. Does not modify the state
 of controller attributes such as C<debug>, C<lex>, C<reduce>
-and so forth.
+and the like.
 
 =cut
 
@@ -618,6 +879,23 @@ sub _insert_path {
     my $path   = $list;
     my $offset = 0;
     my $token;
+    if( !@_ ) {
+        if( not @$list ) {
+            $list = [{'' => undef}];
+        }
+        elsif( ref($list->[0]) eq 'HASH' ) {
+            $list->[0]{''} = undef;
+        }
+        else {
+            $list = [
+                {
+                    '' => undef,
+                    $list->[0] => [@$list],
+                }
+            ];
+        }
+        return $list;
+    }
     while( defined( $token = shift @_ )) {
         if( ref($token) eq 'HASH' ) {
             $path = _insert_node( $path, $offset, $token, $debug, @_ );
@@ -660,6 +938,7 @@ sub _insert_path {
             last;
         }
         elsif( $token ne $path->[$offset] ) {
+            print "  token $token not present\n" if $debug;
             if( @_ or length $token ) {
                 my $key = ref($token) eq 'HASH' ? _node_key($token) : $token;
                 splice @$path, $offset, @$path-$offset, {
@@ -1215,6 +1494,32 @@ sub _node_key {
 
 #####################################################################
 
+sub _make_class {
+    my %set = map { ($_,1) } @_;
+    return '.' if exists $set{'.'}
+        or (exists $set{'\\d'} and exists $set{'\\D'})
+        or (exists $set{'\\s'} and exists $set{'\\S'})
+        or (exists $set{'\\w'} and exists $set{'\\W'})
+    ;
+    for my $meta( q/\\d/, q/\\D/, q/\\s/, q/\\S/, q/\\w/, q/\\W/ ) {
+        if( exists $set{$meta} ) {
+            my $re = qr/$meta/;
+            my @delete;
+            $_ =~ /^$re$/ and push @delete, $_ for keys %set;
+            delete @set{@delete} if @delete;
+        }
+    }
+    return (keys %set)[0] if keys %set == 1;
+    for my $meta( '.', '+', '*', '?', '(', ')', '^', '@', '$', '[', '/', ) {
+        exists $set{"\\$meta"} and $set{$meta} = delete $set{"\\$meta"};
+    }
+    my $dash  = exists $set{'-'} ? do { delete($set{'-'}), '-' } : '';
+    my $caret = exists $set{'^'} ? do { delete($set{'^'}), '^' } : '';
+    my $class = join( '' => sort keys %set );
+    $class =~ s/0123456789/\\d/ and $class eq '\\d' and return $class;
+    "[$dash$class$caret]";
+}
+
 sub _re_path {
     my $in  = shift;
     ref($in) ne 'ARRAY'
@@ -1231,7 +1536,7 @@ sub _re_path {
                 keys %$p
             ];
             my $nr     = @$path;
-            my $nr_one = grep { length($_) == 1 } @$path;
+            my $nr_one = grep { /^$Single_Char$/ } @$path;
             if( $nr_one == 1 and $nr == 1 ) {
                 $out .= $path->[0];
             }
@@ -1249,7 +1554,7 @@ sub _re_path {
                     $out .= '(?:'
                         . do {
                             my( @short, @long );
-                            push @{length $_ > 1 ? \@long : @short}, $_ for @$path;
+                            push @{ /^$Single_Char$/ ? \@short : \@long}, $_ for @$path;
                             join( '|', ( sort( _re_sort @long ), _make_class(@short) ))
                         }
                         . ')'
@@ -1260,6 +1565,46 @@ sub _re_path {
         }
     }
     $out;
+}
+
+sub _re_path_track {
+    my $self      = shift;
+    my $in        = shift;
+    my $normal    = shift;
+    my $augmented = shift;
+    ref($in) ne 'ARRAY'
+        and croak "was not passed an ARRAY ref\n", _dump([$in]), "\n";
+    my $o;
+    my $simple  = '';
+    my $augment = '';
+    for( my $n = 0; $n < @$in; ++$n ) {
+        if( ref($in->[$n]) eq '' ) {
+            $o = $in->[$n];
+            $simple  .= $o;
+            $augment .= $o;
+            if( $n == @$in - 1 or (
+                $n < @$in - 1
+                and ref($in->[$n+1]) eq 'HASH'
+                and exists $in->[$n+1]{''}
+            )) {
+                push @{$self->{mlist}}, $normal . $simple ;
+                $augment .= "(?{\$self->{m}=$self->{mcount}})";
+                ++$self->{mcount};
+            }
+        }
+        else {
+            my $path = [
+                map { $self->_re_path_track( $in->[$n]{$_}, $normal.$simple , $augmented.$augment ) }
+                grep { $_ ne '' }
+                keys %{$in->[$n]}
+            ];
+            $o = '(?:' . join( '|' => sort _re_sort @$path ) . ')';
+            $o .= '?' if exists $in->[$n]{''};
+            $simple  .= $o;
+            $augment .= $o;
+        }
+    }
+    $augment;
 }
 
 sub _re_path_pretty {
@@ -1330,17 +1675,6 @@ sub _re_path_pretty {
     $out;
 }
 
-sub _make_class {
-    my $class = join( '' => sort @_ );
-    if( $class eq '0123456789' ) {
-        '\\d';
-    }
-    else {
-        $class =~ s/0123456789/\\d/;
-        "[$class]";
-    }
-}
-
 sub _re_sort {
     length $b <=> length $a || $a cmp $b
 }
@@ -1392,8 +1726,7 @@ sub _dump {
             $dump .= '*';
         }
     }
-    $dump .= ']';
-    $dump;
+    $dump . ']';
 }
 
 sub _dump_node {
@@ -1410,8 +1743,7 @@ sub _dump_node {
             $dump .= "$n=>" . _dump($node->{$n});
         }
     }
-    $dump .= '}';
-    $dump;
+    $dump . '}';
 }
 
 1;
@@ -1454,7 +1786,7 @@ turn off debugging (it's off by default).
 =head1 NOTES
 
 This module has been tested successfully with a range of versions
-of perl, from 5.005_03 to 5.8.6.
+of perl, from 5.005_03 to 5.8.6. Use of 5.6.0 is not recommended.
 
 The expressions produced by this module can be used with the PCRE
 library.
@@ -1474,18 +1806,52 @@ backtracking occurs in the second pattern: The engine scans up to
 the 'z' and then fails immediately, since neither of the alternations
 start with 'z'.
 
-R::A does, however, understand character classes. Given C<a-b>,
-C<axb> and C<a\db>, it will assemble these into C<a[-\dx]b>. When
-- appears as a candidate for a character class it will be the first
-character in the class.  When ^ appears as a candidate for a character
-class it will be the last character in the class. R::A will also
-replace all the digits 0..9 appearing in a character class by C<\d>.
-I'd do it for letters as well, but thinking about accented characters
-and other glyphs hurts my head.
+Regexp::Assemble does, however, understand character classes. Given
+C<a-b>, C<axb> and C<a\db>, it will assemble these into C<a[-\dx]b>.
+When - appears as a candidate for a character class it will be the
+first character in the class.  When ^ appears as a candidate for a
+character class it will be the last character in the class.
+
+It also knows about meta-characters than can "absorb" regular
+characters. For instance, given C<a\d> and C<a5>, it knows that <5>
+can be represented by C<\d> and so the assembly is just C<a\d>. The
+"absorbent" meta-characters it deals with are C<.>, C<\d>, C<\s>
+and C<\W> and their complements. It also knows that C<\d> and C<\D>
+can be replaced by C<.>.
+
+Regexp::Assemble will also replace all the digits 0..9 appearing
+in a character class by C<\d>. I'd do it for letters as well, but
+thinking about accented characters and other glyphs hurts my head.
+
+When tracking is in use, no reduction is performed. Furthermore,
+no character classes are formed. The reason is that it becomes just
+too difficult to determine the original pattern.  Consider the the
+two patterns C<pale> and C<palm>. These would be reduced to
+C<(?:pal[em]>. The final character matches one of two possibilities.
+To resolve whether it matched an C<'e'> or C<'m'> would require a
+whole lot more housekeeping. Without character classes it becomes
+much easier.
+
+Similarly, C<dogfood> and C<seafood> would form C<(?:dog|sea)food>.
+When the pattern is being assembled, the tracking decision needs
+to be made at the end of the grouping, but the tail of the pattern
+has not yet been visited. Deferring things to make this work correctly
+is a vast hassle.
+
+Hence tracked patterns will hence be bulky, much more bulkier than
+simple patterns.
 
 =head1 SEE ALSO
 
-=over 4
+=over 8
+
+=item L<perlre>
+
+General information about Perl's regular expressions.
+
+=item L<re>
+
+Specific information about C<use re 'eval'>.
 
 =item Regex::PreSuf
 
@@ -1508,12 +1874,6 @@ bushy (read: many alternations) patterns.
 
 =head1 LIMITATIONS
 
-The current version does not let you know which initial regular
-expression, that forms part of the assembled RE, was the one that
-caused the match.  This may be addressed in a future version. (The
-solution probably lies in using the C<(?{code})> contruct to assist
-in tagging the original expressions).
-
 C<Regexp::Assemble> does not attempt to find common substrings. For
 instance, it will not collapse C</aabababc/> down to C</a(?:ab}{3}c/>.
 If there's a module out there that performs this sort of string
@@ -1525,7 +1885,17 @@ in the expressions it produces. Nor is the wonderful and frightening
 C<(?>...)> construct used. These and other optimisations may be
 introduced in further releases if there is a demand for them, if I
 figure out how to use them in this module, or if someone sends
-patches.
+patches. There is an example in the README that shows a technique
+for contructing patterns with lookbehind assertions, using a
+two-stage approach.
+
+C<Regexp::Assemble> does not attempt to interpret meta-character
+modifiers. For instance, if the following two pattern lists are
+given: C<a\d> and C<a\d+>, it will not determine that C<\d> can be
+matched by C<\d+>. Instead, it will produce C<a(?:\d|\d+)>. Along
+a similar line of reasoning, it will not determine that C<a> and
+C<a\d+> is equivalent to C<a\d*> (It will produce C<a(?:\d+)?>
+instead).
 
 You can't remove a pattern that has been added to an object. You'll
 just have to start over again. Adding a pattern is difficult enough,
@@ -1533,35 +1903,35 @@ I'd need a solid argument to convince me to add a C<remove> method.
 If you need to do this you should read the documentation on the
 C<mutable> and C<clone> methods.
 
-=head1 BUGS
+Tracking doesn't really work at all with 5.6.0. It works better
+in subsequent 5.6 releases. For maximum reliability, the use of
+a 5.8 release is strongly recommended.
 
 The module does not produce POSIX-style regular expressions.
+
+=head1 BUGS
 
 The algorithm used to assemble the regular expressions makes extensive
 use of mutually-recursive functions (I<i.e.>: A calls B, B calls A,
 ...) For deeply similar expressions, it may be possible to provoke
 "Deep recursion" warnings.
 
-C<Regexp::Assemble> does not assign meaning to meta-characters.
-For instance, if the following two pattern lists are given: C<a\d>
-and C<a\d+>, it will not determine that C<\d> can be matched by
-C<\d+>. Instead, it will produce C<a(?:\d|\d+)>. Along a similar
-line of reasoning, it will not determine that C<a> and C<a\d+> is
-equivalent to C<a\d*> (It will produce C<a(?:\d+)?> instead).
-
-When a string is tested against an assembled RE, it may match when
-it shouldn't, or else not match when it should. The module has been
-tested extensively, and has an extensive test suite, but you never
-know... In either case, it is a bug, and I want to know about it.
+When a string is tested against an assembled RE, it may match
+when it shouldn't, or else not match when it should. The module has
+been tested extensively, and has an extensive test suite, but you
+never know... In either case, it is a bug, and I want to know about
+it.
 
 A temporary work-around is to disable reductions:
 
   my $pattern = $assembler->reduce(0)->re;
 
-A discussion about implementation details and where I think bugs
-might lie appears in the accompanying README file. If this file is
-not available locally, you should be able to find a copy on the Web
-at your nearest CPAN mirror.
+A discussion about implementation details and where bugs might lurk
+appears in the README file. If this file is not available locally,
+you should be able to find a copy on the Web at your nearest CPAN
+mirror.
+
+If you are feeling brave, extensive debugging traces are available.
 
 Please report all bugs at
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Regexp-Assemble|rt.cpan.org>
@@ -1570,16 +1940,6 @@ Make sure you include the output from the following two commands:
 
   perl -MRegexp::Assemble -le 'print Regexp::Assemble::VERSION'
   perl -V
-
-If you are feeling brave, extensive debugging traces are available.
-
-Note that perl 5.6.0 has a bug that re-escapes backslashes that
-occur in qw// quoted word lists. You will come to grief if you try
-to build patterns statically in this way, should they contain
-metacharacters like C<\d>. If you read patterns in from a file you
-should have no problems. The real solution is to upgrade to at least
-5.6.1, if not 5.6.2 or more recent. Or downgrade. Anything but
-5.6.0.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -1599,19 +1959,21 @@ interest shown indicated that a module was called for. I'd like to
 thank the people who showed interest. Hey, it's going to make I<my>
 messy scripts smaller, in any case.
 
-Thanks go to Jean Forget and Philippe Blayo who looked over
-an early version, H. Merijn Brandt, who stopped over in Paris one
-evening, and discussed things over a few beers. Nicholas Clark
-pointed out that while what this module does (?:c|sh)ould be done
-in perl's core, as per the 2004 TODO, he encouraged to me continue
-with the development of this module. In any event, this module
-allows one to gauge the difficulty of undertaking the endeavour in
-C. I'd rather gouge my eyes out with a blunt pencil.
+Thomas Drugeon has been a valuable sounding board for trying out
+new ideas. Jean Forget and Philippe Blayo looked over an early
+version. H. Merijn Brandt stopped over in Paris one evening, and
+discussed things over a few beers.
 
-A tip 'o the hat to Paul Johnson who settled the question as to
-whether this module should live in the Regex:: namespace, or
-Regexp:: namespace.  If you're not convinced, try running the
-following one-liner:
+Nicholas Clark pointed out that while what this module does
+(?:c|sh)ould be done in perl's core, as per the 2004 TODO, he
+encouraged to me continue with the development of this module. In
+any event, this module allows one to gauge the difficulty of
+undertaking the endeavour in C. I'd rather gouge my eyes out with
+a blunt pencil.
+
+Paul Johnson settled the question as to whether this module should
+live in the Regex:: namespace, or Regexp:: namespace.  If you're
+not convinced, try running the following one-liner:
 
   perl -le 'print ref qr//'
 
@@ -1629,13 +1991,15 @@ Copyright (C) 2004
 
 http://www.landgren.net/perl/
 
+If you use this module, I'd love to hear about what you're using
+it for. If you want to be informed of updates, send me a note.
+
 =head1 LICENSE
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
-
 =cut
 
-1;
+'The Lusty Decadent Delights of Imperial Pompeii';
 __END__

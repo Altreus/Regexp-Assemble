@@ -22,3 +22,4 @@ t/04_match.t
 t/05_hostmatch.t
 t/06_general.t
 t/07_pod.t
+t/08_track.t
