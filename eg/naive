@@ -1,6 +1,6 @@
 #! /usr/local/bin/perl -w
 #
-# naive.pl - generate a regular expression that will lex regular expressions
+# naive - generate a regular expression that will lex regular expressions
 # it is naive in the sense that it can't lex certain patterns, such as a
 # pattern that contains nested parentheses (e.g. /ab(?:cd(?ef)?gh)+ij/ )
 #

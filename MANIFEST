@@ -5,6 +5,8 @@ Makefile.PL
 META.yml                                 Module meta-data (added by MakeMaker)
 README
 TODO
+eg/assemble
+eg/assemble-check
 eg/fee
 eg/naive
 eg/hostmatch/bad.canonical
@@ -18,3 +20,4 @@ t/02_reduce.t
 t/03_str.t
 t/04_match.t
 t/05_hostmatch.t
+t/06_general.t

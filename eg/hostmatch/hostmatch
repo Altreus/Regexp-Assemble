@@ -1,6 +1,4 @@
 #! /usr/local/bin/perl -w
-
-#! /usr/local/bin/perl -w
 #
 # hostmatch -- determine whether a DNS hostname matches a regular expression
 #
@@ -8,61 +6,27 @@
 use strict;
 use Regexp::Assemble;
 
-# read all the REs in the __DATA__ section and chomp the newline
-chomp( my @re = <DATA> );
-
-# insert them all into an R::A object
-my $ra = Regexp::Assemble->new->add( @re );
-
-# now map each RE into its compiled form
-@re = map { qr/$_/ } @re;
+my $ra = Regexp::Assemble->new(chomp=>1)->add( <DATA> );
 
 open GOOD,  '>good.out'  or die "Cannot open good.out for output: $!\n";
 open BAD,   '>bad.out'   or die "Cannot open bad.out for output: $!\n";
-open ERROR, '>error.out' or die "Cannot open error.out for output: $!\n";
 
-my( $good, $bad, $error ) = (0, 0, 0);
+my( $good, $bad ) = (0, 0);
 while( <> ) {
-	chomp;
-	if( /^$ra$/ ) {
-		my $seen = 0;
-		my $re;
-		for $re (@re) {
-			if( /^$re$/ ) {
-				print BAD "$_\n";
-				++$bad;
-				++$seen;
-				last;
-			}
-		}
-		if( not $seen ) {
-			print ERROR "$_\n";
-			++$error;
-		}
-	}
+    chomp;
+    if( /^$ra$/ ) {
+        ++$bad;
+    }
 	else {
-		my $seen = 0;
-		my $re;
-		for $re (@re) {
-			if( /^$re$/ ) {
-				print ERROR "$_\n";
-				++$error;
-				++$seen;
-				last;
-			}
-		}
-		if( not $seen ) {
-			print GOOD "$_\n";
-			++$good;
-		}
-	}
+        print GOOD "$_\n";
+        ++$good;
+    }
 }
 
 close GOOD;
 close BAD;
-close ERROR;
 
-print "$good good record(s), $bad bad record(s), $error error record(s), $. total\n";
+print "$good good record(s), $bad bad record(s), $. total\n";
 
 __DATA__
 m\d+-\d+-\d+-\d+\.andorpac\.ad

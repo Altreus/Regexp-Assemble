@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.01
+The file is the README for Regexp::Assemble version 0.02
 
 INSTALLATION
 
@@ -11,9 +11,9 @@ TESTING
 
 This module requires the following modules for thorough testing:
 
-	Test::More
-	Test::Deep
-	Test::File::Contents
+    Test::More
+    Test::Deep
+    Test::File::Contents
 
 I suspect I could rewrite the tests with out Test::Deep these days;
 Test::More should be sufficient. This is mainly the result of legacy
@@ -33,10 +33,10 @@ print $ra->re; # prints (?:a(?:b+(?:\d*\s+)?c|(?:\w+)?\d+))
 or
 
 my $ra = Regexp::Assemble->new
-	->add( 'foo', 'bar', 'baz', 'foom' );
+    ->add( 'foo', 'bar', 'baz', 'foom' );
 
 print "$_ matches\n" if /$ra/
-	for (qw/word more stuff food rabble bark/);
+    for (qw/word more stuff food rabble bark/);
 
 or
 
@@ -52,10 +52,179 @@ print Regexp::Assemble->new->add(@word)->reduce(0)->as_string;
 See the ./eg directory for some example scripts. More will be added
 in subsequent releases.
 
-IMPLEMENTATION NOTES
+IMPLEMENTATION
 
-I'll fill this bit out when in a later release. If you are curious,
-you can dump out the internal data struct with the following:
+Consider a simple pattern 'costructive' we want to use to match against
+strings. This pattern is split into tokens, and is stored in a list:
+
+  [c o n s t r u c t i v e]
+
+At this point, if we want to produce a regular expression, we only need
+to join it up again:
+
+   my $pattern = join( '' => @path);
+   my $re = qr/$pattern/;
+
+Consider a second pattern 'containment'. Split into a list gives:
+
+  [c o n t a i n m e n t]
+
+We then have to merge this second path into the first path. At some
+point, the paths diverge. The first element path the point of
+divergence in the first path is replace by a node (a hash) and the two
+different paths carry on from there:
+
+  [c o n
+        |s => [s t r u c t i v e]
+        \t => [t a i n m e n t]
+  ]
+
+And then 'confinement':
+
+  [c o n
+        |s => [s t r u c t i v e]
+        |t => [t a i n m e n t]
+        \f => [f i n e m e n t]
+  ]
+
+What happens if we add a path that runs out in the middle of a
+previous path?  We add a node, and a "null-path" to indicate that
+the path can both continue on, and can also stop here:
+
+Add 'construct':
+
+  [c o n
+        |s => [s t r u c t
+        |                 | '' => undef
+        |                 \ i => [i v e]
+		|     ]
+        |t => [t a i n m e n t]
+        \f => [f i n e m e n t]
+  ]
+
+It should be obvious to see how the contruct branch will produce the
+pattern /construct(?:ive)?/ . Or for a longer path 'constructively':
+
+  [c o n
+        |s => [s t r u c t
+        |                 | '' => undef
+        |                 \ i => [i v e
+	    |                              | '' => undef
+	    |                              \ l => [l y]
+		|                        ]
+		|     ]
+        |t => [t a i n m e n t]
+        \f => [f i n e m e n t]
+  ]
+
+This is the state of the internal structure before reduction. When
+traversed it will produce a valid regular expression.
+
+The trick is how to perform the reduction. The key insight is to note
+that for any part of the trunk where the sibling paths do not end in
+a node, it it possible to reverse them, and insert them into their
+own R::A object and see what comes out:
+
+  [t a i n m e n t] =>
+  [t n e m n i a t]
+
+  [f i n e m e n t] =>
+  [t n e m e n i f]
+
+Gives:
+
+  [t n e m
+		  | n => [n i a t]
+          \ e => [ e n i f]
+  ]
+
+When the process examines the other path s => [s t r u c t ...], the
+process behaves differently. Whenever a null-path appears, no
+reduction is performed at that node level. The resulting path would
+otherwise begin to admit matches that are are not permitted by any
+of the initial patterns.
+
+After having examined the s, t, and f paths, then, we have the result
+that t and f were reduced, but s failed. The only positive outcome is
+when all paths are reduced into a node with one path. Given that s is
+apart, t and f are unreversed, all three are combined, and a failure
+is recorded.
+
+Unreversing the t, f reduction gives:
+
+  [ t => [t a i n] \
+    f => [f i n e] | m e n t ]
+
+When all is said and done, the final result gives
+
+  [c o n
+        |s => [s t r u c t
+        |                 | '' => undef
+        |                 \ i => [i v e
+	    |                              | '' => undef
+	    |                              \ l => [l y]
+		|                        ]
+		|     ]
+        [ t => [t a i n]
+          f => [f i n e] m e n t ]
+  ]
+
+When this is traversed to build the pattern, it gives
+
+  con(struct(ive(ly)?)?|(fine|tain)ment)
+
+NB: The capturing syntax is used here, instead of the grouping
+syntax for readability issues only.
+
+In a nutshell, that's it. Seems like the code would be simple, huh?
+It turns out that no, there are lots of fiddly edge cases,
+especially sets of paths are similar to other sets of paths
+apart from an internal optional sub-path. The canonical example
+that the test suite deals with is:
+
+  showeriness, showerless, showiness, showless.
+
+The final pattern is
+
+  show(er)?(in|l)ess
+
+If there are bugs to be found, it will be in cases that are even
+more pathological than this, e.g., something that produces
+
+  show(er)?(i(a|po)?n|l)ess
+
+(although such a pattern can be assembled given the right word
+list...)
+
+This is the area that needs to be tested much more extensively.
+Until now I haven't had the time (or motivation) to do so, mainly
+because my real life patterns do not converge at the end very often.
+On the other hand, I can say with a reasonable level of confidence
+is in the case of a bug, the algorithm will splice a part of the
+tree into oblivion. When this happens, part of the pattern will be
+lost, and the resulting pattern will fail to match all that the
+original patterns do. It will (or should!) in no case ever match
+more things than the original patterns do.
+
+If you are truly paranoid, take a look at the hostmatch.t test
+file. The code therein does exactly that: it takes a list of
+patterns and a list of target strings. It assembles the patterns
+and then loops through the target strings, checking to see that
+the assembled pattern and one of the orignal patterns make the
+same decision as to a target string. 
+
+Or to put that more clearly: if the assembled pattern matches,
+then one of the original patterns should also match. If the
+assembled pattern doesn't match, then none of the original
+patterns should match.
+
+The two scripts assemble and assemble-check, supplied as examples,
+can help with this process.
+
+DEBUGGING NOTES
+
+If you are curious, you can dump out the internal data struct with
+the following:
 
   use Data::Dumper;
   $Data::Dumper::Terse     = 0;
@@ -94,5 +263,5 @@ This module is copyright (C) David Landgren 2004. All rights reserved.
 
 LICENSE
 
-This module is free software; you can redistribute it and/or modify
+This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

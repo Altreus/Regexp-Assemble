@@ -5,7 +5,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer/;
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.01 of Regexp::Assemble,
-released 2004-11-17.
+This document describes version 0.02 of Regexp::Assemble,
+released 2004-11-19.
 
 =head1 SYNOPSIS
 
@@ -54,9 +54,12 @@ numbers of alternations are dealt with in O(n) time, not O(1). If
 you are still having performance problems, you should look at using
 a trie.
 
+Some more examples of usage appear in the accompanying README.
+
 =cut
 
 use strict;
+use Carp 'croak';
 
 use constant DEBUG_ADD     => 1;
 use constant DEBUG_TAIL    => 2;
@@ -74,35 +77,48 @@ Creates a new Regexp::Assemble object. A set of key/value parameters
 can be supplied to control the finer details of the object's
 behaviour.
 
-mutable, controls whether new patterns can be added to the object
+B<chomp>, controls whether the pattern should be chomped before being
+lexed. Handy if you are reading lines from a file. By default, no
+chomping is performed.
+
+B<filter>, allows you to add a callback to enable sanity checks on
+the pattern being loaded.
+
+B<mutable>, controls whether new patterns can be added to the object
 after the RE is generated.
 
-reduce, controls whether tail reduction occurs or not. If set,
+B<reduce>, controls whether tail reduction occurs or not. If set,
 patterns like C<a(?:bc+d|ec+d)> will be reduced to C<a[be]c+d>.
 That is, the the end of the pattern in each part of the b... and
 d... alternations is identical, and hence is hoisted out of the
 alternation and placed after it.
 
-debug, controls whether copious amounts of output is produced
+B<lex>, specifies the pattern used to lex the input lines into
+tokens. You could replace the default pattern by a more sophisticated
+version that matches arbitrarily nested parentheses, for example.
+
+B<debug>, controls whether copious amounts of output is produced
 during the loading stage or the reducing stage of assembly.
 
-  my $r = Regexp::Assemble->new( reduce => 0, debug => 1 );
+  my $ra = Regexp::Assemble->new;
+  my $rb = Regexp::Assemble->new( chomp => 1, debug => 3 );
 
-A more detailed explanation of what these parameters do
-follows.
+A more detailed explanation of these attributes follows.
 
 =cut
 
 sub new {
-	my $class = shift;
-	my %args = @_;
+    my $class = shift;
+    my %args = @_;
     bless {
         re      => undef,
         str     => undef,
         lex     => exists $args{lex}     ? qr/$args{lex}/ : qr/$Default_Lexer/,
+        chomp   => exists $args{chomp}   ? $args{chomp}   : 0,
         reduce  => exists $args{reduce}  ? $args{reduce}  : 1,
         mutable => exists $args{mutable} ? $args{mutable} : 0,
         debug   => exists $args{debug}   ? $args{debug}   : 0,
+        filter  => $args{filter}, # don't care if it's not there
         path    => [],
     },
     $class;
@@ -121,17 +137,18 @@ otherwise the cloning will be performed using a pure perl approach.
 =cut
 
 sub clone {
-	my $self = shift;
-	my $clone = {
-		re      => $self->{re},
-		str     => $self->{str},
-		lex     => $self->{lex},
-		reduce  => $self->{reduce},
-		mutable => $self->{mutable},
-		debug   => $self->{debug},
-		path    => _path_clone($self->_path),
-	};
-	bless $clone, ref($self);
+    my $self = shift;
+    my $clone = {
+        re      => $self->{re},
+        str     => $self->{str},
+        lex     => $self->{lex},
+        chomp   => $self->{chomp},
+        reduce  => $self->{reduce},
+        mutable => $self->{mutable},
+        debug   => $self->{debug},
+        path    => _path_clone($self->_path),
+    };
+    bless $clone, ref($self);
 }
 
 =item add(LIST)
@@ -140,9 +157,10 @@ Takes a string, breaks it apart into a set of token (respecting
 meta characters) and inserts the resulting list into the C<R::A>
 object. It uses a naive regular expression to lex the string
 that may be fooled complex expressions (specifically, it will
-have a fit on nested parenthetical expressions such as
-C<ab(?cd(?:ef)?gh)>). If this is the case, the end of the string
-will not be tokenised correctly and returned as one long string.
+fail to lex nested parenthetical expressions such as
+C<ab(?cd(?:ef)?gh)> correctly). If this is the case, the end of
+the string will not be tokenised correctly and returned as one
+long string.
 
 On the one hand, this may indicate that the patterns you are
 trying to feed the C<R::A> object are too complex. Simpler
@@ -159,6 +177,14 @@ handle of a file opened for reading:
     $re->add( '\d+-\d+-\d+-\d+\.example\.com' );
     $re->add( <IN> );
 
+You propably need to set the C<chomp> attribute on the object to
+get files to work correctly:
+
+    my $re = Regexp::Assemble->new( chomp=>1 )->add( <IN> );
+    # or
+    my $re = Regexp::Assemble->new;
+    $re->chomp(1)->add( <IN> );
+
 This method is chainable.
 
 =cut
@@ -167,11 +193,11 @@ sub _lex {
     my $self   = shift;
     my $record = shift;
     my @path   = ();
-	while( $record =~  s/($self->{lex})// ) {
-		length($1) or die
-			"lexed a zero-length token, an infinite loop would ensue\nlex=$self->{lex}\nrecord=$record\n";
-    	push @path, $1;
-	}
+    while( $record =~  s/($self->{lex})// ) {
+        length($1) or croak
+            "lexed a zero-length token, an infinite loop would ensue\nlex=$self->{lex}\nrecord=$record\n";
+        push @path, $1;
+    }
     push @path, $record if length($record);
     @path;
 }
@@ -180,6 +206,7 @@ sub add {
     my $self = shift;
     my $record;
     while( defined( $record = pop @_ )) {
+        chomp($record) if $self->{chomp};
         $self->insert( $self->_lex($record) );
     }
     $self;
@@ -206,6 +233,7 @@ sub insert {
     my $self = shift;
     my $debug = $self->_debug(DEBUG_ADD);
     @_ = ('') unless @_;
+    return $self if $self->{filter} and not $self->{filter}->(@_);
     $self->{path} = _insert( $self->_path, $debug,
         map { defined $_ ? $_ : '' } @_
     );
@@ -234,7 +262,8 @@ sub as_string {
         $self->{str}  = _re_path($self->_path);
         $self->{path} = [] unless $self->{mutable};
     }
-    $self->{str};
+    # if no string, do not match anything
+    $self->{str} || '(?!.).';
 }
 
 =item re
@@ -271,9 +300,9 @@ will work as expected:
 
   my $re = Regexp::Assemble->new->add( qw[ fee fie foe fum ] );
   while( <IN> ) {
-	if( /($re)/ ) {
-	  print "Here be giants: $1\n";
-	}
+    if( /($re)/ ) {
+      print "Here be giants: $1\n";
+    }
   }
 
 =cut
@@ -313,6 +342,78 @@ sub debug {
     $self;
 }
 
+=item chomp(0|1)
+
+Turns chomping on or off. When loading an object from a
+file the lines will contain their line separator token. This
+may produce undesired results. In this case, call chomp with
+a value of 1 to enable autochomping. Chomping is off by default.
+
+  $re->chomp( 1 );
+  $re->add( <DATA> );
+
+=cut
+
+sub chomp {
+    my $self = shift;
+    $self->{chomp} = defined($_[0]) ? $_[0] : 1;
+    $self;
+}
+
+=item filter(CODE)
+
+Allows you to install a callback to check that the pattern
+being loaded contains valid input. It receives a list on
+input. It is expected to return 0 to indicate that the
+pattern should not be added, anything else indicates
+that the contents are fine.
+
+If you know that all patterns you expect to assemble contain
+a restricted set of of tokens (e.g. no spaces), you could do
+the following:
+
+  $ra->filter(sub { not grep { / / } @_ });
+
+or
+
+  sub only_spaces_and_digits {
+    not grep { ![\d ]
+  }
+  $ra->filter( \&only_spaces_and_digits );
+
+These two examples will silently ignore faulty patterns, If you
+want the user to be made aware of the problem you should raise an
+error (via C<warn> or C<die>), log an error message, whatever is
+best. If you want to remove a filter, pass C<undef> as a parameter.
+
+  $ra->filter(undef);
+
+This method is chainable.
+
+=cut
+
+sub filter {
+    my $self   = shift;
+    my $filter = shift;
+    if( defined $filter and ref($filter) ne 'CODE' ) {
+        croak "filter method not passed a coderef\n";
+    }
+    $self->{filter} = $filter;
+    $self;
+}
+
+=item lex(SCALAR)
+
+Change the pattern used to break a string apart into tokens.
+
+=cut
+
+sub lex {
+    my $self = shift;
+    $self->{lex} = qr($_[0]);
+    $self;
+}
+
 =item reduce(0|1)
 
 Turns pattern reduction on or off. A reduced pattern may
@@ -331,29 +432,28 @@ sub reduce {
 
 =item mutable(0|1)
 
-When the C<re> or C<as_string> routines are called the
-reduction routine kicks in and takes the current
-data structure and fold the common portions of the
-patterns that have been stored in the object. Once
-this occurs, it is no longer possible to add any more
-patterns to the regular expression. In fact, the internal
-structures are drained to free up memory. If you have a
-that adds additional patterns to an object over a long
-period, you can set the mutable attribute. This will
-stop the internal structure from being drained and you
-can continue to add patterns.
+When the C<re> or C<as_string> methods are called the reduction
+algoritm kicks in and takes the current data structure and fold the
+common portions of the patterns that have been stored in the object.
+Once this occurs, it is no longer possible to add any more
+patterns.
 
-The main consequence is that it the assembled pattern
-will not undergo any reduction (as the internal data
-structure undergoes such a transformation as that it
-becomes very difficult to cope with the change that adding
-a new pattern would bring about. If this is a problem, the
-solution is to create a non-mutable object, continue
-adding to it as long as needed, and then when an assembled
-regular expression is required you can clone the object and
-then reduce it.
+In fact, the internal structures are release to free up memory. If
+you have a programa that adds additional patterns to an object over
+a long period, you can set the mutable attribute. This will stop the
+internal structure from being drained and you can continue to add
+patterns.
 
-By default the mutiple attribute defaults to zero. The
+The main consequence is that it the assembled pattern will not
+undergo any reduction (as the internal data structure undergoes
+such a transformation as that it becomes very difficult to cope
+with the change that adding a new pattern would bring about. If
+this is a problem, the solution is to create a non-mutable object,
+continue adding to it as long as needed, and each time a new
+assembled regular expression is required, clone the object, turn
+the mutable attribute off and proceed as usual.
+
+By default the mutable attribute defaults to zero. The
 method can be chained.
 
   $r->add( 'abcdef\\d+' )->mutable(0);
@@ -368,15 +468,57 @@ sub mutable {
 
 =item reset
 
+Resets the internal state of the object, as if no C<add> or
+C<insert> methods had been called. Does not modify the state
+of controller attributes such as C<debug>, C<lex>, C<reduce>
+and so forth.
+
 =cut
 
 sub reset {
     # reinitialise the internal state of the object
-#    my $self = shift;
-#    $self->{path} = [];
-#    $self->{re}   = undef;
-#    $self->{str}  = undef;
-#    $self;
+    my $self = shift;
+    $self->{path} = [];
+    $self->{re}   = undef;
+    $self->{str}  = undef;
+    $self;
+}
+
+=item Default_Lexer
+
+B<Warning:> the C<Default_Lexer> function is a class method, not
+an object method. Do not call it on an object, bad things will
+happen.
+
+  Regexp::Assemble::Default_Lexer( '.|\\d+' );
+
+The C<Default_Lexer> method lets you replace the default pattern
+used for all subsequently created Regexp::Assemble objects. It
+will not have any effect on existing objects. (It is also possible
+to override the lexer pattern used on a per-object basis).
+
+The parameter should be an ordinary scalar, not a compiled
+pattern. The pattern should be capable of matching all parts of
+the string, I<i.e.>, the following constraint should hold true:
+
+  $_ = 'this will be matched by a pattern';
+  my $pattern = qr/./;
+  my @token = m/($pattern)/g;
+  $_ eq join( '' => @token ) or die;
+
+If no parameter is supplied, the current default pattern in use
+will be returned.
+
+=cut
+
+sub Default_Lexer {
+    if( $_[0] ) {
+        if( my $refname = ref($_[0]) ) {
+            croak "Don't pass a $refname to Default_Lexer\n";
+        }
+        $Default_Lexer = $_[0];
+    }
+    $Default_Lexer;
 }
 
 # --- no user serviceable parts below ---
@@ -520,7 +662,7 @@ sub _insert {
                         };
                         print "  convert opt @{[_dump_node($new)]}\n" if $debug;
                         # splice( @$path, $offset+1, @$path, $new );
-						push @$path, $new; # 5.8.5
+                        push @$path, $new; # 5.8.5
                     }
                 }
             }
@@ -565,7 +707,7 @@ sub _insert {
             }
         }
         elsif( ref($path->[$offset]) eq 'ARRAY' ) {
-            die "ARRAY passed to _insert, please file a bug report";
+            croak "ARRAY passed to _insert";
         }
         else {
             if( $debug ) {
@@ -907,7 +1049,7 @@ sub _reduce_node {
             $result{$f->[0]} = $f;
         }
         else {
-            die "Got a scalar failure (that's not supposed to happen)";
+            croak "Got a scalar failure (that's not supposed to happen)";
         }
     }
     $result{''} = undef if $optional;
@@ -1151,7 +1293,7 @@ sub _unrev_node {
     my $debug = shift || 0;
     my $depth = shift || 0;
     my $indent = ' ' x $depth;
-    die "was not passed a HASH ref\n", _dump([$node]), "\n" unless ref($node) eq 'HASH';
+    croak "was not passed a HASH ref\n", _dump([$node]), "\n" unless ref($node) eq 'HASH';
     my $optional = _remove_optional($node);
     print "${indent}unrev node in ", _dump_node($node), " opt=$optional\n"
         if $debug;
@@ -1195,7 +1337,7 @@ sub _re_path {
     my $in  = shift;
     my $out = '';
     if( ref($in) ne 'ARRAY' ) {
-        die "was not passed an ARRAY ref\n", _dump([$in]), "\n";
+        croak "was not passed an ARRAY ref\n", _dump([$in]), "\n";
     }
     for my $e( @$in ) {
         if( ref($e) eq 'HASH' ) {
@@ -1336,10 +1478,17 @@ __END__
 
 =head1 DIAGNOSTICS
 
-"ARRAY passed to _insert, please file a bug report"
+"ARRAY passed to _insert"
 
-You must have pass some complex data structure (a list of lists of
+You have passed a complex data structure (a list of lists of
 lists) to C<add> or C<insert>. Solution: Don't do that.
+
+"don't pass a C<refname> to Default_Lexer"
+
+You tried to replace the default lexer pattern with an object
+instead of a scalar. Solution: You probably tried to call
+$obj->Default_Lexer. Call qualified class method instead
+C<Regexp::Assemble::Default_Lexer>.
 
 "got a scalar failure (that's not supposed to happen)"
 
@@ -1350,7 +1499,7 @@ send me the details and wait for a patch.
 
 "lexed a zero-length token, an infinite loop would ensue"
 
-The C<add> routine eats the input string one token at a time. If you
+The C<add> method eats the input string one token at a time. If you
 supply your own lexer pattern, it may match the null character, in
 which case the loop that processes the string will loop an infinite
 number of times. Solution: Fix your pattern.
@@ -1371,13 +1520,12 @@ The expressions produced by this module can be used with the PCRE
 library.
 
 Where possible, feed R::A the simplest tokens possible. Don't add
-C<('a', '(?:-\\d+){2}', 'b')> when
-C<('a', '-', \\d+', '-', '\\d+', 'b')> will do. The reason is that
-if you also add C<('a', '-', '\\d+', 'c')> the resulting REs change
-dramatically: C<a(?:(?:-\d+){2}b|-\d+c)> I<versus>
-C<a-\d+(?:-\d+b|c)>.  Since R::A doesn't analyse tokens, it doesn't
-know how to "unroll" the C<{2}> quantifier, and will miss the
-chance to fold the two paths together where they remain the same.
+C<:a(?-\d+){2})b> when C<a-\d+-\d+b>.  he reason is that if you
+also add C<a\d+c> the resulting REs change dramatically:
+C<a(?:(?:-\d+){2}b|-\d+c)> I<versus> C<a-\d+(?:-\d+b|c)>.  Since
+R::A doesn't analyse tokens, it doesn't know how to "unroll" the
+C<{2}> quantifier, and will fail to notice the divergence after the
+first C<-d\d+>.
 
 What is more, when the string 'a-123000z' is matched against the
 first pattern, the regexp engine will have to backtrack over each
@@ -1386,15 +1534,14 @@ second pattern, no such backtracking occurs. The engine scans
 up to the 'z' and then fails immediately, since neither of the
 alternations start with 'z'.
 
-R::A does, however, understand character classes. Given
-C<('a', '-', 'b')>, C<('a', 'x', 'b')> and C<('a', '\\d', 'b')>,
-it will assemble these into C<a[-\dx]b>. When - appears as a candidate
-for a character class it will be the first character in the class.
-When ^ appears as a candidate for a character class it will be the
-last character in the class. R::A will also replace all the digits 0..9
-appearing in a character class by C<\d>. I'd do it for letters as
-well, but thinking about accented characters and other glyphs hurts
-my head.
+R::A does, however, understand character classes. Given C<a-b>,
+C<axb> and C<a\db>, it will assemble these into C<a[-\dx]b>. When
+- appears as a candidate for a character class it will be the first
+character in the class.  When ^ appears as a candidate for a character
+class it will be the last character in the class. R::A will also
+replace all the digits 0..9 appearing in a character class by C<\d>.
+I'd do it for letters as well, but thinking about accented characters
+and other glyphs hurts my head.
 
 =head1 SEE ALSO
 
@@ -1402,10 +1549,10 @@ my head.
 
 =item Regex::PreSuf
 
-C<Regexp::PreSuff> takes a string and chops it itself
-into tokens of length 1. Since it can't deal with tokens of more than
-one character, it can't deal with meta-characters and thus no regular
-expressions. Which is the main reason why I wrote this module.
+C<Regex::PreSuf> takes a string and chops it itself into tokens of
+length 1. Since it can't deal with tokens of more than one character,
+it can't deal with meta-characters and thus no regular expressions.
+Which is the main reason why I wrote this module.
 
 =item Regexp::Optimizer
 
@@ -1450,19 +1597,18 @@ C<mutable> and C<clone> methods.
 
 The module does not produce POSIX-style regular expressions.
 
+The algorithm used to assemble the regular expressions makes extensive
+use of mutually-recursive functions (I<i.e.>: A calls B, B calls A,
+...) For deeply similar expressions, it may be possible to provoke
+"Deep recursion" warnings.
+
 The code is far too messy. I need to better understand which code
 paths are exercised when, and factor out redundant blocks.
 
 C<Regexp::Assemble> does not analyse the tokens it is given. This
 means is that if, for instance,  the following two pattern lists
-are given: C<('a', '\\d')> and C<('a', '\\d+')>, it will not
-determine that C<\d> can be matched by C<\d+>. Instead, it will
-produce C<a(?:\d|\d+)>.
-
-The algorithm used to assemble the regular expressions makes extensive
-use of mutually-recursive functions (I<i.e.>: A calls B, B calls A,
-...) For deeply similar expressions, it may be possible to provoke
-"Deep recursion" warnings.
+are given: C<a\d> and C<a\d+>, it will not determine that C<\d> can
+be matched by C<\d+>. Instead, it will produce C<a(?:\d|\d+)>.
 
 When a string is tested against an assembled RE, it may match when
 it shouldn't, or else not match when it should. The module has been
@@ -1473,11 +1619,10 @@ A temporary work-around is to disable reductions:
 
   my $pattern = $assembler->reduce(0)->re;
 
-Please provide the target string used and the list of regular
-expressions used in the assembly. In the case of a non-match, please
-indicate which expression should have matched. The output from the
-following two commands will be helpful as well, to let me know what
-your environment is like.
+A discussion about implementation details and where I think bugs
+might lie appears in the accompanying README file. If this file is
+not available locally, you should be able to find a copy on the Web
+at your nearest CPAN mirror.
 
 =over 2
 
@@ -1489,6 +1634,9 @@ your environment is like.
 
 If you are feeling brave, extensive debugging traces are available.
 
+Please report all bugs at
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Regexp-Assemble|rt.cpan.org>
+
 =head1 ACKNOWLEDGEMENTS
 
 This module grew out of work I did building access maps for Postfix,
@@ -1497,7 +1645,7 @@ for more information.  I used Perl to build large regular expressions
 for blocking dynamic/residential IP addresses to cut down on spam
 and viruses. Once I had the code running for this, it was easy to
 start adding stuff to block really blatant spam subject lines, bogus
-HELO strings, spammer mailer-ids and much, much more...
+HELO strings, spammer mailer-ids and more...
 
 I presented the work at the French Perl Workshop in 2004, and the
 thing most people asked was whether the underlying mechanism for
@@ -1523,7 +1671,7 @@ following one-liner:
 
 =over 8
 
-C<perl -le 'print ref qr//'>
+  C<perl -le 'print ref qr//'>
 
 =back
 
@@ -1541,7 +1689,7 @@ http://www.landgren.net/perl/
 
 =head1 LICENSE
 
-This module is free software; you can redistribute it and/or modify
+This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
 

@@ -1,0 +1,20 @@
+#! /usr/local/bin/perl -wl
+#
+# assemble - read lines from STDIN and assemble them into a pattern
+#
+# Copyright (C) David Landgren 2004
+
+
+use Regexp::Assemble;
+
+print Regexp::Assemble->new(chomp=>1)->add(<>)->as_string;
+
+__DATA__
+showless
+showiness
+showianess
+showiponess
+showerless
+showeriness
+showerianess
+showeriponess

@@ -1,0 +1,36 @@
+#! /usr/local/bin/perl -w
+#
+# assemble-check - read lines from STDIN and assemble them into a pattern
+# After having built the pattern, run the words again through the pattern
+# to ensure that they all match, otherwise print the list of errors
+#
+# example:
+# grep ^con /usr/share/dict/words |grep ment$ | ./assemble-check
+#
+# on my file, the above produces
+# con(?:v(?:(?:erg|olv)e|i(?:nce|ct))|t(?:r(?:ast|ive|ol)|ain|ent)|s(?:
+# (?:trai|ig)n|ent|ole)|f(?:i(?:ne|rm)|ront|er)|d(?:i(?:ddle)?|o[ln]e)|
+# c(?:e(?:r[nt]|al)|re)|j(?:oint|ure)|geal|quer)ment
+#
+# Copyright (C) David Landgren 2004
+
+use Regexp::Assemble;
+
+my @word;
+my $r = Regexp::Assemble->new;
+
+while( <> ) {
+    chomp;
+    push @word, $_;
+    $r->add( $_ );
+}
+
+# force a failure
+# push @word, 'unmatchable';
+
+/^$r$/ or push( @error, $_ ) for @word;
+
+print $r->as_string, "\n";
+if( @error ) {
+    print join( "\n", 'ERRORS', @error ), "\n";
+}

@@ -1,4 +1,4 @@
-# 04_hostmatch.t
+# 05_hostmatch.t
 #
 # Test suite for Regexp::Assemble
 # Test a mini-application that you can build with Regexp::Assemble
@@ -17,67 +17,69 @@ use constant NR_BAD   => 529;
 use constant NR_ERROR => 0;
 
 my $have_Test_File_Contents = do {
-	eval { require Test::File::Contents; import Test::File::Contents };
-	$@ ? 0 : 1;
+    eval { require Test::File::Contents; import Test::File::Contents };
+    $@ ? 0 : 1;
 };
 
-# read all the REs in the __DATA__ section and chomp the newline
-chomp( my @re = <DATA> );
+my @re = <DATA>;
 
-# insert them all into an R::A object
-my $ra = Regexp::Assemble->new->add( @re );
+# ordinarily we could have just chomp the array after having slurped
+# <DATA>, but that would be no fun.
+
+# insert them all into an R::A object, chomping the lines
+my $ra = Regexp::Assemble->new->chomp(1)->add( @re );
 
 ok( ref($ra) eq 'Regexp::Assemble', 'have a Regexp::Assemble object' );
 
 # now map each RE into its compiled form
-@re = map { qr/$_/ } @re;
+@re = map { chomp; qr/$_/ } @re;
 
 ok( open(GOOD,  '>t/good.out'),  "can open t/good.out for output" )  or print "# $!\n";
 ok( open(BAD,   '>t/bad.out'),   "can open t/bad.out for output" )   or print "# $!\n";
 ok( open(ERROR, '>t/error.out'), "can open t/error.out for output" ) or print "# $!\n";
 
+my( $good, $bad, $error ) = (0, 0, 0);
 END {
-	unlink $_ for qw{ t/good.out t/bad.out t/error.out };
+    if( !$error ) {
+        unlink $_ for qw{ t/good.out t/bad.out t/error.out };
+    }
 }
 
 ok( open(IN, 'eg/hostmatch/source.in'), "can open eg/hostmatch/source.in" ) or print "# $!\n";
-
-my( $good, $bad, $error ) = (0, 0, 0);
-
 while( <IN> ) {
-	chomp;
-	if( /^$ra$/ ) {
-		my $seen = 0;
-		my $re;
-		for $re (@re) {
-			if( /^$re$/ ) {
-				print BAD "$_\n";
-				++$bad;
-				++$seen;
-				last;
-			}
-		}
-		if( not $seen ) {
-			print ERROR "$_\n";
-			++$error;
-		}
-	}
-	else {
-		my $seen = 0;
-		my $re;
-		for $re (@re) {
-			if( /^$re$/ ) {
-				print ERROR "$_\n";
-				++$error;
-				++$seen;
-				last;
-			}
-		}
-		if( not $seen ) {
-			print GOOD "$_\n";
-			++$good;
-		}
-	}
+    chomp;
+    if( /^$ra$/ ) {
+        my $seen = 0;
+        my $re;
+        for $re (@re) {
+            if( /^$re$/ ) {
+                print BAD "$_\n";
+                ++$bad;
+                ++$seen;
+                last;
+            }
+        }
+        if( not $seen ) {
+            print ERROR "$_\n";
+            ++$error;
+        }
+    }
+    else {
+        my $seen = 0;
+        my $re;
+        for $re (@re) {
+            if( /^$re$/ ) {
+                print ERROR "$_\n";
+                ++$error;
+                ++$seen;
+                last;
+            }
+        }
+        if( not $seen ) {
+            print GOOD "$_\n";
+            ++$good;
+        }
+    }
 }
 
 close GOOD;
@@ -90,12 +92,12 @@ ok( NR_ERROR == $error, NR_ERROR. ' records in error' );
 ok( NR_GOOD+NR_BAD+NR_ERROR == $., "$. total records" );
 
 SKIP: {
-	skip 'Test::File::Contents not installed on this system', deep_testcount
-		unless $have_Test_File_Contents;
-	my $file;
-	for $file( qw/good bad error/ ) {
-		file_contents_identical( "t/$file.out", "eg/hostmatch/$file.canonical", "saw expected $file output" );
-	}
+    skip 'Test::File::Contents not installed on this system', deep_testcount
+        unless $have_Test_File_Contents;
+    my $file;
+    for $file( qw/good bad error/ ) {
+        file_contents_identical( "t/$file.out", "eg/hostmatch/$file.canonical", "saw expected $file output" );
+    }
 } # SKIP
 
 __DATA__
