@@ -6,7 +6,7 @@
 # copyright (C) 2004 David Landgren
 
 use strict;
-use Test::Simple tests => 70;
+use Test::Simple tests => 76;
 
 use Regexp::Assemble;
 
@@ -16,9 +16,9 @@ ok( Regexp::Assemble->new
     ->insert( '' )
     ->as_string eq '(?:)?', '//' );
 
-ok( $_ = Regexp::Assemble->new
+ok( Regexp::Assemble->new
     ->insert( 'd' )
-    ->as_string eq 'd', '/d/' ) or print "# r=<$_>\n";
+    ->as_string eq 'd', '/d/' );
 
 ok( Regexp::Assemble->new
     ->insert( 'd' )
@@ -186,6 +186,11 @@ ok( ($_ = Regexp::Assemble->new
     ->as_string) eq '[-*+]', '/-/ /\+/ /\*/' ) or warn "# $_\n";
 
 ok( ($_ = Regexp::Assemble->new
+    ->insert( '\.' )
+    ->insert( '-' )
+    ->as_string) eq '[-.]', '/\./ /-/' ) or warn "# $_\n";
+
+ok( ($_ = Regexp::Assemble->new
     ->insert( '^' )
     ->insert( 'z' )
     ->insert( '0' )
@@ -309,6 +314,33 @@ ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'r', 't' )
     ->insert( 'd', 'a', 'r', 'k' )
     ->as_string eq 'da(?:m[ep]|r[kt])', '/dame/ /damp/ /dark/ /dart/' );
+
+ok( Regexp::Assemble->new
+	->add( qw/bcktx bckx bdix bdktx bdkx/ )
+	->as_string eq 'b(?:d(?:kt?|i)|ckt?)x', 'bcktx bckx bdix bdktx bdkx' );
+
+ok( Regexp::Assemble->new
+    ->add( qw/ dldrt dndrt dldt dndt dx / )
+    ->as_string eq 'd(?:[ln]dr?t|x)', 'dldrt dndrt dldt dndt dx' );
+
+ok( Regexp::Assemble->new
+    ->add( qw/ dldt dndt dlpt dnpt dx / )
+    ->as_string eq 'd(?:[ln][dp]t|x)', q/ dldt dndt dlpt dnpt dx / );
+
+ok( Regexp::Assemble->new
+    ->add( qw/ dldrt dndrt dldmt dndmt dlprt dnprt dlpmt dnpmt dx / )
+    ->as_string eq 'd(?:[ln][dp][mr]t|x)', 'dldrt dndrt dldmt dndmt dlprt dnprt dlpmt dnpmt dx' );
+
+ok( Regexp::Assemble->new
+    ->add( qw/ dldrt dndrt dldt dndt dx / )
+    ->as_string(indent => 3)
+eq
+'d
+(?:
+   [ln]dr?t
+   |x
+)'
+,  'dldrt dndrt dldt dndt dx (indent 3)' );
 
 ok( ($_ = Regexp::Assemble->new
     ->add( qw/foo bar/ )

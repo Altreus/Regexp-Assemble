@@ -9,24 +9,13 @@
 use strict;
 use Regexp::Assemble;
 
-use constant deep_testcount => 47; # tests requiring Test::Deep
-use Test::More tests => deep_testcount;
-
-my $have_Test_Deep = do {
-    eval { require Test::Deep; import Test::Deep };
-    $@ ? 0 : 1;
-};
-
-SKIP: {
-
-skip 'Test::Deep not installed on this system', deep_testcount
-    unless $have_Test_Deep;
+use Test::More tests => 47;
 
 {
     my $ra = Regexp::Assemble->new;
     $ra->insert($_) for 0..2;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 '0' => ['0'],
@@ -45,7 +34,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'bird' )
         ->insert( split //, 'worm' )
         ->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'b' => ['b','i','r','d'],
@@ -65,7 +54,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'proapproval' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             'p', 'r', 'o', 'a',
             {
@@ -88,7 +77,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 10 )
         ->insert( split //, 100 )
         ->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 '0' => ['0'],
@@ -115,7 +104,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( 'd', 'a', 'b' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'c' => ['c'],
@@ -133,7 +122,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( 'd', 'a', 'b' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'c' => ['c', 'r'],
@@ -152,7 +141,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( 'd', 'a', 'i', 'l', 'y' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             'd', 'a',
             {
@@ -177,7 +166,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( 'l', 'o', 'b' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'c' => [
@@ -201,7 +190,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'that' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 '' => undef,
@@ -219,7 +208,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'threat' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             't',
             {
@@ -239,7 +228,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'eat' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 '' => undef,
@@ -265,7 +254,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'teat' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             't',
             {
@@ -291,7 +280,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'limit' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'g' => [ 'g', 'r' ],
@@ -316,7 +305,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'tent' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'b' => [
@@ -345,7 +334,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'don' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 ''  => undef,
@@ -372,7 +361,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'dcf' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'b' => [
@@ -412,7 +401,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'acidoids' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'k' => [ 'k' ],
@@ -436,7 +425,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'acidoids' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 's' => [ 's', 'c', 'h', 'o', 'o', 'l', 'k' ],
@@ -461,7 +450,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'acidoids' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 's' => [
@@ -494,7 +483,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         # ;$ra->debug(3);$ra
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 's' => [
@@ -531,7 +520,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         # ;$ra->debug(3);$ra
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             's', 'h', 'o', 'w',
             {
@@ -555,7 +544,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'blaze' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'b' => ['b', 'l', 'a', 'z', 'e'],
@@ -579,7 +568,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'glaze' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             'g',
             {
@@ -604,7 +593,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'graze' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             'g',
             {
@@ -635,7 +624,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         's',
     ];
     my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
-    cmp_deeply( $res,
+    is_deeply( $res,
         [
             't',
             {
@@ -668,7 +657,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         'f',
     ];
     my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
-    cmp_deeply( $res,
+    is_deeply( $res,
         [
             't',
             {
@@ -699,7 +688,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         'e', 's',
     ];
     my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
-    cmp_deeply( $res,
+    is_deeply( $res,
         [
             't',
             {
@@ -732,7 +721,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         't', 'a', 'b',
     ];
     my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
-    cmp_deeply( $res,
+    is_deeply( $res,
         [
             'd', 'i',
             {
@@ -769,7 +758,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         't', 'm', 'x',
     ];
     my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
-    cmp_deeply( $res,
+    is_deeply( $res,
         [
             'd', 'i',
             {
@@ -807,7 +796,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         't', 'a', 'x',
     ];
     my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
-    cmp_deeply( $res,
+    is_deeply( $res,
         [
             'd', 'i',
             {
@@ -836,7 +825,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'submit' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'g' => ['g',
@@ -871,7 +860,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         # ;$ra->debug(3);$ra
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 ''  => undef,
@@ -909,7 +898,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         # ;$ra->debug(3);$ra
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'g' => ['g',
@@ -939,7 +928,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'brit' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'b' => ['b'],
@@ -964,7 +953,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'brit' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'b' => ['b',
@@ -1005,7 +994,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         # ;$ra->debug(3);$ra
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'b' => [
@@ -1042,7 +1031,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'transmit' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'c' => [
@@ -1073,7 +1062,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
         ->insert( split //, 'apocrenic' )
         ->_reduce
     ;
-    cmp_deeply( $ra->_path, 
+    is_deeply( $ra->_path, 
         [
             'a','p','o','c','r',
             {
@@ -1096,7 +1085,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path, [
+    is_deeply( $ra->_path, [
             {
                 'd' => ['d',
                     {
@@ -1137,7 +1126,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [ 'g',
             { 
                 ''  => undef,
@@ -1168,7 +1157,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [ 'g',
             {
                 'a' => [ 'a',
@@ -1217,7 +1206,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             'l','i', {
                 'm' => [
@@ -1245,7 +1234,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             {
                 'm' => [
@@ -1268,7 +1257,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             's',
             {
@@ -1291,7 +1280,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         [
             't',
             {
@@ -1315,7 +1304,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         ['t',
             {
                 ''  => undef,
@@ -1343,7 +1332,7 @@ skip 'Test::Deep not installed on this system', deep_testcount
     my $ra = Regexp::Assemble->new;
     $ra->insert( split // ) for @list;
     $ra->_reduce;
-    cmp_deeply( $ra->_path,
+    is_deeply( $ra->_path,
         ['t','i','t',
             {
                 ''  => undef,
@@ -1384,5 +1373,3 @@ skip 'Test::Deep not installed on this system', deep_testcount
     );
 }
 
-
-} # SKIP:

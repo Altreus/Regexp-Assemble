@@ -17,16 +17,9 @@
 use strict;
 use Regexp::Assemble;
 
-use constant simple_testcount  => 15;      # tests not requiring Test::Deep
-use constant deep_testcount    => 19;      # tests requiring Test::Deep
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
-use Test::More tests => simple_testcount + deep_testcount + permute_testcount;
-
-my $have_Test_Deep = do {
-    eval { require Test::Deep; import Test::Deep };
-    $@ ? 0 : 1;
-};
+use Test::More tests => 34 + permute_testcount;
 
 {
     my $rt = Regexp::Assemble->new;
@@ -72,16 +65,10 @@ my $have_Test_Deep = do {
         q{'ab,ac' => ... key 'c' exists and points to a path} );
 }
 
-SKIP: {
-
-skip 'Test::Deep not installed on this system',
-    deep_testcount + permute_testcount
-        unless $have_Test_Deep;
-
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( undef );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [],
         '// (from undef)'
     );
@@ -90,7 +77,7 @@ skip 'Test::Deep not installed on this system',
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( '' );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [{'' => undef}],
         q{// (from '')},
     );
@@ -99,7 +86,7 @@ skip 'Test::Deep not installed on this system',
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( '0' );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [0],
         q{/0/},
     );
@@ -108,7 +95,7 @@ skip 'Test::Deep not installed on this system',
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         ['d'],
         '/d/',
     );
@@ -117,7 +104,7 @@ skip 'Test::Deep not installed on this system',
 {
     my $rt = Regexp::Assemble->new( lex => '.' );
     $rt->add( '\\d+' );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [ '\\', 'd', '+' ],
         '/\\ d +/ (/./ lexer 1)'
     );
@@ -126,7 +113,7 @@ skip 'Test::Deep not installed on this system',
 {
     my $rt = Regexp::Assemble->new->lex( '.' );
     $rt->add( '\\d+' );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [ '\\', 'd', '+' ],
         '/\\ d +/ (/./ lexer 2)'
     );
@@ -135,7 +122,7 @@ skip 'Test::Deep not installed on this system',
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a b/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [qw/d a b/],
         '/dab/',
     );
@@ -145,7 +132,7 @@ skip 'Test::Deep not installed on this system',
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/0 1/ );
     $rt->insert( qw/0 2/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             0,
             {
@@ -162,7 +149,7 @@ skip 'Test::Deep not installed on this system',
     $rt->insert( qw/0/ );
     $rt->insert( qw/0 1/ );
     $rt->insert( qw/0 2/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             0,
             {
@@ -179,7 +166,7 @@ skip 'Test::Deep not installed on this system',
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a m/ );
     $rt->insert( qw/d a m/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a', 'm',
         ],
@@ -192,7 +179,7 @@ skip 'Test::Deep not installed on this system',
     $rt->insert( qw/d a m/ );
     $rt->insert( qw/d a/ );
     $rt->insert( qw/d a/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a',
             {
@@ -209,7 +196,7 @@ skip 'Test::Deep not installed on this system',
     $rt->insert( qw/d a m/ );
     $rt->insert( qw/d a/ );
     $rt->insert( qw/d/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd',
             {
@@ -231,7 +218,7 @@ skip 'Test::Deep not installed on this system',
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a b/ );
     $rt->insert( qw/d a m/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a',
             {
@@ -247,7 +234,7 @@ skip 'Test::Deep not installed on this system',
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a r t/ );
     $rt->insert( qw/d a m p/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a',
             {
@@ -263,7 +250,7 @@ skip 'Test::Deep not installed on this system',
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/a m b l e/ );
     $rt->insert( qw/i d l e/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             {
                 'a' => ['a', 'm', 'b', 'l', 'e'],
@@ -279,7 +266,7 @@ skip 'Test::Deep not installed on this system',
     $rt->insert( qw/a m b l e/ );
     $rt->insert( qw/a m p l e/ );
     $rt->insert( qw/i d l e/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             {
                 'a' => [
@@ -300,7 +287,7 @@ skip 'Test::Deep not installed on this system',
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a m/ );
     $rt->insert( qw/d a r e/ );
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a',
             {
@@ -319,7 +306,7 @@ skip 'Test::Deep not installed on this system',
         ->insert(qw/d b/)
         ->insert(qw/d c/)
     ;
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd',
             {
@@ -338,7 +325,7 @@ skip 'Test::Deep not installed on this system',
         ->insert(qw/d b c d/)
         ->insert(qw/d c/)
     ;
-    cmp_deeply( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd',
             {
@@ -371,7 +358,7 @@ sub permute {
                             ->insert( @{$path->[$x4]} )
                             ->insert( @{$path->[$x5]} )
                         ;
-                        cmp_deeply( $rt->_path, $target,
+                        is_deeply( $rt->_path, $target,
                             '/' . join( '/ /', 
                                 join( '' => @{$path->[$x1]}),
                                 join( '' => @{$path->[$x2]}),
@@ -530,7 +517,6 @@ permute(
         [ split //, 'amuse' ],
     ],
 );
-} # SKIP:
 
 __END__
 

@@ -1,11 +1,12 @@
 # Regexp::Assemple.pm
 #
-# Copyright (c) 2004 David Landgren, all rights reserved
+# Copyright (c) 2004-2005 David Landgren
+# All rights reserved
 
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char/;
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 =head1 NAME
 
@@ -13,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.07 of Regexp::Assemble,
-released 2004-12-17.
+This document describes version 0.08 of Regexp::Assemble,
+released 2005-01-03.
 
 =head1 SYNOPSIS
 
@@ -996,14 +997,25 @@ sub _insert_node {
         $debug and print 'to=', _dump([$token]),"\n";
         $debug and print '@_=', _dump([@_]),"\n";
         if( exists($path_end->[0]{$token_key}) ) {
-            my $sub_path = $path_end->[0]{$token_key};
-            shift @$sub_path;
-            print "  +_insert_path sub_path=@{[_dump([$sub_path])]}\n"
-                if $debug;
-            my $new = _insert_path( $path_end->[0]{$token_key}, $debug, @_ );
-            $path_end->[0]{$token_key} = [$token, @$new];
-            print "  +_insert_path result=@{[_dump($path_end)]}\n" if $debug;
-            splice( @$path, $offset, @$path_end, @$path_end );
+			if( @$path_end > 1 ) {
+				my $path_key = _re_path([$path_end->[0]]);
+				my $new = {
+					$path_key  => [ @$path_end ],
+					$token_key => [ $token, @_ ],
+				};
+				print "  +bifurcate new=@{[_dump([$new])]}\n" if $debug;
+				splice( @$path, $offset, @$path_end, $new );
+			}
+			else {
+            	my $sub_path = $path_end->[0]{$token_key};
+            	shift @$sub_path;
+            	print "  +_insert_path sub_path=@{[_dump([$sub_path])]}\n"
+                	if $debug;
+            	my $new = _insert_path( $path_end->[0]{$token_key}, $debug, @_ );
+            	$path_end->[0]{$token_key} = [$token, @$new];
+            	print "  +_insert_path result=@{[_dump($path_end)]}\n" if $debug;
+            	splice( @$path, $offset, @$path_end, @$path_end );
+			}
         }
         elsif( not _node_eq( $path_end->[0], $token )) {
             if( @$path_end > 1 ) {
@@ -1529,6 +1541,9 @@ sub _re_path {
         if( ref($p) eq '' ) {
             $out .= $p;
         }
+        elsif( ref($p) eq 'ARRAY' ) {
+			$out .= _re_path($p);
+		}
         else {
             my $path = [
                 map { _re_path( $p->{$_} ) }
@@ -1624,6 +1639,9 @@ sub _re_path_pretty {
             $out .= $in->[$p];
             $prev_was_paren = 0;
         }
+        elsif( ref($in->[$p]) eq 'ARRAY' ) {
+			$out .= _re_path($in->[$p]);
+		}
         else {
             my $path = [
                 map { _re_path_pretty( $in->[$p]{$_}, $arg ) }
@@ -1987,7 +2005,8 @@ Use of overloading.
 
 David Landgren, david@landgren.net
 
-Copyright (C) 2004
+Copyright (C) 2004-2005.
+All rights reserved.
 
 http://www.landgren.net/perl/
 

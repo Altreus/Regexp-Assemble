@@ -1,5 +1,15 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.08 Mon Jan 3 11:23:50 2005 UTC
+    - Bug in insert_node fixed: did not deal with the following
+      correctly: qw/bcktx bckx bdix bdktx bdkx/ (The assymetry
+      introduced by 'bdix' threw things off, or something like
+      that).
+    - Bug in reduced regexp generation (reinstated code that had
+      been excised from _re_path() et al).
+    - Rewrote the tests to eliminate the need for Test::Deep.
+      Test::More::is_deeply is sufficient.
+
 0.07 Fri Dec 17 19:31:18 2004 UTC
     - It would have been nice to have remembered to update the
       release date in the POD, and the version in the README.

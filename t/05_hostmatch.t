@@ -8,9 +8,9 @@
 use strict;
 use Regexp::Assemble;
 
-use constant deep_testcount => 3; # tests requiring Test::File::Contents
+use constant file_testcount => 3; # tests requiring Test::File::Contents
 
-use Test::More tests => 9 + deep_testcount;
+use Test::More tests => 9 + file_testcount;
 
 use constant NR_GOOD  => 45;
 use constant NR_BAD   => 529;
@@ -92,7 +92,7 @@ ok( NR_ERROR == $error, NR_ERROR. ' records in error' );
 ok( NR_GOOD+NR_BAD+NR_ERROR == $., "$. total records" );
 
 SKIP: {
-    skip 'Test::File::Contents not installed on this system', deep_testcount
+    skip 'Test::File::Contents not installed on this system', file_testcount
         unless $have_Test_File_Contents;
     my $file;
     for $file( qw/good bad error/ ) {

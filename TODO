@@ -13,3 +13,9 @@ testing.
 5. How can a tracked pattern be serialised? (Add freeze and thaw methods).
 
 6. Store callbacks per tracked pattern.
+
+7. Sort character classes before single letters => (?:[a-z]+\d+|x(?:ab|cd))
+
+8. Deal with [:punct:] character classes
+
+9. saw this foo(?:\.|-)bar but the test checks out ok
