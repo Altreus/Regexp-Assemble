@@ -1,5 +1,10 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.05 Fri Dec 10 11:52:13 2004
+    - Bug fix in tests. The skip test in version 0.04 did not deal
+      correctly with non-5.6.0 perls that do not have Test::Deep
+      installed.
+
 0.04 Thu Dec 9 22:07:38 2004
     - Bug fix in tests. Someone smoke tested this on 5.6.0, and in
       doing so tripped up on 5.6.0's broken handling of backslashes

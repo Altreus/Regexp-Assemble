@@ -5,7 +5,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer/;
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.04 of Regexp::Assemble,
-released 2004-12-09.
+This document describes version 0.05 of Regexp::Assemble,
+released 2004-12-10.
 
 =head1 SYNOPSIS
 
@@ -29,10 +29,9 @@ released 2004-12-09.
 
 =head1 DESCRIPTION
 
-Regexp::Assemble allows you to take a number of regular expressions
-and assemble them into a single regular expression (or RE) that
-will match everything that any of the individual REs match, only what
-they match and nothing else.
+Regexp::Assemble takes a number of regular expressions and assembles
+them into a single regular expression (or RE) that matches all that
+the individual REs match, only what they match and nothing else.
 
 The assembled RE is more sophisticated than a brute force C<join(
 '|', @list)> concatenation. Common subexpressions are shared;

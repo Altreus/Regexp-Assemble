@@ -343,21 +343,21 @@ SKIP: {
 }
 
 SKIP: {
-	my $msg = ($have_Test_Deep and $] eq '5.006')
-		? 'backslashes in qw// operator give erroneous results in 5.6.0'
-		: 'Test::Deep not installed on this system'
-	;
-	skip $msg, TEST_560 if $have_Test_Deep and $] eq '5.006';
+    my $msg = ($have_Test_Deep and $] eq '5.006')
+        ? 'backslashes in qw// operator give erroneous results in 5.6.0'
+        : 'Test::Deep not installed on this system'
+    ;
+    skip $msg, TEST_560 if ($have_Test_Deep and $] eq '5.006') or not $have_Test_Deep;
 
-	cmp_deeply( Regexp::Assemble::_unrev_path(
-		[{x1     => ['x1', 'z\\d'], '' => undef }], 0, 0 ),
-		[{'z\\d' => ['z\\d', 'x1'], '' => undef }], 'node(* metachar)' );
+    cmp_deeply( Regexp::Assemble::_unrev_path(
+        [{x1     => ['x1', 'z\\d'], '' => undef }], 0, 0 ),
+        [{'z\\d' => ['z\\d', 'x1'], '' => undef }], 'node(* metachar)' );
 
-	cmp_deeply( Regexp::Assemble::_unrev_path(
-		[{x     => [qw[x \\d]], '' => undef }], 0, 0 ),
-		[{'\\d' => [qw[\\d x]], '' => undef }], 'node(* metachar) 2' );
+    cmp_deeply( Regexp::Assemble::_unrev_path(
+        [{x     => [qw[x \\d]], '' => undef }], 0, 0 ),
+        [{'\\d' => [qw[\\d x]], '' => undef }], 'node(* metachar) 2' );
 
-	cmp_deeply( Regexp::Assemble::_unrev_path(
-		[qw[ ab cd ef ], {x1 => [qw[x1 y2 z\\d]], mx => [qw[mx us ca]] }], 0, 0 ),
-		[{ 'z\\d' => [qw[z\\d y2 x1]], ca => [qw[ca us mx]]}, qw[ef cd ab]], 'path(node)' );
+    cmp_deeply( Regexp::Assemble::_unrev_path(
+        [qw[ ab cd ef ], {x1 => [qw[x1 y2 z\\d]], mx => [qw[mx us ca]] }], 0, 0 ),
+        [{ 'z\\d' => [qw[z\\d y2 x1]], ca => [qw[ca us mx]]}, qw[ef cd ab]], 'path(node)' );
 }
