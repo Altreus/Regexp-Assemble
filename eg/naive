@@ -1,0 +1,28 @@
+#! /usr/local/bin/perl -w
+#
+# naive.pl - generate a regular expression that will lex regular expressions
+# it is naive in the sense that it can't lex certain patterns, such as a
+# pattern that contains nested parentheses (e.g. /ab(?:cd(?ef)?gh)+ij/ )
+#
+# The emitted regular expression is the default pattern that Regexp::Assemble
+# uses to pick apart a string into tokens suitable for being assembled. If it
+# isn't sufficiently sophisticated, you will have to supply your own lexer.
+#
+# Copyright (C) David Landgren 2004
+
+use strict;
+
+my $meta     = q{\\\\[aefnrtdDwWsS.+*?]};
+my $octal    = q{\\\\0\d{2}};
+my $hex      = q{\\\\x(?:[\da-fA-F]{2}|\{[\da-fA-F]{4}\})};
+my $ctrl     = q{\\\\c.};
+my $named    = q{\\\\N\{\w+\}};
+my $prop     = q{\\\\[Pp](?:.|\{\w+\})};
+my $class    = q{\\[.*?(?<!\\\\)\\]};
+my $paren    = q{\\(.*?(?<!\\\\)\\)};
+
+my $modifier   = q{(?:(?:[*+?]|\\{\\d+(?:,\\d*)?\\})\\??)};
+my $modifiable = qq{$meta|$octal|$hex|$ctrl|$named|$prop|$class|$paren|.};
+my $directive  = q{\\\\[bluABCEGLQUXZ]};
+
+print qq/(?:$directive|(?:$modifiable)$modifier?)/;

@@ -1,0 +1,18 @@
+1. Clean up the code in _insert. There is too much redundancy, and much
+can be factored out.
+
+2. Tree equivalencies. Currently, /contend/ /content/ /resend/ /resent/
+produces (?:conten[dt]|resend[dt]) but it is possible to produce
+(?:cont|res)en[dt] if one can spot the common tail nodes (and walk back
+the equivalent paths).
+
+3. Investigate how (?>foo) works. Can it be applied?
+
+4. Investigate how to note which original pattern triggered the match
+
+5. Devel::Coverage testing to ensure all code paths are exercised. More
+testing.
+
+6. Factor out slide procedure.
+
+7. Allow pretty-printed multiline RE output

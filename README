@@ -1,0 +1,98 @@
+The file is the README for Regexp::Assemble version 0.01
+
+INSTALLATION
+
+perl Makefile.PL
+make
+make test
+make install
+
+TESTING
+
+This module requires the following modules for thorough testing:
+
+	Test::More
+	Test::Deep
+	Test::File::Contents
+
+I suspect I could rewrite the tests with out Test::Deep these days;
+Test::More should be sufficient. This is mainly the result of legacy
+architectural decisions that no longer hold true.
+
+BASIC USAGE
+
+use Regexp::Assemble;
+
+my $ra = Regexp::Assemble->new;
+$ra->add( 'ab+c' );
+$ra->add( 'ab+\\d*\\s+c' );
+$ra->add( 'a\\w+\\d+' );
+$ra->add( 'a\\d+' );
+print $ra->re; # prints (?:a(?:b+(?:\d*\s+)?c|(?:\w+)?\d+))
+
+or
+
+my $ra = Regexp::Assemble->new
+	->add( 'foo', 'bar', 'baz', 'foom' );
+
+print "$_ matches\n" if /$ra/
+	for (qw/word more stuff food rabble bark/);
+
+or
+
+use Regexp::Assemble;
+my @word = qw/flip flop slip slop/;
+
+print Regexp::Assemble->new->add(@word)->as_string;
+    # produces [fs]l[io]p
+
+print Regexp::Assemble->new->add(@word)->reduce(0)->as_string;
+    # produces (?:fl(?:ip|op)|sl(?:ip|op))
+
+See the ./eg directory for some example scripts. More will be added
+in subsequent releases.
+
+IMPLEMENTATION NOTES
+
+I'll fill this bit out when in a later release. If you are curious,
+you can dump out the internal data struct with the following:
+
+  use Data::Dumper;
+  $Data::Dumper::Terse     = 0;
+  $Data::Dumper::Indent    = 0;
+  $Data::Dumper::Quotekeys = 0;
+  $Data::Dumper::Pair      = '=>';
+
+  print Dumper($r->_path);
+
+A more compact representation can also be obtained with
+
+  print Regexp::Assemble::_dump($r->_path);
+
+STATUS
+
+This module is under active development.
+
+AUTHOR
+
+David Landgren <david@landgren.net>
+
+I do appreciate getting e-mail, especially about Perl. Please keep in
+mind that I get a lot of spam, and take drastic measures to reduce the
+flow. One of the measures involves a gigantic regular expression that
+contains many thousands of patterns that match hostnames of dynamic
+dialup/residential/home IP addresses. That pattern is of course built
+with this module.
+
+It would be ironic if I rejected your mail coming from such an address.
+Please use your ISPs outbound MX, or pay what it takes to get your
+reverse DNS changed to something else.
+
+COPYRIGHT
+
+This module is copyright (C) David Landgren 2004. All rights reserved.
+
+LICENSE
+
+This module is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.

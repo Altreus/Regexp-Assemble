@@ -1,0 +1,20 @@
+Assemble.pm
+Changes
+MANIFEST
+Makefile.PL
+META.yml                                 Module meta-data (added by MakeMaker)
+README
+TODO
+eg/fee
+eg/naive
+eg/hostmatch/bad.canonical
+eg/hostmatch/error.canonical
+eg/hostmatch/good.canonical
+eg/hostmatch/hostmatch
+eg/hostmatch/source.in
+t/00_basic.t
+t/01_insert.t
+t/02_reduce.t
+t/03_str.t
+t/04_match.t
+t/05_hostmatch.t
