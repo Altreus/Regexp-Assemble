@@ -1,5 +1,11 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.04 Thu Dec 9 22:07:38 2004
+    - Bug fix in tests. Someone smoke tested this on 5.6.0, and in
+      doing so tripped up on 5.6.0's broken handling of backslashes
+      in qw//. The tests have been amended to skip over the tests
+      in question.
+
 0.03 Wed Dec 8 21:55:27 2004 UTC
     - Bug fix: Leading 0s could be omitted from paths because of the
       difference between while($p) versus while(defined($p)).
@@ -8,8 +14,8 @@ Revision history for Perl extension Regexp::Assemble.
     - Code profiled: dead code paths removed, hotspots rewritten to run
       more quickly.
     - Documentation typos and wordos.
-	- assemble script now accepts a number of command line switches to
-	  control its behaviour.
+    - assemble script now accepts a number of command line switches to
+      control its behaviour.
     - More tests. Now with Test::Pod.
 
 0.02  Fri Nov 19 11:16:33 2004 UTC

@@ -6,9 +6,10 @@
 # copyright (C) 2004 David Landgren
 
 use strict;
-use constant TEST_DEEP_COUNT => 32;
+use constant TEST_DEEP_COUNT => 33;
+use constant TEST_560        => 3; # tests to ignore when running under 5.6.0
 
-use Test::More tests => 28 + TEST_DEEP_COUNT;
+use Test::More tests => 28 + TEST_DEEP_COUNT + TEST_560;
 
 use Regexp::Assemble;
 
@@ -177,6 +178,12 @@ SKIP: {
             "_lex $str",
         );
 
+        $str = 'a+\\d+';
+        cmp_deeply( [$r->_lex( $str )],
+            [ 'a+', '\\d+' ],
+            "_lex $str",
+        );
+
         $str = 'a+?b*?c??';
         cmp_deeply( [$r->_lex( $str )],
             [ 'a+?', 'b*?', 'c??' ],
@@ -320,18 +327,37 @@ SKIP: {
         { '' => undef, b => [qw[b a]], g => [qw[g f e d c b]] },
         'node(*a,b2)' );
 
+    cmp_deeply( Regexp::Assemble::_unrev_path(
+        [{x => [qw[x 0]], '' => undef }], 0, 0 ),
+        [{0 => [qw[0 x]], '' => undef }], 'node(* 0)' );
+
     cmp_deeply( Regexp::Assemble::_unrev_node(
         { ab => [qw[ab bc]], bc => [qw[bc cd de ef fg gh]], ef => [qw[ef gh ij]] }, 0, 0),
         { bc => [qw[bc ab]], gh => [qw[gh fg ef de cd bc]], ij => [qw[ij gh ef]] },
         'node(ab,bc,ef)' );
 
     cmp_deeply( Regexp::Assemble::_unrev_path(
-        [qw[ ab cd ef ], {x1 => [qw[x1 y2 z\\d]], mx => [qw[mx us ca]] }], 0, 0 ),
-        [{ 'z\\d' => [qw[z\\d y2 x1]], ca => [qw[ca us mx]]}, qw[ef cd ab]], 'path(node)' );
-
-    cmp_deeply( Regexp::Assemble::_unrev_path(
         [qw[a b], {c=>[qw[c d e]], f=>[qw[f g h]], i=>[qw[i j], {k => [qw[k l m]], n=>[qw[n o p]]}, 'x' ]}], 0, 0),
         [{e=>[qw[e d c]], h=>[qw[h g f]], x=>['x', {m=>[qw[m l k]], p=>[qw[p o n]]}, qw[j i]]}, qw[b a]],
         'path(node(path))');
+}
 
+SKIP: {
+	my $msg = ($have_Test_Deep and $] eq '5.006')
+		? 'backslashes in qw// operator give erroneous results in 5.6.0'
+		: 'Test::Deep not installed on this system'
+	;
+	skip $msg, TEST_560 if $have_Test_Deep and $] eq '5.006';
+
+	cmp_deeply( Regexp::Assemble::_unrev_path(
+		[{x1     => ['x1', 'z\\d'], '' => undef }], 0, 0 ),
+		[{'z\\d' => ['z\\d', 'x1'], '' => undef }], 'node(* metachar)' );
+
+	cmp_deeply( Regexp::Assemble::_unrev_path(
+		[{x     => [qw[x \\d]], '' => undef }], 0, 0 ),
+		[{'\\d' => [qw[\\d x]], '' => undef }], 'node(* metachar) 2' );
+
+	cmp_deeply( Regexp::Assemble::_unrev_path(
+		[qw[ ab cd ef ], {x1 => [qw[x1 y2 z\\d]], mx => [qw[mx us ca]] }], 0, 0 ),
+		[{ 'z\\d' => [qw[z\\d y2 x1]], ca => [qw[ca us mx]]}, qw[ef cd ab]], 'path(node)' );
 }

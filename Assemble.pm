@@ -5,7 +5,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer/;
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.03 of Regexp::Assemble,
-released 2004-12-08.
+This document describes version 0.04 of Regexp::Assemble,
+released 2004-12-09.
 
 =head1 SYNOPSIS
 
@@ -1543,9 +1543,6 @@ use of mutually-recursive functions (I<i.e.>: A calls B, B calls A,
 ...) For deeply similar expressions, it may be possible to provoke
 "Deep recursion" warnings.
 
-The code is far too messy. I need to better understand which code
-paths are exercised when, and factor out redundant blocks.
-
 C<Regexp::Assemble> does not assign meaning to meta-characters.
 For instance, if the following two pattern lists are given: C<a\d>
 and C<a\d+>, it will not determine that C<\d> can be matched by
@@ -1567,15 +1564,23 @@ might lie appears in the accompanying README file. If this file is
 not available locally, you should be able to find a copy on the Web
 at your nearest CPAN mirror.
 
-If you are feeling brave, extensive debugging traces are available.
-
 Please report all bugs at
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Regexp-Assemble|rt.cpan.org>
 
 Make sure you include the output from the following two commands:
 
-  C<perl -MRegexp::Assemble -le 'print Regexp::Assemble::VERSION'>
-  C<perl -V>
+  perl -MRegexp::Assemble -le 'print Regexp::Assemble::VERSION'
+  perl -V
+
+If you are feeling brave, extensive debugging traces are available.
+
+Note that perl 5.6.0 has a bug that re-escapes backslashes that
+occur in qw// quoted word lists. You will come to grief if you try
+to build patterns statically in this way, should they contain
+metacharacters like C<\d>. If you read patterns in from a file you
+should have no problems. The real solution is to upgrade to at least
+5.6.1, if not 5.6.2 or more recent. Or downgrade. Anything but
+5.6.0.
 
 =head1 ACKNOWLEDGEMENTS
 

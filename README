@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.02
+The file is the README for Regexp::Assemble version 0.04
 
 INSTALLATION
 
@@ -14,7 +14,7 @@ This module requires the following modules for thorough testing:
     Test::Deep
     Test::File::Contents
     Test::More
-	Test::Pod
+    Test::Pod
 
 I suspect I could rewrite the tests with out Test::Deep these days;
 Test::More should be sufficient. This is mainly the result of legacy
