@@ -19,7 +19,10 @@ use Regexp::Assemble;
 
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
-use Test::More tests => 34 + permute_testcount;
+use Test::Differences;
+use Test::More tests => 44 + permute_testcount;
+
+is_deeply( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
 
 {
     my $rt = Regexp::Assemble->new;
@@ -45,12 +48,14 @@ use Test::More tests => 34 + permute_testcount;
     my $r = $rt->_path;
     ok( scalar @$r == 2,  q{'ab' => path of length 2} );
     ok( join( '' => @$r ) eq 'ab', q{'ab' => ...and is 'a', 'b'} );
+	cmp_ok( $rt->dump, 'eq', '[a b]', 'dump([a b])' );
 }
 
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( 'a', 'b' );
     $rt->insert( 'a', 'c' );
+	cmp_ok( $rt->dump, 'eq', '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
     my $r = $rt->_path;
     ok( scalar @$r == 2,        q{'ab,ac' => path of length 2} );
     ok( $r->[0] eq 'a',         q{'ab,ac' => ...and first atom is 'a'} );
@@ -101,21 +106,13 @@ use Test::More tests => 34 + permute_testcount;
     );
 }
 
-{
-    my $rt = Regexp::Assemble->new( lex => '.' );
-    $rt->add( '\\d+' );
-    is_deeply( $rt->_path,
-        [ '\\', 'd', '+' ],
-        '/\\ d +/ (/./ lexer 1)'
-    );
-}
 
 {
-    my $rt = Regexp::Assemble->new->lex( '.' );
-    $rt->add( '\\d+' );
-    is_deeply( $rt->_path,
-        [ '\\', 'd', '+' ],
-        '/\\ d +/ (/./ lexer 2)'
+    my $r = Regexp::Assemble->new->lex( '\w' );
+    $r->add( 'ab12-xy' );
+    eq_or_diff( $r->_path,
+        [ 'a', 'b', '1', '2', '-', 'x', 'y' ],
+        'ab12-xy (with /\w/ lexer)'
     );
 }
 
@@ -366,7 +363,12 @@ sub permute {
                                 join( '' => @{$path->[$x4]}),
                                 join( '' => @{$path->[$x5]}),
                             ) . '/'
-                        );
+                        ) or diag(
+							$rt->dump(),
+							' versus ',
+							Regexp::Assemble->_dump($target),
+							"\n",
+						);
                     }
                 }
             }
@@ -518,6 +520,50 @@ permute(
     ],
 );
 
-__END__
+my $rx = Regexp::Assemble->new( lex => '(?:\d+|.)' );
+$rx->add( 'ab1' );
+$rx->add( 'ab123' );
+is_deeply( $rx->_path,
+	[ 'a', 'b', { '1' => ['1'], '123' => ['123'] }],
+	'/\\d+|./ new lexer'
+);
 
+Regexp::Assemble::Default_Lexer('.');
 
+my $r1 = Regexp::Assemble->new;
+$r1->add( '\\d+' );
+is_deeply( $r1->_path,
+	[ '\\', 'd', '+' ],
+	'\\d+ (with /./ lexer)'
+);
+
+my $r2 = Regexp::Assemble->new;
+$r2->add( 'a[bc]' );
+is_deeply( $r2->_path,
+	[ 'a', '[', 'b', 'c', ']' ],
+	'a[bc] (with /./ lexer)'
+);
+
+$r2->lex('\\d')->reset()->add( '123abc456' );
+is_deeply( $r2->_path,
+	[ '1', '2', '3', 'abc', '4', '5', '6' ],
+	'123abc456 (with /\\d/ lexer)'
+);
+
+$r2->reset()->add( '123abc' );
+is_deeply( $r2->_path,
+	[ '1', '2', '3', 'abc', ],
+	'123abc (with /\\d/ lexer)'
+);
+
+$r2->reset()->add( 'abc123' );
+is_deeply( $r2->_path,
+	[ 'abc', '1', '2', '3', ],
+	'abc123 (with /\\d/ lexer)'
+);
+
+eval { $r2->filter('choke') };
+ok( $@, 'die on non-CODE filter' );
+
+eval { $r2->pre_filter('choke') };
+ok( $@, 'die on non-CODE pre_filter' );

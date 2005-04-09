@@ -1,23 +1,24 @@
-#! /usr/local/bin/perl -w
+#! /usr/bin/perl -w
 #
 # assemble - read lines from STDIN and assemble them into a pattern
 #
-# Copyright (C) David Landgren 2004
+# Copyright (C) David Landgren 2004-2005
 
 use strict;
 use Getopt::Std;
 use Regexp::Assemble;
 
-use vars '$VERSION'; $VERSION = '0.2';
+use vars '$VERSION'; $VERSION = '0.3';
 
-getopts( 'bcd:i:nprt:v', \my %opt );
+getopts( 'abcd:i:nprt:vw', \my %opt );
 
 print "$VERSION\n" and exit if $opt{v};
 
 my $ra = Regexp::Assemble->new(
-	chomp  => 1,
-	debug  => $opt{d} || 0,
-	reduce => exists $opt{r} ? 0 : 1,
+	chomp     => 1,
+	debug     => $opt{d} || 0,
+	reduce    => exists $opt{r} ? 0 : 1,
+	lookahead => exists $opt{a} ? 1 : 0,
 );
 
 if( $opt{b} or $opt{c} ) {
@@ -50,9 +51,15 @@ if( $opt{t} ) {
 	my $error = 0;
 	my $file = $opt{t};
 	open IN, $file or die "Cannot open $file for input: $!\n";
+	print $ra->as_string, "\n";
 	while( <IN> ) {
 		chomp;
-		next if /$ra/;
+		if( $opt{w} ) {
+			next if $_ =~ /^$ra$/;
+		}
+		else {
+			next if $_ =~ /$ra/;
+		}
 		print "FAIL <$_>\n";
 		++$error;
 	}
@@ -76,6 +83,11 @@ file, using the Regexp::Assemble module.
 =head1 OPTIONS
 
 =over 5
+
+=item B<-a>
+
+look Ahead. Insert C<(?=...)> zero-width lookahead assertions in the pattern,
+where necessary.
 
 =item B<-b>
 
@@ -107,6 +119,7 @@ patterns ordinarily you don't care what the the assembled pattern
 looks like).
 
 =item B<-r>
+
 Reduce. The default behaviour is to reduce the assembled pattern.
 Enabling this switch causes the reduction algorithm to be switched
 off. This can help you determine how much reduction is performed.
@@ -127,6 +140,12 @@ case of a failure, 0 if all lines matched.
 
 Version. Print the version of the assemble script.
 
+=item B<-w>
+
+Word/Whole. When testing the contents of a file with C<-t>, bracket
+the expression with C<^> and C<$> in order to match the whole word
+or line from the file.
+
 =back
 
 =head1 SEE ALSO
@@ -137,7 +156,7 @@ L<Regexp::Assemble>
 
 David Landgren, <david@landgren.net>
 
-Copyright 2004 David Landgren. All rights reserved.
+Copyright 2004-2005 David Landgren. All rights reserved.
 
 =head1 LICENSE
 

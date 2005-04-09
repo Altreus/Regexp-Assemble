@@ -5,9 +5,6 @@ the equivalent paths).
 
 2. Investigate how (?>foo) works. Can it be applied?
 
-3. Devel::Coverage testing to ensure all code paths are exercised. More
-testing.
-
 4. Factor out slide procedure.
 
 5. How can a tracked pattern be serialised? (Add freeze and thaw methods).
@@ -18,5 +15,4 @@ testing.
 
 8. saw this foo(?:\.|-)bar but the test checks out ok
 
-9. Deal with excessively backslashed quotemeta'ed tokens (see test marked
-   TODO in t/03_str.t).
+11. Add indent() as a first-class method

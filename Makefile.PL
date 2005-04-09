@@ -1,4 +1,5 @@
 use ExtUtils::MakeMaker;
+eval "use ExtUtils::MakeMaker::Coverage";
 
 WriteMakefile(
     'NAME'	       => 'Regexp::Assemble',

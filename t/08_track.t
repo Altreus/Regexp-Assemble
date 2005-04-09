@@ -6,9 +6,23 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use constant TESTS => 36;
-use Test::More tests => TESTS;
+use constant TESTS => 47;
+use Test::More tests => TESTS + 4;
 use Regexp::Assemble;
+
+my $ra = Regexp::Assemble->new;
+
+is_deeply( $ra->mbegin, [], 'mbegin is [] on non-tracked R::A object' );
+is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
+
+{
+	my $re = Regexp::Assemble->new
+		->add( 'cat' )
+		->add( 'dog' )
+	;
+	ok( $re->match( 'cat' ), 'match without tracking' );
+	ok( not( defined $re->match( 'eagle' )), 'match fail without tracking' );
+}
 
 SKIP: {
 
@@ -76,6 +90,9 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
     ok( $re->mvar(0) eq 'b-34-56', 'match pattern-3 capture 1' );
     ok( $re->mvar(1) == 34, 'match pattern-3 capture 2' );
     ok( $re->mvar(2) == 56, 'match pattern-3 capture 3' );
+	is_deeply( $re->mvar, ['b-34-56', 34, 56], 'match pattern-3 mvar' );
+	is_deeply( $re->mbegin, [0, 2, 5], 'match pattern-3 mbegin' );
+	is_deeply( $re->mend, [7, 4, 7], 'match pattern-3 ' );
     ok( defined $re->match('b-789'), 'match pattern-3 b-789' );
     ok( $re->mvar(0) eq 'b-789', 'match pattern-3 capture 4' );
     ok( $re->mvar(1) == 789, 'match pattern-3 capture 5' );
@@ -100,6 +117,23 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
     ok( $re->mvar(0) eq $target, 'match pattern-4 capture 4' );
     ok( $re->mvar(1) == 2048, 'match pattern-4 capture 5' );
     ok( !defined($re->mvar(2)), 'match pattern-4 undef' );
+	is_deeply( $re->mbegin, [0, undef, undef, 2], 'match pattern-3 mbegin' );
+	is_deeply( $re->mend, [6, undef, undef, 6, undef], 'match pattern-3 mend' );
+}
+
+{
+    my $re = Regexp::Assemble->new( track=>1 )
+        ->add( '^c-\\d+$' )
+        ->add( '^c-\\w+$' )
+        ->add( '^c-[aeiou]-\\d+$' )
+    ;
+    ok( !defined $re->match('foo'), 'match pattern-5 foo' );
+    ok( !defined $re->mvar(2), 'match pattern-4 foo novar' );
+    my $target = 'c-u-350';
+    ok( defined $re->match($target), "match pattern-5 $target" );
+    ok( $re->mvar(0) eq $target, 'match pattern-5' );
+    ok( !defined $re->mvar(1), 'match pattern-5 no capture 2' );
+    ok( !defined $re->mvar(2), 'match pattern-5 no capture 3' );
 }
 
 } # SKIP

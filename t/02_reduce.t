@@ -480,7 +480,6 @@ use Test::More tests => 47;
         ->insert( split //, 'acids' )
         ->insert( split //, 'acidoids' )
         ->insert( split //, 'schoolkids' )
-        # ;$ra->debug(3);$ra
         ->_reduce
     ;
     is_deeply( $ra->_path,
@@ -517,7 +516,6 @@ use Test::More tests => 47;
         ->insert( split //, 'showerless' )
         ->insert( split //, 'showiness' )
         ->insert( split //, 'showless' )
-        # ;$ra->debug(3);$ra
         ->_reduce
     ;
     is_deeply( $ra->_path,
@@ -671,7 +669,7 @@ use Test::More tests => 47;
             },
         ],
         '_insert_path fit/fat -> sit/sat, bit/bat',
-    ) or print Regexp::Assemble::_dump($res), "\n";
+    );
 }
 
 {
@@ -735,7 +733,7 @@ use Test::More tests => 47;
             },
         ],
         '_insert_path dio?tyd -> dio?tab',
-    ) or print '# ', Regexp::Assemble::_dump( $res ). "\n";
+    );
 }
 
 {
@@ -773,7 +771,7 @@ use Test::More tests => 47;
             },
         ],
         '_insert_path dio?tmx -> dio?t(ab|yd)',
-    ) or print '# ', Regexp::Assemble::_dump( $res ). "\n";
+    );
 }
 
 {
@@ -815,8 +813,9 @@ use Test::More tests => 47;
             },
         ],
         '_insert_path dio?tax -> dio?t(ab|yd)',
-    ) or print '# ', Regexp::Assemble::_dump( $res ). "\n";
+    );
 }
+
 {
     my $ra = Regexp::Assemble->new
         ->insert( split //, 'gait' )
@@ -857,7 +856,6 @@ use Test::More tests => 47;
         ->insert( split //, 'submit' )
         ->insert( split //, 'it' )
         ->insert( split //, 'emit' )
-        # ;$ra->debug(3);$ra
         ->_reduce
     ;
     is_deeply( $ra->_path,
@@ -895,7 +893,6 @@ use Test::More tests => 47;
         ->insert( split //, 'grit' )
         ->insert( split //, 'lit' )
         ->insert( split //, 'limit' )
-        # ;$ra->debug(3);$ra
         ->_reduce
     ;
     is_deeply( $ra->_path,
@@ -991,7 +988,6 @@ use Test::More tests => 47;
         ->insert( split //, 'submit' )
         ->insert( split //, 'emit' )
         ->insert( split //, 'transmit' )
-        # ;$ra->debug(3);$ra
         ->_reduce
     ;
     is_deeply( $ra->_path,

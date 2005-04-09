@@ -6,20 +6,26 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 4249;
+use Test::More tests => 63 # miscellaneous tests
+	+ (3508 * 4); # count of all args passed to match() * 4 RE variants 
+
 use Regexp::Assemble;
 
 sub match {
-    my $r = Regexp::Assemble->new;
+    my $re   = Regexp::Assemble->new;
+    my $rela = Regexp::Assemble->new->lookahead(1);
     my $tag = shift;
-    my $str;
+	$re->add(@_);
+	$rela->add(@_);
+	my $reind = $re->clone;
+	$reind = $re->clone->flags('x')->re(indent => 3);
+	my $rered = $re->clone->reduce(0);
+	my $str;
     for $str (@_) {
-        $r->insert(split //, $str);
-    }
-    my $re = $r->as_string;
-    $re = $r->re;
-    for $str (@_) {
-        ok( $str =~ /^$re$/, "$tag: $str" ) or print "# fail $str\n# in $re\n";
+        ok( $str =~ /^$re$/,     "-- $tag: $str" ) or diag " fail $str\n# match by $re\n";
+		ok( $str =~ /^$rela$/,   "LA $tag: $str" ) or diag " fail $str\n# match by lookahead $rela\n";
+        ok( $str =~ /^$reind$/x, "IN $tag: $str" ) or diag " fail $str\n# match by indented $reind\n";
+        ok( $str =~ /^$rered$/,  "RD $tag: $str" ) or diag " fail $str\n# match by non-reduced $rered\n";
     }
 }
 
@@ -27,9 +33,12 @@ sub match_list {
     my $tag  = shift;
     my $patt = shift;
     my $test = shift;
-    my $re = Regexp::Assemble->new->add(@$patt);
-    for my $str (@$test) {
-        ok( $str =~ /^$re$/, "$tag: $str" ) or print "# fail $str\n# in $re\n";
+    my $re   = Regexp::Assemble->new->add(@$patt);
+    my $rela = Regexp::Assemble->new->lookahead(1)->add(@$patt);
+	my $str;
+    for $str (@$test) {
+        ok( $str =~ /^$re$/, "$tag: $str" ) or diag " fail $str\n# in $re\n";
+        ok( $str =~ /^$re$/, "$tag: $str" ) or diag " fail $str\n# in $re\n";
     }
 }
 
@@ -84,6 +93,11 @@ sub match_list {
     ok( 'fetch'   !~ /$re/, 'fetch/x' );
 }
 
+match_list( 'lookahead car.*',
+	[qw[caret caress careful careless caring carion carry carried]],
+	[qw[caret caress careful careless caring carion carry carried]],
+);
+
 match_list( 'a.x', [qw[ abx adx a.x ]] , [qw[ aax abx acx azx a4x a%x a+x a?x ]] );
 
 match_list( 'c.z', [qw[ c^z c-z c5z cmz ]] , [qw[ c^z c-z c5z cmz ]] );
@@ -109,6 +123,19 @@ match( 't.*ough', qw[ tough though trough through thorough ]);
 match( 'g.*it', qw[ gait git grapefruit grassquit grit guitguit ]);
 
 match( 'show.*ess', qw[ showeriness showerless showiness showless ]);
+
+match( 'd*', qw[ den-at dot-at den-pt dot-pt dx ]);
+
+match( 'd*', qw[ den-at dot-at den-pt dot-pt d-at d-pt dx ]);
+
+match( 'un*ed', qw[ unimped unimpeded unimpelled ]);
+
+match( '(un)?*(ing)?ing', qw[
+	sing swing sting sling
+	singing swinging stinging slinging
+	unsing unswing unsting unsling
+	unsinging unswinging unstinging unslinging
+]);
 
 match( 's.*at 1', qw[ sat sweat sailbat ]);
 
@@ -737,193 +764,3 @@ match( '[pg].*(ess|ous)', qw[
     pyroligneous pyrolignous pyromorphous pyrophanous pyrophilous
     pyrophorous pyrophosphorous pyrrhous pythogenous pythoness
     pythonomorphous ]);
-
-match( '[su].*ess', qw[ 
-    sacrilegiousness sacrosanctness saddlesoreness sagaciousness
-    sailorless salaciousness sallowness salubriousness
-    salutationless sanctimoniousness sanctionless sanguineousness
-    saponaceousness satisfactionless satisfactoriness savoriness
-    savorless scabrousness scandalousness scholarless scholarliness
-    schoolboyishness schoolgirlishness schoolless schoolmasterishness
-    scissorlikeness scopeless scopulousness scorchingness
-    scoreless scornfulness scouriness scribaciousness scribatiousness
-    scrofulousness scrumptiousness scruplesomeness scrupulousness
-    scurrilousness scutcheonless seasonableness seasonalness
-    seasonless seaworthiness secondariness secondhandedness
-    secondness seditiousness sedulousness seldomness semiconsciousness
-    semiseriousness semispontaneousness sensationless sensuousness
-    sententiousness sequaciousness seriousness sermonless
-    serousness sevenfoldness sextoness shadowiness shadowless
-    shadowlessness shallowness shoaliness shoalness shockedness
-    shockingness shoddiness shoeless shoppishness shoreless
-    shorthandedness shortness shortsightedness shotless showeriness
-    showerless showiness showless shroudless sightworthiness
-    simiousness simultaneousness sinuousness siphonless
-    skeletonless slanderousness slipshoddiness slipshodness
-    slopeness slopingness sloppiness sloshiness slothfulness
-    slouchiness sloughiness slovenliness slowheartedness
-    slumberousness smockless smokeless smokelessness smokiness
-    smolderingness smoothness smotheriness snobbishness snootiness
-    snooziness snoreless snottiness snoutless snowiness snowless
-    soapiness soapless soberness sociableness socialness
-    societyless socketless sockless socklessness sodaless
-    soddenness sodless softheartedness softness sogginess
-    soilless solaciousness solderless soldierliness soleless
-    solemnness soleness solicitousness solidifiableness solidness
-    solitariness solubleness solvableness somberness sombrousness
-    somethingness somewhatness songfulness songless songlessness
-    sonless sonlikeness sonorousness soothingness soothless
-    sootiness sootless sophisticalness soporiferousness soppiness
-    sordidness soreheadedness soreness sorriness sorrowfulness
-    sorrowless sottishness soulfulness soulless soullessness
-    soundheadedness soundingness soundless soundlessness soundness
-    soupless sourcefulness sourceless souredness sourishness
-    sourness southerliness southernliness southernness southness
-    sovereigness sovereignness spaciousness sparrowless
-    spasmodicalness speciousness spicousness spinoseness
-    spinousness spirituousness splendaciousness splendiferousness
-    splotchiness spoilless spokeless spongeless sponginess
-    spongiousness spontaneousness spookiness spooneyness
-    spooniness spoonless sporadicalness sportfulness sportiness
-    sportiveness sportless sportsmanliness spotless spotlessness
-    spottedness spottiness spouseless spoutiness spoutless
-    spuriousness squamoseness squamousness standoffishness
-    stationariness stentoriousness stepmotherless stepmotherliness
-    stertoriousness stertorousness stockiness stockingless
-    stockishness stockless stodginess stoicalness stokerless
-    stolenness stolidness stomachfulness stomachicness stomachless
-    stomachlessness stoneless stonelessness stoniness
-    stonyheartedness stopless stoplessness stoppableness
-    stopperless stormfulness storminess stormless stormlessness
-    storyless stourliness stourness stoutheartedness stoutness
-    stoveless straightforwardness strenuousness stridulousness
-    strongheadedness strongness strumousness stubbornness
-    studiousness stupendousness subconsciousness subcutaneousness
-    subdeaconess subdolousness subgoverness subordinateness
-    subterraneousness successionless succorless succourless
-    sudoriferousness sulfureousness sulphureousness sulphurousness
-    sumptuousness sunspottedness superciliousness superconsciousness
-    superfluousness supergoodness superiorness supernormalness
-    superofficiousness supersensuousness supersolemness
-    superstitionless superstitiousness supportableness supportless
-    supposableness suppositionless supposititiousness
-    supraconsciousness surgeoness surgeonless surmountableness
-    surreptitiousness suspicionless suspiciousness swollenness
-    swordless symbolicalness symptomless synchronousness
-    synoeciousness synonymousness uberousness ubiquitousness
-    ugsomeness ulcerousness ultroneousness umbraciousness
-    umbrageousness umbriferousness unabsolvedness unaccommodatedness
-    unaccommodatingness unaccomplishedness unaccountableness
-    unaccustomedness unacknowledgedness unadornedness unambiguousness
-    unambitiousness unanalogousness unanimousness unanxiousness
-    unappointableness unapproachableness unappropriateness
-    unapprovableness unassociativeness unauspiciousness
-    unauthoritativeness unauthoritiveness unauthorizedness
-    unavoidableness unavouchableness unavowableness unbeauteousness
-    unbecomingness unbegottenness unbeholdenness unbloodiness
-    unbodiliness unboldness unbondableness unboundableness
-    unboundedness unboundless unbountifulness unbowingness
-    unbrokenness unbrotherliness unburdensomeness unbuxomness
-    uncanonicalness uncatholicalness uncautiousness uncensoriousness
-    unceremoniousness unchivalrousness unclothedness uncloudedness
-    uncoachableness uncoatedness uncoherentness uncollatedness
-    uncollectedness uncollectibleness uncoloredness uncolouredness
-    uncombinableness uncombiningness uncomeliness uncomfortableness
-    uncommandedness uncommendableness uncommensurableness
-    uncommercialness uncommodiousness uncommonness uncommunicableness
-    uncommunicativeness uncompassionateness uncomplainingness
-    uncompleteness uncompliableness uncompoundedness
-    uncomprehendingness uncomprehensiveness uncompromisingness
-    uncomputableness unconcealableness unconceivableness
-    unconcernedness unconcertedness unconciliatedness
-    unconcludingness unconclusiveness uncondensableness
-    unconditionalness unconditionedness unconduciveness
-    unconductiveness unconfidentialness unconfinedness
-    unconflictingness unconformableness unconnectedness
-    unconquerableness unconscientiousness unconscionableness
-    unconsciousness unconsecratedness unconsequentialness
-    unconsiderateness unconsideredness unconspicuousness
-    unconspiringness unconstantness unconstrainedness
-    uncontainableness uncontentedness uncontentingness
-    uncontentiousness uncontestableness uncontestedness
-    uncontractedness uncontradictableness uncontrollableness
-    uncontrolledness uncontrovertableness uncontrovertibleness
-    unconversableness unconvertedness unconvincedness
-    unconvincingness uncorrectness uncorrigibleness uncorruptedness
-    uncorruptibleness uncorruptness uncostliness uncountableness
-    uncourteousness uncourtliness uncouthness uncrossableness
-    unctionless unctiousness unctuousness uncustomariness
-    undangerousness undecorousness undeformedness undemonstrativeness
-    underconsciousness undergoverness undesirousness undevoutness
-    undiscoverableness undisposedness undivorcedness undocumentedness
-    undoingness undoneness undoubtableness undoubtedness
-    undoubtfulness undoubtingness uneconomicalness unelaborateness
-    unemotionalness unemployableness unenforcedness unequivocalness
-    uneuphoniousness unexceptionableness unexceptionalness
-    unexorableness unfashionableness unfastidiousness
-    unfathomableness unfavorableness unfelicitousness unfondness
-    unforbiddenness unforcedness unforcibleness unfordableness
-    unforeseeableness unforeseenness unforewarnedness
-    unforgettableness unforgivableness unforgiveness unforgivingness
-    unforkedness unformalness unfortunateness unfoundedness
-    ungenerousness ungeometricalness ungloriousness unglossiness
-    ungodliness ungoodliness ungovernableness ungovernedness
-    ungraciousness ungroundedness unhallowedness unhandsomeness
-    unharmoniousness unhazardousness unhealthsomeness unholiness
-    unhomelikeness unhomeliness unhopedness unhopefulness
-    unhospitableness unhostileness unhumorousness uniformless
-    uniformness unimpassionedness unimprovableness unimprovedness
-    uninclosedness unincorporatedness uninfectiousness
-    uningeniousness uningenuousness uninjuriousness unintentionalness
-    unintoxicatedness unjointedness unjoyfulness unjoyousness
-    unjudiciousness unknowableness unknowingness unknownness
-    unlaboriousness unlogicalness unlosableness unlovableness
-    unloveableness unloveliness unlovingness unmelodiousness
-    unmentionableness unmeritoriousness unmethodicalness
-    unmoderateness unmodifiableness unmodifiedness unmoralness
-    unmortifiedness unmotivatedness unmovableness unmovingness
-    unnegotiableness unneighborliness unnobleness unnoticeableness
-    unobjectionableness unobligingness unobsequiousness
-    unobservantness unobstructedness unobtainableness unobtrusiveness
-    unoccupiedness unoffensiveness unofficialness unofficiousness
-    unopenness unopportuneness unopposedness unoppressiveness
-    unordinariness unordinateness unorganicalness unorganizedness
-    unorientalness unoriginalness unoriginatedness unoriginateness
-    unoriginativeness unornamentalness unorthodoxness
-    unostentatiousness unpardonableness unpardonedness
-    unpassionateness unpensionableness unpersonableness
-    unphilosophicalness unphoneticness unpiteousness unpoeticalness
-    unpolishedness unpoliteness unpopularness unpopulousness
-    unpossessedness unpossibleness unpowerfulness unprepossessingness
-    unpretentiousness unprocurableness unproduceableness
-    unproducedness unproducibleness unproductiveness unprofitableness
-    unprofuseness unprogressiveness unprohibitedness unpromisingness
-    unproperness unpropitiatedness unpropitiousness
-    unproportionableness unproportionateness unproportionedness
-    unprosperousness unprotectedness unprovableness unprovedness
-    unprovidedness unprovokedness unquestionableness unquestionedness
-    unquestioningness unreasonableness unrecognizableness
-    unreconcilableness unrecordedness unrecoverableness
-    unreformedness unreligiousness unremovableness unrenownedness
-    unreportedness unreposefulness unreproachableness
-    unreprovableness unreprovedness unresolvedness unresourcefulness
-    unresponsibleness unresponsiveness unrevocableness
-    unrhetoricalness unrighteousness unromanticalness unroyalness
-    unsanctimoniousness unsatisfactoriness unsavoredness
-    unsavoriness unschooledness unscornfulness unscrupulousness
-    unseasonableness unseaworthiness unsensuousness unseriousness
-    unslothfulness unsmoothness unsoberness unsociableness
-    unsocialness unsoiledness unsolemness unsolicitousness
-    unsolidness unsolvableness unsophisticatedness unsoundableness
-    unsoundness unspoilableness unspottedness unstoniness
-    unsupportableness unsupportedness unsurmountableness
-    unsuspiciousness unsymbolicalness unthoughtfulness
-    untolerableness untoothsomeness untouchableness untouchedness
-    untowardliness untowardness untroddenness untroubledness
-    untroublesomeness untrustworthiness untutoredness ununiformness
-    unvirtuousness unvoluntariness unvouchedness unwealsomeness
-    unwearisomeness unwelcomeness unwholesomeness unwomanliness
-    unwontedness unworkableness unworkedness unworldliness
-    unworriedness unworthiness unwoundableness unzealousness
-    uprighteousness uproariness uproariousness urinousness
-    usuriousness utmostness uxoriousness ]);

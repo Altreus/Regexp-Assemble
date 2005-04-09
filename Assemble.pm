@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char/;
-$VERSION = '0.10';
+$VERSION = '0.11';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.10 of Regexp::Assemble,
-released 2005-03-29.
+This document describes version 0.11 of Regexp::Assemble,
+released 2005-04-09.
 
 =head1 SYNOPSIS
 
@@ -32,21 +32,21 @@ released 2005-03-29.
 
 Regexp::Assemble allows you to take a number of regular expressions
 and assemble them into a single regular expression (or RE) that
-will match everything that any of the individual REs match, only what
-they match and nothing else.
+will match everything that any of the individual REs match.
+
+As a result, instead of having a large list of expressions to loop
+over, the string only needs to be tested against one expression.
+This is especially interesting when on average the expression fails
+to match most of the time. It is also interesting when you have
+several thousand patterns to deal with.
 
 The assembled RE is more sophisticated than a brute force C<join( '|', @list)>
 concatenation. Common subexpressions are shared; alternations are
 introduced only when patterns diverge. As a result, backtracking
 is kept to a minimum. If a given path fails... there are no other
 paths to try and so the expression fails quickly. If no wildcards
-like C<.*> appear, no backtracking will be performed.  In very large
+like C<.*> appear, no backtracking will be performed. In very large
 expressions, this can provide a large speed boost.
-
-As a result, instead of having a large list of expressions to loop
-over, the string only needs to be tested against one expression.
-This is especially interesting when on average the expression fails
-to match most of the time.
 
 This is useful when you have a large number of patterns that you
 want to apply against a string. It is also possible to track the
@@ -57,17 +57,24 @@ the match to occur.
 You should realise that large numbers of alternations are processed
 in perl's regular expression engine in O(n) time, not O(1). If you
 are still having performance problems, you should look at using a
-trie.
+trie. Note that Perl's own regular expression engine will implement
+trie optimisations in perl 5.10 (they are already available in
+perl 5.9.3 if you want to try them out). C<Regexp::Assemble> will
+do the right thing when it knows it's running on a a trie'd perl.
+(At least in some version after this one).
 
-Some more examples of usage appear in the accompanying README.
+Some more examples of usage appear in the accompanying README. If
+that file isn't easy to access locally, you can find it on a web
+repository such as L<http://search.cpan.org/> or
+L<http://kobesearch.cpan.org/>.
 
 =cut
 
 use strict;
 use Carp 'croak';
 
-use constant DEBUG_ADD     => 1;
-use constant DEBUG_TAIL    => 2;
+use constant DEBUG_ADD  => 1;
+use constant DEBUG_TAIL => 2;
 
 # The following pattern was generated using naive.pl and pasted in here
 $Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[-aefnrtdDwWsS.,=+*:%|?<>(){}[\]\\\200-\377^]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
@@ -93,6 +100,15 @@ Perl in use.
 B<chomp>, controls whether the pattern should be chomped before being
 lexed. Handy if you are reading lines from a file. By default, no
 chomping is performed.
+
+B<clookahead>, controls whether the pattern should contain zero-width
+lookahead assertions (C<i.e.> (?=[abc])(?:bob|alice|charles). This is
+not activated by default, because in many circumstances the cost of
+processing the assertion itself outweighs the benefit of its faculty
+for short-circuiting a match that will fail. This is sensitive to
+the probability of a match succeding, so if you're worried about
+performance you'll have to benchmark a sample population of targets
+to see which way the benefits lie.
 
 B<track>, controls whether you want know which of the initial patterns
 was the one that matched. See the C<matched> method for more details.
@@ -138,13 +154,14 @@ sub new {
     bless {
         re         => undef,
         str        => undef,
-        lex        => exists $args{lex}     ? qr/$args{lex}/ : qr/$Default_Lexer/,
-        flags      => exists $args{flags}   ? $args{flags}   : '',
-        chomp      => exists $args{chomp}   ? $args{chomp}   : 0,
-        track      => exists $args{track}   ? $args{track}   : 0,
-        reduce     => exists $args{reduce}  ? $args{reduce}  : 1,
-        mutable    => exists $args{mutable} ? $args{mutable} : 0,
-        debug      => exists $args{debug}   ? $args{debug}   : 0,
+        lex        => exists $args{lex}       ? qr/$args{lex}/   : qr/$Default_Lexer/,
+        flags      => exists $args{flags}     ? $args{flags}     : '',
+        chomp      => exists $args{chomp}     ? $args{chomp}     : 0,
+        lookahead  => exists $args{lookahead} ? $args{lookahead} : 0,
+        track      => exists $args{track}     ? $args{track}     : 0,
+        reduce     => exists $args{reduce}    ? $args{reduce}    : 1,
+        mutable    => exists $args{mutable}   ? $args{mutable}   : 0,
+        debug      => exists $args{debug}     ? $args{debug}     : 0,
         filter     => $args{filter}, # don't care if it's not there
         pre_filter => $args{pre_filter}, # don't care if it's not there
         path    => [],
@@ -171,6 +188,8 @@ sub clone {
         str        => $self->{str},
         lex        => $self->{lex},
         chomp      => $self->{chomp},
+        flags      => $self->{flags},
+        lookahead  => $self->{lookahead},
         track      => $self->{track},
         reduce     => $self->{reduce},
         mutable    => $self->{mutable},
@@ -226,14 +245,23 @@ This method is chainable.
 sub _lex {
     my $self   = shift;
     my $record = shift;
-    return () if $record eq '';
+    my $len    = 0;
     my @path   = ();
-    while( $record =~  s/^($self->{lex})// ) {
-        length($1) or croak
-            "lexed a zero-length token, an infinite loop would ensue\nlex=$self->{lex}\nrecord=$record\n";
+    # print "in $record\n";
+    while( $record =~ /($self->{lex})/g ) {
+        my $token_len = length($1);
+        # print "matched at $len ", pos($record), " $token_len <$1>\n";
+        
+        if( (my $diff = pos($record) - $len) > $token_len ) {
+            # print "fixup [", substr( $record, $len, $diff - $token_len ), "]\n\t";
+            push @path,  substr( $record, $len, $diff - $token_len );
+            $len += $diff - $token_len;
+        }
         push @path, $1;
+        $len += $token_len;
     }
-    push @path, $record if length($record);
+    # print  "tail: ", substr($record,$len), "\n" if $len < length($record);
+    push @path, substr($record,$len) if $len < length($record);
     @path;
 }
 
@@ -271,18 +299,23 @@ addition of the entire pattern on a token-by-token basis.
 
 sub insert {
     my $self = shift;
-    my $debug = $self->_debug(DEBUG_ADD);
     return $self if $self->{filter} and not $self->{filter}->(@_);
-    $self->{path} = _insert_path( $self->_path, $debug, @_ );
+    my @token = map {
+        # undo quotemeta's brute-force escapades
+        my $token = $_;
+        $token =~ s/^\\([^.+*?$|(){}\w\\\[\]^])$/$1/ if defined $token;
+        $token;
+    } @_;
+    $self->{path} = _insert_path( $self->_path, $self->_debug(DEBUG_ADD), @token );
     $self->{str} = $self->{re} = undef;
     $self;
 }
 
 =item as_string
 
-Assemble the expression and return it as a string. You may want to do this
-if you are writing the pattern to a file. The following arguments can be
-passed to control the aspect of the resulting pattern:
+Assemble the expression and return it as a string. You may want to do
+this if you are writing the pattern to a file. The following arguments
+can be passed to control the aspect of the resulting pattern:
 
 B<indent>, the number of spaces used to indent nested grouping of
 a pattern. Use this to produce a pretty-printed pattern (for some
@@ -322,6 +355,9 @@ sub as_string {
             if( exists $arg->{indent} and $arg->{indent} > 0 ) {
                 $arg->{depth} = 0;
                 $self->{str}  = _re_path_pretty($self->_path, $arg);
+            }
+            elsif( $self->{lookahead} ) {
+                $self->{str}  = _re_path_lookahead($self->_path);
             }
             else {
                 $self->{str}  = _re_path($self->_path);
@@ -382,7 +418,15 @@ sub re {
     my $self = shift;
     if( not defined $self->{re} ) {
         my $re = $self->as_string(@_);
-        $self->{re} = length $self->{flags} ? qr/(?$self->{flags}:$re)/ : qr/$re/;
+        #$self->{re} = length $self->{flags}
+        #    ? qr/(?$self->{flags}:$re)/
+        #    : qr/$re/;
+        if( length $self->{flags} ) {
+            $self->{re} = qr/(?$self->{flags}:$re)/;
+        }
+        else {
+            $self->{re} = qr/$re/;
+        }
     }
     $self->{re};
 }
@@ -458,7 +502,6 @@ sub match {
         $self->{mend}   = [];
         return undef;
     }
-# warn "\n# $self->{re} <$self->{m}>\n";
     $self->{mbegin} = _path_copy([@-]);
     $self->{mend}   = _path_copy([@+]);
     my $n = 0;
@@ -466,8 +509,12 @@ sub match {
         push @{$self->{mvar}}, substr($target, $-[$n], $+[$n] - $-[$n])
             if defined $-[$n] and defined $+[$n];
     }
-    # warn "\n# m=<$self->{m}>\n";
-    $self->{track} and defined $self->{m} ? $self->{mlist}[$self->{m}] : 1;
+    if( $self->{track} ) {
+        defined $self->{m} ? $self->{mlist}[$self->{m}] : 1;
+    }
+    else {
+        1;
+    }
 }
 
 =item mbegin
@@ -546,7 +593,8 @@ carefully formatted output.
 
 0 turns debugging off, 1 emits debug traces dealing with
 adding new patterns to the object, 2 emits debug traces
-dealing with the reduction of the assembled pattern.
+dealing with the reduction of the assembled pattern. Calling
+with no arguments also turns debugging off.
 
 Values can be added (or or'ed together) to trace everything
 
@@ -558,6 +606,19 @@ sub debug {
     my $self = shift;
     $self->{debug} = defined($_[0]) ? $_[0] : 0;
     $self;
+}
+
+=item dump
+
+Produces a synthetic view of the internal data structure. How
+to interpret the results is left as an exercise to the reader.
+
+  print $r->dump;
+
+=cut
+
+sub dump {
+    _dump($_[0]->_path);
 }
 
 =item chomp(0|1)
@@ -575,6 +636,21 @@ a value of 1 to enable autochomping. Chomping is off by default.
 sub chomp {
     my $self = shift;
     $self->{chomp} = defined($_[0]) ? $_[0] : 1;
+    $self;
+}
+
+=item lookahead(0|1)
+
+Turns on zero-width lookahead assertions. This is usually
+beneficial when you expect that the pattern will usually fail.
+If you expect that the pattern will usually match you will
+probably be worse off.
+
+=cut
+
+sub lookahead {
+    my $self = shift;
+    $self->{lookahead} = defined($_[0]) ? $_[0] : 1;
     $self;
 }
 
@@ -839,9 +915,7 @@ $have_Storable = do {
 };
 
 sub _path_clone {
-    $have_Storable
-        ? dclone($_[0])
-        : _path_copy($_[0]);
+    $have_Storable ? dclone($_[0]) : _path_copy($_[0]);
 }
 
 sub _path_copy {
@@ -876,7 +950,7 @@ sub _node_copy {
 sub _insert_path {
     my $list  = shift;
     my $debug = shift;
-    print "_insert_path @{[_dump(\@_)]} into @{[_dump($list)]}\n" if $debug;
+    $debug and print "_insert_path @{[_dump(\@_)]} into @{[_dump($list)]}\n";
     my $path   = $list;
     my $offset = 0;
     my $token;
@@ -904,17 +978,18 @@ sub _insert_path {
         }
         if( ref($path->[$offset]) eq 'HASH' ) {
             $debug and print "  at (off=$offset len=@{[scalar @$path]}) ",
-                _dump_node($path->[$offset]), "\n";
+                _dump($path->[$offset]), "\n";
             my $node = $path->[$offset];
             if( exists( $node->{$token} )) {
-                print "  descend key=$token @{[_dump($node->{$token})]}\n" if $debug;
+                $debug and print "  descend key=$token @{[_dump($node->{$token})]}\n";
                 $path   = $node->{$token};
                 $offset = 0;
                 redo;
             }
             else {
-                print "  add path ($token:@{[_dump([@_])]}\n" if $debug;
-                $node->{$token} = [$token, @_];
+                $debug and print "  add path ($token:@{[_dump(\@_)]}) into @{[_dump($node)]}\n";
+                my $ntoken = [$token, @_];
+                $node->{$token} = $ntoken;
                 last;
             }
         }
@@ -928,43 +1003,45 @@ sub _insert_path {
             }
             print " at path ($msg)\n";
         }
+
         if( not @$path ) {
-            print "  add remaining @{[_dump([$token,@_])]}\n" if $debug;
+            $debug and print "  add remaining @{[_dump([$token,@_])]}\n";
             push @$path, length $token ? ($token, @_) : {'' => undef};
             last;
         }
         elsif( $offset >= @$path ) {
-            print "  path ends\n" if $debug;
+            $debug and print "  path ends\n";
             push @$path, { $token => [ $token, @_ ], '' => undef, };
             last;
         }
         elsif( $token ne $path->[$offset] ) {
-            print "  token $token not present\n" if $debug;
+            $debug and print "  token $token not present\n";
+            my $path_end = [@{$path}[$offset..$#{$path}]];
             if( @_ or length $token ) {
-                my $key = ref($token) eq 'HASH' ? _node_key($token) : $token;
+                my $key = _node_key($token);
                 splice @$path, $offset, @$path-$offset, {
                     $key             => [$token, @_],
-                    $path->[$offset] => [@{$path}[$offset..$#{$path}]],
+                    $path->[$offset] => [@$path_end],
                 }
             }
             else {
                 splice @$path, $offset, @$path-$offset, {
                     ''               => undef,
-                    $path->[$offset] => [@{$path}[$offset..$#{$path}]],
+                    $path->[$offset] => [@$path_end],
                 };
             }
             last;
         }
         elsif( not @_ ) {
-            print "  last token to add\n" if $debug;
+            $debug and print "  last token to add\n";
             if( defined( $path->[$offset+1] )) {
                 ++$offset;
                 if( ref($path->[$offset]) eq 'HASH' ) {
-                    print "  add sentinel to node\n" if $debug;
+                    $debug and print "  add sentinel to node\n";
                     $path->[$offset]{''} = undef;
                 }
                 else {
-                    print "  convert <$path->[$offset]> to node for sentinel\n" if $debug;
+                    $debug and print "  convert <$path->[$offset]> to node for sentinel\n";
                     splice @$path, $offset, @$path-$offset, {
                         ''               => undef,
                         $path->[$offset] => [ @{$path}[$offset..$#{$path}] ],
@@ -978,7 +1055,7 @@ sub _insert_path {
     continue {
         ++$offset;
     }
-    print "    := @{[_dump($list)]}\n" if $debug;
+    $debug and print "    := ", _dump($list), "\n";
     $list;
 }
 
@@ -991,11 +1068,8 @@ sub _insert_node {
     # NB: $path->[$offset] and $[path_end->[0] are equivalent
     my $token_key = _re_path([$token]);
     $debug and print
-        " insert node(@{[_dump_node($token)]}:@{[_dump([@_])]}) (key=$token_key) at path=@{[_dump($path_end)]}\n";
+        " insert node(@{[_dump($token)]}:@{[_dump(\@_)]}) (key=$token_key) at path=@{[_dump($path_end)]}\n";
     if( ref($path_end->[0]) eq 'HASH' ) {
-        $debug and print 'pe=', _dump($path_end),"\n";
-        $debug and print 'to=', _dump([$token]),"\n";
-        $debug and print '@_=', _dump([@_]),"\n";
         if( exists($path_end->[0]{$token_key}) ) {
             if( @$path_end > 1 ) {
                 my $path_key = _re_path([$path_end->[0]]);
@@ -1003,60 +1077,58 @@ sub _insert_node {
                     $path_key  => [ @$path_end ],
                     $token_key => [ $token, @_ ],
                 };
-                print "  +bifurcate new=@{[_dump([$new])]}\n" if $debug;
+                $debug and print "  +bifurcate new=@{[_dump($new)]}\n";
                 splice( @$path, $offset, @$path_end, $new );
             }
             else {
                 my $sub_path = $path_end->[0]{$token_key};
                 shift @$sub_path;
-                print "  +_insert_path sub_path=@{[_dump([$sub_path])]}\n"
-                    if $debug;
+                $debug and print "  +_insert_path sub_path=@{[_dump($sub_path)]}\n";
                 my $new = _insert_path( $path_end->[0]{$token_key}, $debug, @_ );
                 $path_end->[0]{$token_key} = [$token, @$new];
-                print "  +_insert_path result=@{[_dump($path_end)]}\n" if $debug;
+                $debug and print "  +_insert_path result=@{[_dump($path_end)]}\n";
                 splice( @$path, $offset, @$path_end, @$path_end );
             }
         }
         elsif( not _node_eq( $path_end->[0], $token )) {
             if( @$path_end > 1 ) {
-                my $path_key = ref($path_end->[0]) eq 'HASH'
-                    ? _re_path([$path_end->[0]])
-                    : $path_end->[0]
-                ;
+                #my $path_key = ref($path_end->[0]) eq 'HASH'
+                #    ? _re_path([$path_end->[0]])
+                #    : $path_end->[0]
+                #;
+                my $path_key = _re_path([$path_end->[0]]);
                 my $new = {
                     $path_key  => [ @$path_end ],
                     $token_key => [ $token, @_ ],
                 };
-                print "  path->node1 at $path_key/$token_key @{[_dump_node($new)]}\n"
-                    if $debug;
+                $debug and print "  path->node1 at $path_key/$token_key @{[_dump($new)]}\n";
                 splice( @$path, $offset, @$path_end, $new );
             }
             else {
-                print "  next in path is node, trivial insert at $token_key\n" if $debug;
+                $debug and print "  next in path is node, trivial insert at $token_key\n";
                 $path_end->[0]{$token_key} = [$token, @_];
                 splice( @$path, $offset, @$path_end, @$path_end );
             }
         }
         else {
-            while( @$path_end and _node_eq( $path_end->[0], $token )
-            ) {
-                print " identical nodes @{[_dump([$token])]}\n"
-                    if $debug;
+            while( @$path_end and _node_eq( $path_end->[0], $token )) {
+                $debug and print " identical nodes @{[_dump([$token])]}\n";
                 shift @$path_end;
                 $token = shift @_;
                 ++$offset;
             }
             if( @$path_end ) {
-                if( ref($path->[$offset+1]) eq 'HASH' ) {
-                    print "  add path into node @{[_dump([@_])]}\n"
-                        if $debug;
-                    $path->[$offset+1]{$_[0]} = [@_];
-                }
-                else {
+                # coverage shows this condition is never true
+                # need to determine why I did this in the first place...
+                #if( ref($path->[$offset+1]) eq 'HASH' ) {
+                #    $debug and print "  add path into node @{[_dump(\@_)]}\n";
+                #    $path->[$offset+1]{$_[0]} = [@_];
+                #}
+                #else {
                     my $new = _insert_path( $path_end, $debug, $token, @_ );
-                    print "  convert @{[_dump($new)]}\n" if $debug;
+                    $debug and print "  convert @{[_dump($new)]}\n";
                     splice( @$path, $offset, @$path_end+1, @$new );
-                }
+                #}
             }
             else {
                 $token_key = _node_key($token);
@@ -1064,7 +1136,7 @@ sub _insert_node {
                     ''         => undef,
                     $token_key => [ $token, @_ ],
                 };
-                print "  convert opt @{[_dump_node($new)]}\n" if $debug;
+                $debug and print "  convert opt @{[_dump($new)]}\n";
                 push @$path, $new;
             }
         }
@@ -1075,13 +1147,11 @@ sub _insert_node {
                 $path_end->[0] => [ @$path_end ],
                 $token_key     => [ $token, @_ ],
             };
-            print "  atom->node @{[_dump_node($new)]}\n"
-                if $debug;
+            $debug and print "  atom->node @{[_dump($new)]}\n";
             splice( @$path, $offset, @$path_end, $new );
         }
         else {
-            print "  add opt @{[_dump([$token,@_])]} via $token_key\n"
-                if $debug;
+            $debug and print "  add opt @{[_dump([$token,@_])]} via $token_key\n";
             push @$path, {
                 ''         => undef,
                 $token_key => [ $token, @_ ],
@@ -1095,19 +1165,17 @@ sub _reduce {
     my $self  = shift;
     my $debug = $self->_debug(DEBUG_TAIL);
     my ($head, $tail) = _reduce_path( $self->_path, $debug, 0 );
-    print "final head=", _dump($head), ' tail=', _dump($tail), "\n"
-        if $debug;
+    $debug and print "final head=", _dump($head), ' tail=', _dump($tail), "\n";
     if( !@$head ) {
         $self->{path} = $tail;
     }
     else {
-        my @path = (
+        $self->{path} = [
             @{_unrev_path( $tail, $debug, 0 )},
             @{_unrev_path( $head, $debug, 0 )},
-        );
-        $self->{path} = \@path;
+        ];
     }
-    print "final path=", _dump($self->{path}), "\n/", _re_path($self->{path}), "/\n" if $debug;
+    $debug and print "final path=", _dump($self->{path}), "\n/", _re_path($self->{path}), "/\n";
     $self;
 }
 
@@ -1122,25 +1190,24 @@ sub _remove_optional {
 sub _reduce_path {
     my ($path, $debug, $depth) = @_;
     my $indent = ' ' x $depth;
-    print "${indent}path $depth in ", _dump($path), "\n" if $debug;
+    $debug and print "${indent}path $depth in ", _dump($path), "\n";
     my $new;
     my $head = [];
     my $tail = [];
     while( defined( my $p = pop @$path )) {
         if( ref($p) eq 'HASH' ) {
             my ($node_head, $node_tail) = _reduce_node($p, $debug, 1+$depth);
-            print "$indent| head=", _dump($node_head), " tail=", _dump([$node_tail]), "\n"
-                if $debug;
+            $debug and print "$indent| head=", _dump($node_head), " tail=", _dump($node_tail), "\n";
             push @$head, @$node_head if scalar @$node_head;
             push @$tail, ref($node_tail) eq 'HASH' ? $node_tail : @$node_tail;
         }
         else {
             if( @$head ) {
-                print "$indent| push $p leaves @{[_dump($path)]}\n" if $debug;
+                $debug and print "$indent| push $p leaves @{[_dump($path)]}\n";
                 push @$tail, $p;
             }
             else {
-                print "$indent| unshift $p\n" if $debug;
+                $debug and print "$indent| unshift $p\n";
                 unshift @$tail, $p;
             }
         }
@@ -1153,7 +1220,7 @@ sub _reduce_path {
         # not quite
         # ($head, $tail, $path) = _slide_tail( $head, $tail, $path, $debug, 1+$depth );
         my $slide_node = shift @$tail;
-        print "$indent| [x]try to slide", _dump_node($slide_node), "\n" if $debug;
+        $debug and print "$indent| [x]try to slide", _dump($slide_node), "\n";
         my $slide_path;
         my $s;
         # get the key that is not ''
@@ -1163,23 +1230,20 @@ sub _reduce_path {
                 last;
             }
         }
-        print "$indent| [x]slide potential ", _dump($slide_path), " over ",
-            _dump($tail), "\n"
-                if $debug;
+        $debug and print "$indent| [x]slide potential ", _dump($slide_path), " over ",
+            _dump($tail), "\n";
         while( $slide_path->[0] eq $tail->[0] ) {
-            print "$indent| [x]slide=$slide_path->[0] eq tail=$tail->[0] ok\n" if $debug;
+            $debug and print "$indent| [x]slide=$slide_path->[0] eq tail=$tail->[0] ok\n";
             my $slide = shift @$tail;
             shift @$slide_path;
             push @$slide_path, $slide;
             push @$head, $slide;
         }
         $slide_node = { '' => undef, $slide_path->[0] => $slide_path };
-        print "$indent| [x]slide final ", _dump_node($slide_node), "\n"
-            if $debug;
+        $debug and print "$indent| [x]slide final ", _dump($slide_node), "\n";
         unshift @$tail, $slide_node;
     }
-    print "${indent}path $depth out head=", _dump($head), ' tail=', _dump($tail), "\n"
-        if $debug;
+    $debug and print "${indent}path $depth out head=", _dump($head), ' tail=', _dump($tail), "\n";
     ($head, $tail);
 }
 
@@ -1187,8 +1251,7 @@ sub _reduce_node {
     my ($node, $debug, $depth) = @_;
     my $indent   = ' ' x $depth;
     my $optional = _remove_optional($node);
-    print "${indent}node $depth in @{[_dump_node($node)]} opt=$optional\n"
-        if $debug;
+    $debug and print "${indent}node $depth in @{[_dump($node)]} opt=$optional\n";
     if( $optional and scalar keys %$node == 1 ) {
         my $path = (values %$node)[0];
         if( not grep { ref($_) eq 'HASH' } @$path ) {
@@ -1200,15 +1263,14 @@ sub _reduce_node {
                 ''         => undef,
                 $path->[0] => $path
             };
-            $debug and print "$indent| fast fail @{[_dump_node($result)]}\n";
+            $debug and print "$indent| fast fail @{[_dump($result)]}\n";
             return [], $result;
         }
     }
 
     my( $fail, $reduce ) = _scan_node( $node, $debug, 1+$depth );
 
-    print "$indent: node scan complete opt=$optional reduce=@{[_dump_node($reduce)]} fail=@{[_dump($fail)]}\n"
-        if $debug;
+    $debug and print "$indent: node scan complete opt=$optional reduce=@{[_dump($reduce)]} fail=@{[_dump($fail)]}\n";
 
     # We now perform tail reduction on each of the nodes in the reduce
     # hash. If we have only one key, we know we will have a successful
@@ -1220,15 +1282,7 @@ sub _reduce_node {
         # every path shares a common path
         my $path = (values %$reduce)[0];
         my ($common, $tail) = _do_reduce( $path, $debug, $depth );
-        if( $debug ) {
-            print "${indent}node $depth out ok c=@{[_dump($common)]} ";
-            if( ref($tail) eq 'HASH' ) {
-                print "t=@{[_dump_node($tail)]}\n"
-            }
-            else {
-                print "t=@{[_dump($tail)]}\n"
-            }
-        }
+        $debug and print "${indent}node $depth out ok common=@{[_dump($common)]} tail=", _dump($tail), "\n";
         return( $common, $tail );
     }
 
@@ -1245,14 +1299,12 @@ sub _reduce_fail {
         my $path = $reduce->{$p};
         if( scalar @$path == 1 ) {
             $path = $path->[0];
-            my $key  = $path->[0];
-            print "$indent| -simple opt=$optional key=$key @{[_dump($path)]}\n" if $debug;
-            $path =  _unrev_path($path, $debug, 1+$depth);
-            $key = $path->[0] unless ref($path->[0] eq 'HASH');
-            $result{$key} = $path;
+            $debug and print "$indent| -simple opt=$optional unrev @{[_dump($path)]}\n";
+            $path = _unrev_path($path, $debug, 1+$depth);
+            $result{$path->[0]} = $path;
         }
         else {
-            print "$indent| -reduce @{[_dump($path)]}\n" if $debug;
+            $debug and print "$indent| -reduce @{[_dump($path)]}\n";
             my ($common, $tail) = _do_reduce( $path, $debug, 1+$depth );
             $path = [
                 (
@@ -1262,8 +1314,8 @@ sub _reduce_fail {
                 ),
                 @{_unrev_path($common, $debug, 1+$depth)}
             ];
-            my $key = ref($path->[0]) eq 'HASH' ? _node_key($path->[0]) : $path->[0];
-            print "$indent| -reduced key=<$key> @{[_dump($path)]}\n" if $debug;
+            my $key = _node_key($path->[0]);
+            $debug and print "$indent| -reduced key=<$key> @{[_dump($path)]}\n";
             $result{$key} = $path;
         }
     }
@@ -1272,7 +1324,7 @@ sub _reduce_fail {
         $debug and print "$indent| +f=@{[_dump($f)]}\n";
         $result{$f->[0]} = $f;
     }
-    print "${indent}node $depth out fail=@{[_dump_node(\%result)]}\n" if $debug;
+    $debug and print "${indent}node $depth out fail=@{[_dump(\%result)]}\n";
     ( [], \%result );
 }
 
@@ -1312,11 +1364,10 @@ sub _scan_node {
             scalar @{$node->{$_}},
         )]}
     keys %$node ) {
-        print "$indent| off=", _node_offset($node->{$n}),"\n"
-            if $debug;
+        $debug and print "$indent| off=", _node_offset($node->{$n}),"\n";
         my( $end, @path ) = reverse @{$node->{$n}};
         if( ref($end) ne 'HASH' ) {
-            print "$indent| path=($end:@{[_dump(\@path)]})\n" if $debug;
+            $debug and print "$indent| path=($end:@{[_dump(\@path)]})\n";
             push @{$reduce{$end}}, [ $end, @path ];
         }
         else {
@@ -1326,25 +1377,16 @@ sub _scan_node {
                 push @fail, [reverse(@path), $tail];
             }
             else {
-                if( $debug ) {
-                    print "$indent| ++recovered common=@{[_dump($common)]} tail=";
-                    if( ref($tail) eq 'HASH' ) {
-                        print 'n:', _dump_node($tail);
-                    }
-                    else {
-                        print 'p:', _dump($tail);
-                    }
-                    print " path=@{[_dump(\@path)]}\n";
-                }
-                if( @path >= 1
-                    and ref($tail) eq 'HASH'
+                $debug and print "$indent| ++recovered common=@{[_dump($common)]} tail=",
+                    _dump($tail), " path=@{[_dump(\@path)]}\n";
+                if( ref($tail) eq 'HASH'
                     and exists $tail->{''}
                     and keys %$tail == 2
                 ) {
                     $debug and print "$indent: attempt slide\n";
                     ($common, $tail, @path) =
                         _slide_tail( $common, $tail, \@path, $debug, 1+$depth );
-                    $debug and print "$indent| +slid common=@{[_dump($common)]} tail=@{[_dump_node($tail)]} path=@{[_dump(\@path)]}\n";
+                    $debug and print "$indent| +slid common=@{[_dump($common)]} tail=@{[_dump($tail)]} path=@{[_dump(\@path)]}\n";
                 }
                 push @{$reduce{$common->[0]}}, [
                     @$common, 
@@ -1364,7 +1406,7 @@ sub _do_reduce {
     my $indent = ' ' x $depth;
     my $ra = Regexp::Assemble->new;
     $ra->debug($debug);
-    print "$indent| do @{[_dump($path)]}\n" if $debug;
+    $debug and print "$indent| do @{[_dump($path)]}\n";
     my $p;
     for $p (
         sort {
@@ -1395,7 +1437,7 @@ sub _do_reduce {
     my $common = [];
     push @$common, shift @$path while( ref($path->[0]) ne 'HASH' );
     my $tail = scalar( @$path ) > 1 ? [@$path] : $path->[0];
-    $debug and print "$indent| common=@{[_dump($common)]} tail=@{[_dump([$tail])]}\n";
+    $debug and print "$indent| common=@{[_dump($common)]} tail=@{[_dump($tail)]}\n";
     ($common, $tail);
 }
 
@@ -1418,7 +1460,7 @@ sub _slide_tail {
     my $indent = ' ' x $depth;
 
     my $slide_node = $tail;
-    print "$indent| try to slide", _dump_node($slide_node), "\n" if $debug;
+    $debug and print "$indent| try to slide", _dump($slide_node), "\n";
     my $slide_path;
     my $s;
     # get the key that is not ''
@@ -1428,17 +1470,16 @@ sub _slide_tail {
             last;
         }
     }
-    print "$indent| slide potential ", _dump($slide_path), " over ",
-        _dump($path), "\n"
-            if $debug;
+    $debug and print "$indent| slide potential ", _dump($slide_path),
+        " over ", _dump($path), "\n";
     while( defined $path->[0] and $slide_path->[0] eq $path->[0] ) {
-        print "$indent| slide=tail=$slide_path->[0]\n" if $debug;
+        $debug and print "$indent| slide=tail=$slide_path->[0]\n";
         my $slide = shift @$path;
         shift @$slide_path;
         push @$slide_path, $slide;
         push @$head, $slide;
     }
-    print "$indent| slide path ", _dump($slide_path), "\n" if $debug;
+    $debug and print "$indent| slide path ", _dump($slide_path), "\n";
     my $key = do {
         if( ref($slide_path->[0]) eq 'HASH' ) {
             _node_key($slide_path->[0]);
@@ -1448,8 +1489,7 @@ sub _slide_tail {
         }
     };
     $slide_node = { '' => undef, $key => $slide_path };
-    print "$indent| slide final ", _dump_node($slide_node), "\n"
-        if $debug;
+    $debug and print "$indent| slide final ", _dump($slide_node), "\n";
     ($head, $slide_node, @$path);
 }
 
@@ -1458,28 +1498,27 @@ sub _unrev_path {
     my $indent = ' ' x $depth;
     my $new;
     if( not grep { ref($_) } @$path ) {
-        print "${indent}_unrev path fast ", _dump($path) if $debug;
+        $debug and print "${indent}_unrev path fast ", _dump($path);
         $new = [reverse @$path];
-        print " -> ", _dump($new), "\n" if $debug;
+        $debug and print " -> ", _dump($new), "\n";
         return $new;
     }
-    print "${indent}unrev path in ", _dump($path), "\n" if $debug;
+    $debug and print "${indent}unrev path in ", _dump($path), "\n";
     while( defined( my $p = pop @$path )) {
         push @$new, ref($p) eq 'HASH'
             ? _unrev_node($p, $debug, 1+$depth)
             : $p
         ;
     }
-    print "${indent}unrev path out ", _dump($new), "\n" if $debug;
+    $debug and print "${indent}unrev path out ", _dump($new), "\n";
     $new;
 }
 
 sub _unrev_node {
     my ($node, $debug, $depth) = @_;
     my $indent = ' ' x $depth;
-    croak "was not passed a HASH ref\n", _dump([$node]), "\n" unless ref($node) eq 'HASH';
     my $optional = _remove_optional($node);
-    print "${indent}unrev node in ", _dump_node($node), " opt=$optional\n" if $debug;
+    $debug and print "${indent}unrev node in ", _dump($node), " opt=$optional\n";
     my $new;
     $new->{''} = undef if $optional;
     my $n;
@@ -1487,7 +1526,7 @@ sub _unrev_node {
         my $path = _unrev_path($node->{$n}, $debug, 1+$depth);
         $new->{_node_key($path->[0])} = $path;
     }
-    print "${indent}unrev node out ", _dump_node($new), "\n" if $debug;
+    $debug and print "${indent}unrev node out ", _dump($new), "\n";
     $new;
 }
 
@@ -1507,7 +1546,6 @@ sub _node_key {
 #####################################################################
 
 sub _make_class {
-    return '' unless @_;
     my %set = map { ($_,1) } @_;
     return '.' if exists $set{'.'}
         or (exists $set{'\\d'} and exists $set{'\\D'})
@@ -1533,74 +1571,41 @@ sub _make_class {
     "[$dash$class$caret]";
 }
 
-sub _lookahead_array {
-    my $in = shift;
-    my @head;
-    my $path;
-    for $path( @$in ) {
-        if( ref($path) eq 'HASH' ) {
-            push @head, _lookahead_hash( $path );
-        }
-        elsif( ref($path) eq 'ARRAY' ) {
-            push @head, _lookahead_array( $path );
-        }
-        #else {
-        # nop - don't care
-        # we can get here (ref($path) eq '') but we don't want to do anything
-        #}
-    }
-    @head;
-}
-
-sub _lookahead_hash {
-    my $in = shift;
-    my @head;
-    my $path;
-    for $path( keys %$in ) {
-        if( ref($in->{$path}) eq 'HASH' ) {
-            my $p;
-            for $p (keys %{$in->{$path}}) {
-                push @head, _lookahead_array( $p );
-            }
-        }
-        elsif( ref($in->{$path}) eq 'ARRAY' ) {
-            if( ref($in->{$path}[0]) eq 'HASH' ) {
-                push @head, _lookahead_hash( $in->{$path}[0] );
-            }
-            else {
-                push @head, $in->{$path}[0];
-            }
-        }
-        #else {
-        # nop - don't care
-        #}
-    }
-    @head;
-}
-
 sub _combine {
     my $type = shift;
+    # print "c in = @{[_dump(\@_)]}\n";
+    # my $combine = 
     '('
     . $type
     . do {
         my( @short, @long );
         push @{ /^$Single_Char$/ ? \@short : \@long}, $_ for @_;
-        join( '|', ( _make_class(@short), sort( _re_sort @long )))
+        if( @short == 1 ) {
+            @long = (sort( _re_sort @long ), @short );
+        }
+        elsif( @short > 1 ) {
+            # yucky but true
+            my @combine = (_make_class(@short), sort( _re_sort @long ));
+            @long = @combine;
+        }
+        else {
+            @long = sort _re_sort @long;
+        }
+        join( '|', @long );
     }
     . ')';
+    # print "combine <$combine>\n";
+    # $combine;
 }
 
 sub _re_path {
     my $in  = shift;
-    ref($in) ne 'ARRAY'
-        and croak "was not passed an ARRAY ref\n", _dump([$in]), "\n";
     my $out = '';
     for my $p( @$in ) {
         if( ref($p) eq '' ) {
             $out .= $p;
         }
         elsif( ref($p) eq 'ARRAY' ) {
-            # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_array($p) );
             $out .= _re_path($p);
         }
         else {
@@ -1618,8 +1623,6 @@ sub _re_path {
                 $out .= _make_class(@$path);
             }
             else {
-                # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_hash($p) );
-                # $out .= '?' if exists $p->{''};
                 if( $nr_one < 2 ) {
                     $out .= '(?:'
                         . join( '|' => sort _re_sort @$path )
@@ -1636,13 +1639,112 @@ sub _re_path {
     $out;
 }
 
+sub _lookahead {
+    my $in = shift;
+    my %head;
+    my $path;
+    for $path( keys %$in ) {
+        next unless defined $in->{$path};
+        # print "look $path: ", ref($in->{$path}[0]), ".\n";
+        if( ref($in->{$path}[0]) eq 'HASH' ) {
+            my $next = 0;
+            while( ref($in->{$path}[$next]) eq 'HASH' and @{$in->{$path}} > $next + 1 ) {
+                if( exists $in->{$path}[$next]{''} ) {
+                    ++$head{$in->{$path}[$next+1]};
+                }
+                ++$next;
+            }
+            my $inner = _lookahead( $in->{$path}[0] );
+            @head{ keys %$inner } = (values %$inner);
+        }
+        elsif( ref($in->{$path}[0]) eq 'ARRAY' ) {
+            my $subpath = $in->{$path}[0]; 
+            for( my $sp = 0; $sp < @$subpath; ++$sp ) {
+                if( ref($subpath->[$sp]) eq 'HASH' ) {
+                    my $follow = _lookahead( $subpath->[$sp] );
+                    @head{ keys %$follow } = (values %$follow);
+                    last unless exists $subpath->[$sp]{''};
+                }
+                else {
+                    ++$head{$subpath->[$sp]};
+                    last;
+                }
+            }
+        }
+        else {
+            ++$head{ $in->{$path}[0] };
+        }
+    }
+    # print "_lookahead ", _dump($in), '==>', _dump([keys %head]), "\n";
+    \%head;
+}
+
+sub _re_path_lookahead {
+    my $in  = shift;
+    # print "_re_path_la in ", _dump($in), "\n";
+    my $out = '';
+    for( my $p = 0; $p < @$in; ++$p ) {
+        if( ref($in->[$p]) eq '' ) {
+            $out .= $in->[$p];
+            next;
+        }
+        elsif( ref($in->[$p]) eq 'ARRAY' ) {
+            $out .= _re_path_lookahead($in->[$p]);
+            next;
+        }
+        # print "$p ", _dump($in->[$p]), "\n";
+        my $path = [
+            map { _re_path_lookahead( $in->[$p]{$_} ) }
+            grep { $_ ne '' }
+            keys %{$in->[$p]}
+        ];
+        my $ahead = _lookahead($in->[$p]);
+        print "ref($p): ", ref($in->[$p]), ' ', join( ',' => sort keys %$ahead ), "\n";
+        my $more = 0;
+        # if( ref($in->[$p]) eq 'HASH' and exists $in->[$p]{''} and $p + 1 < @$in ) {
+        if( exists $in->[$p]{''} and $p + 1 < @$in ) {
+            my $next = 1;
+            while( $p + $next < @$in ) {
+                if( ref( $in->[$p+$next] ) eq 'HASH' ) {
+                    my $follow = _lookahead( $in->[$p+$next] );
+                    @{$ahead}{ keys %$follow } = (values %$follow);
+                }
+                else {
+                    ++$ahead->{$in->[$p+$next]};
+                    last;
+                }
+                ++$next;
+            }
+            $more = 1;
+        }
+        my $nr_one = grep { /^$Single_Char$/ } @$path;
+        my $nr     = @$path;
+        if( $nr_one > 1 and $nr_one == $nr ) {
+            $out .= _make_class(@$path);
+            $out .= '?' if exists $in->[$p]{''};
+        }
+        else {
+            my $zwla = keys(%$ahead) > 1
+                ?  _combine( '?=', grep { s/\+$//; $_ } keys %$ahead )
+                : '';
+            my $patt = $nr > 1 ? _combine( '?:', @$path ) : $path->[0];
+            print "have nr=$nr n1=$nr_one n=", _dump($in->[$p]), ' a=', _dump([keys %$ahead]), " zwla=$zwla patt=$patt @{[_dump($path)]}\n";
+            if( exists $in->[$p]{''} ) {
+                $out .=  $more ? "$zwla(?:$patt)?" : "(?:$zwla$patt)?";
+            }
+            else {
+                $out .= "$zwla$patt";
+            }
+        }
+    }
+    $out;
+}
+
 sub _re_path_track {
     my $self      = shift;
     my $in        = shift;
     my $normal    = shift;
     my $augmented = shift;
-    ref($in) ne 'ARRAY'
-        and croak "was not passed an ARRAY ref\n", _dump([$in]), "\n";
     my $o;
     my $simple  = '';
     my $augment = '';
@@ -1651,11 +1753,12 @@ sub _re_path_track {
             $o = $in->[$n];
             $simple  .= $o;
             $augment .= $o;
-            if( $n == @$in - 1 or (
-                $n < @$in - 1
-                and ref($in->[$n+1]) eq 'HASH'
-                and exists $in->[$n+1]{''}
-            )) {
+            if( (
+                    $n < @$in - 1
+                    and ref($in->[$n+1]) eq 'HASH' and exists $in->[$n+1]{''}
+                )
+                or $n == @$in - 1
+            ) {
                 push @{$self->{mlist}}, $normal . $simple ;
                 $augment .= "(?{\$self->{m}=$self->{mcount}})";
                 ++$self->{mcount};
@@ -1679,9 +1782,6 @@ sub _re_path_track {
 sub _re_path_pretty {
     my $in  = shift;
     my $arg = shift;
-    if( ref($in) ne 'ARRAY' ) {
-        croak "was not passed an ARRAY ref\n", _dump([$in]), "\n";
-    }
     my $pre    = ' ' x (($arg->{depth}+0) * $arg->{indent});
     my $indent = ' ' x (($arg->{depth}+1) * $arg->{indent});
     my $out = '';
@@ -1694,7 +1794,6 @@ sub _re_path_pretty {
             $prev_was_paren = 0;
         }
         elsif( ref($in->[$p]) eq 'ARRAY' ) {
-            # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_array($in->[$p]) );
             $out .= _re_path($in->[$p]);
         }
         else {
@@ -1706,17 +1805,19 @@ sub _re_path_pretty {
             my $nr     = @$path;
             my $nr_one = grep { length($_) == 1 } @$path;
             if( $nr_one == $nr ) {
-                $out .= "\n$pre" if $prev_was_paren;
+                # $out .= "\n$pre" if $prev_was_paren;
                 $out .=  $nr == 1 ? $path->[0] : _make_class(@$path);
 
                 $out .= '?' if exists $in->[$p]{''};
-                $prev_was_paren = 0;
+                # $prev_was_paren = 0;
             }
             else {
                 $out .= "\n" if length $out;
-                $out .= $pre if $p or $prev_was_paren;
-                # $out .= _combine( '?=', grep { s/\+$//; $_ } _lookahead_hash($in->[$p]) );
-                # $out .= '?' if exists $in->[$p]{''};
+                # apparently $prev_was_paren can never be true
+                # here, according to Devel::Cover, and assuming
+                # I've covered all the possibilities.
+                # $out .= $pre if $p or $prev_was_paren;
+                $out .= $pre if $p;
                 $out .= "(?:\n$indent";
                 if( $nr_one < 2 ) {
                     my $r = 0;
@@ -1730,7 +1831,8 @@ sub _re_path_pretty {
                 else {
                     $out .= do {
                             my( @short, @long );
-                            push @{length $_ > 1 ? \@long : \@short}, $_ for @$path;
+                            # push @{length $_ > 1 ? \@long : \@short}, $_ for @$path;
+                            push @{/^$Single_Char$/ ? \@short : \@long}, $_ for @$path;
                             join( "\n$indent|" => ( sort( _re_sort @long ), _make_class(@short) ));
                         }
                     ;
@@ -1755,29 +1857,31 @@ sub _re_sort {
 }
 
 sub _node_eq {
-    if( not defined $_[0] or not defined $_[1] ) {
-        0;
-    }
-    elsif( ref($_[0]) eq 'HASH' and ref($_[1]) eq 'HASH' ) {
+    return 0 if not defined $_[0] or not defined $_[1];
+    return 0 if ref $_[0] ne ref $_[1];
+    # Now that we have determined that the reference of each
+    # argument are the same, we only have to test the first
+    # one, which gives us a nice micro-optimisation.
+    if( ref($_[0]) eq 'HASH' ) {
         keys %{$_[0]} == keys %{$_[1]}
             and
         join( '|' => keys %{$_[0]}) eq join( '|' => keys %{$_[1]})
             and
         _re_path( [$_[0]] ) eq _re_path( [$_[1]] );
     }
-    elsif( ref($_[0]) eq 'ARRAY' and ref($_[1]) eq 'ARRAY' ) {
+    elsif( ref($_[0]) eq 'ARRAY' ) {
+        scalar @{$_[0]} == scalar @{$_[1]}
+            and
         _re_path($_[0]) eq _re_path($_[1]);
     }
-    elsif( ref($_[0]) eq '' and ref($_[1]) eq '' ) {
-        $_[0] eq $_[1];
-    }
     else {
-        0;
+        $_[0] eq $_[1];
     }
 }
 
 sub _dump {
     my $path = shift;
+    return _dump_node($path) if ref($path) eq 'HASH';
     my $dump = '[';
     my $d;
     my $nr = 0;
@@ -1790,12 +1894,12 @@ sub _dump {
             $dump .= _dump($d);
         }
         elsif( defined $d ) {
-            if( $d =~ /\s/ or not length $d ) {
-                $dump .= qq{'$d'};
-            }
-            else {
-                $dump .= $d;
-            }
+            # D::C indicates the second test is redundant
+            # $dump .= ( $d =~ /\s/ or not length $d )
+            $dump .= ( $d =~ /\s/ )
+                ? qq{'$d'}
+                :     $d
+            ;
         }
         else {
             $dump .= '*';
@@ -1811,19 +1915,15 @@ sub _dump_node {
     my $n;
     for $n (sort keys %$node) {
         $dump .= ' ' if $nr++;
-        if( $n eq '' and not defined $node->{$n}  ) {
-            $dump .= '*';
-        }
-        else {
-            $dump .= "$n=>" . _dump($node->{$n});
-        }
+        # Devel::Cover shows this to test to be redundant
+        # $dump .= ( $n eq '' and not defined $node->{$n} )
+        $dump .= $n eq ''
+            ? '*'
+            : "$n=>" . _dump($node->{$n})
+        ;
     }
     $dump . '}';
 }
-
-1;
-
-__END__
 
 =back
 
@@ -1840,23 +1940,6 @@ C<Regexp::Assemble::Default_Lexer>.
 
 A reference to a subroutine (anonymous or otherwise) was expected.
 Solution: read the documentation for the C<filter> method.
-
-"lexed a zero-length token, an infinite loop would ensue"
-
-The C<add> method eats the input string one token at a time. If you
-supply your own lexer pattern, it may match the null character, in
-which case the loop that processes the string will loop an infinite
-number of times. Solution: Fix your pattern.
-
-"was not passed an ARRAY ref"
-
-A coding error. Can only occur when debugging is active. Solution:
-turn off debugging (it's off by default).
-
-"was not passed a HASH ref"
-
-A coding error. Can only occur when debugging is active. Solution:
-turn off debugging (it's off by default).
 
 =head1 NOTES
 
@@ -1911,10 +1994,15 @@ Similarly, C<dogfood> and C<seafood> would form C<(?:dog|sea)food>.
 When the pattern is being assembled, the tracking decision needs
 to be made at the end of the grouping, but the tail of the pattern
 has not yet been visited. Deferring things to make this work correctly
-is a vast hassle.
-
-Hence tracked patterns will hence be bulky, much more bulkier than
+is a vast hassle. Tracked patterns will therefore be bulkier than
 simple patterns.
+
+Beware of cargo-cult backslashes. Don't backslash things that don't need
+to be, such as in the pattern C<x\-y> (a dash has no meta-meaning that
+needs to be escaped outside of a character class). This can cause the
+backslash to escape the opening parentheses of a C<(?:...)> capturing
+group, resulting in imbalanced parentheses and an uncompilable assembled
+pattern.
 
 =head1 SEE ALSO
 
@@ -1938,7 +2026,9 @@ Which is the main reason why I wrote this module.
 =item Regexp::Optimizer
 
 C<Regexp::Optimizer> produces regular expressions that are similar to
-those produced by R::A with reductions switched off.
+those produced by R::A with reductions switched off. It's biggest
+drawback is that it is exponetially slower than Regexp::Assemble on
+very large sets of patterns.
 
 =item Text::Trie
 
@@ -1954,15 +2044,6 @@ instance, it will not collapse C</aabababc/> down to C</a(?:ab}{3}c/>.
 If there's a module out there that performs this sort of string
 analysis I'd like to know about it. But keep in mind that the
 algorithms that do this are very expensive: quadratic or worse.
-
-C<Regexp::Assemble> does not emit lookahead or lookbehind assertions
-in the expressions it produces. Nor is the wonderful and frightening
-C<(?>...)> construct used. These and other optimisations may be
-introduced in further releases if there is a demand for them, if I
-figure out how to use them in this module, or if someone sends
-patches. There is an example in the README that shows a technique
-for contructing patterns with lookbehind assertions, using a
-two-stage approach.
 
 C<Regexp::Assemble> does not attempt to interpret meta-character
 modifiers. For instance, if the following two pattern lists are
@@ -1982,7 +2063,10 @@ Tracking doesn't really work at all with 5.6.0. It works better
 in subsequent 5.6 releases. For maximum reliability, the use of
 a 5.8 release is strongly recommended.
 
-The module does not produce POSIX-style regular expressions.
+C<Regexp::Assemble> does not (yet)? employ the C<(?>...)> construct.
+
+The module does not produce POSIX-style regular expressions. This
+would be quite easy to add, if there was a demand for it.
 
 =head1 BUGS
 
@@ -1991,13 +2075,13 @@ use of mutually-recursive functions (I<i.e.>: A calls B, B calls A,
 ...) For deeply similar expressions, it may be possible to provoke
 "Deep recursion" warnings.
 
-When a string is tested against an assembled RE, it may match
-when it shouldn't, or else not match when it should. The module has
-been tested extensively, and has an extensive test suite, but you
-never know... In either case, it is a bug, and I want to know about
-it.
-
-A temporary work-around is to disable reductions:
+The module has been tested extensively, and has an extensive test suite,
+but you never know... a bug may manifest itself in two way: creating
+a pattern that cannot be compiled, like C<a\(bc)>, or a pattern that
+compiles correctly, yet either matches things it shouldn't, or doesn't
+match things it should. Such problems will probably occur when the
+reduction algorithm encountered an edge case. A temporary work-around
+is to disable reductions:
 
   my $pattern = $assembler->reduce(0)->re;
 
@@ -2005,6 +2089,11 @@ A discussion about implementation details and where bugs might lurk
 appears in the README file. If this file is not available locally,
 you should be able to find a copy on the Web at your nearest CPAN
 mirror.
+
+Seriously, though, a number of people have been using this module to
+create expressions anywhere from 140Kb to 600Kb in size, and it seems to
+be working according to spec. Thus, I don't think there are any serious
+bugs remaining.
 
 If you are feeling brave, extensive debugging traces are available.
 
@@ -2015,6 +2104,10 @@ Make sure you include the output from the following two commands:
 
   perl -MRegexp::Assemble -le 'print Regexp::Assemble::VERSION'
   perl -V
+
+There is a mailing list for the discussion of
+Regexp::Assemble. Subscription details are available at
+L<http://www.mongueurs.net/mailman/Regexp::Assemble>.
 
 =head1 ACKNOWLEDGEMENTS
 

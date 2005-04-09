@@ -1,12 +1,34 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.11 Sat Ap  9 19:44:19 2005 UTC
+    - Performed coverage testing with Devel::Cover
+      Numerous tests added as a result. Borderline bugs
+      fixed (bizarre copy of ARRAY in leave under D::C -
+      fixed in 0.10).
+    - Finalised the interface to using zero-width lookahead
+      assertions. Depending on the match/failure ratio of
+      the pattern to targets, the pattern execution may be
+      slower with ZWLAs than without. Benchmark it.
+    - Made _dump call _dump_node if passed a reference to a
+      hash. This simplifies the code a bit, since one no
+      longer has to worry about whether the thing we are
+      looking at is a node or a path. All in all a minor
+      patch, just to tidy up some loose ends before
+      moving to heftier optimisations.
+    - The fix in 0.10 for quotemeta didn't go far enough.
+      Hopefully this version gets it right.
+    - A number of minor tweaks based on information
+      discovered during coverage testing.
+    - Added documentation about the mailing list. Sundry
+      documentation tweaks.
+
 0.10 Tue Mar 29 09:01:49 2005 UTC
-	- Correct Default_Lexer$ pattern to deal with the
-	  excessively backslashed tokens that C<quotemeta>
-	  likes to produce. Bug spotted by Walter Roberson.
-	- Added a fix to an obscure bug that Devel::Cover
-	  uncovered. The next release will fold in similar
-	  improvements found by using Devel::Cover.
+    - Correct Default_Lexer$ pattern to deal with the
+      excessively backslashed tokens that C<quotemeta>
+      likes to produce. Bug spotted by Walter Roberson.
+    - Added a fix to an obscure bug that Devel::Cover
+      uncovered. The next release will fold in similar
+      improvements found by using Devel::Cover.
 
 0.09 Sat Jan 22 9:28:21 2005 UTC
     - Added lookahead assertions at nodes. (This concept is
@@ -22,8 +44,8 @@ Revision history for Perl extension Regexp::Assemble.
     - Character classes are now sorted to the left of a list of
       alternations.
     - Corrected license info in META.yml
-    - Started to switch from ok() to cmp_ok() in the test to
-      produce human-readable test failures.
+    - Started to switch from ok() to cmp_ok() in the test suite
+      to produce human-readable test failures.
 
 0.08 Mon Jan 3 11:23:50 2005 UTC
     - Bug in insert_node fixed: did not deal with the following
