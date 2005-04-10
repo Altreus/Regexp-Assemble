@@ -5,6 +5,8 @@ the equivalent paths).
 
 2. Investigate how (?>foo) works. Can it be applied?
 
+3. Deal with \Q ... \E
+
 4. Factor out slide procedure.
 
 5. How can a tracked pattern be serialised? (Add freeze and thaw methods).
@@ -15,4 +17,10 @@ the equivalent paths).
 
 8. saw this foo(?:\.|-)bar but the test checks out ok
 
-11. Add indent() as a first-class method
+9. use eq_or_diff, or fall back on is_deeply
+
+10. Add indent() as a first-class method
+
+11. update eg/naive, is eg/assemble-check obsolete?
+
+12. utf-8... hmmmm...

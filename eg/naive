@@ -12,17 +12,25 @@
 
 use strict;
 
-my $meta     = q{\\\\[aefnrtdDwWsS.,=+*:%|?<>(){}[\\]\\\\\\200-\\377]};
-my $octal    = q{\\\\0\d{2}};
-my $hex      = q{\\\\x(?:[\da-fA-F]{2}|\{[\da-fA-F]{4}\})};
-my $ctrl     = q{\\\\c.};
-my $named    = q{\\\\N\{\w+\}};
-my $prop     = q{\\\\[Pp](?:.|\{\w+\})};
-my $class    = q{\\[.*?(?<!\\\\)\\]};
-my $paren    = q{\\(.*?(?<!\\\\)\\)};
+my $meta   =  q{\\\\[aefnrtdDwWsS]};
+my $compl  =  q{[^\\w$()*+.\\/?@\\[\\\\\\]^\\{\\|\\}]-};
+my $punct  = qq{\\\\$compl};
+my $octal  =  q{\\\\0\d{2}};
+my $hex    =  q{\\\\x(?:[\da-fA-F]{2}|\{[\da-fA-F]{4}\})};
+my $ctrl   =  q{\\\\c.};
+my $named  =  q{\\\\N\{\w+\}};
+my $prop   =  q{\\\\[Pp](?:.|\{\w+\})};
+my $class  =  q{\\[.*?(?<!\\\\)\\]};
+my $paren  =  q{\\(.*?(?<!\\\\)\\)};
 
 my $modifier   = q{(?:(?:[*+?]|\\{\\d+(?:,\\d*)?\\})\\??)};
-my $modifiable = qq{$meta|$octal|$hex|$ctrl|$named|$prop|$class|$paren|.};
+my $modifiable = qq{$meta|$punct|$octal|$hex|$ctrl|$named|$prop|$class|$paren|.};
 my $directive  = q{\\\\[bluABCEGLQUXZ]};
 
-print qq/(?:$directive|(?:$modifiable)$modifier?)/;
+print <<PATTS;
+default = (?:$directive|(?:$modifiable)$modifier?)
+
+single  = (?:$meta|$punct|$octal|$hex|$ctrl|.)
+
+unmeta  = $compl
+PATTS

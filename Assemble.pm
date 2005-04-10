@@ -5,8 +5,8 @@
 
 package Regexp::Assemble;
 
-use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char/;
-$VERSION = '0.11';
+use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
+$VERSION = '0.12';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.11 of Regexp::Assemble,
-released 2005-04-09.
+This document describes version 0.12 of Regexp::Assemble,
+released 2005-04-10.
 
 =head1 SYNOPSIS
 
@@ -23,28 +23,28 @@ released 2005-04-09.
   
   my $ra = Regexp::Assemble->new;
   $ra->add( 'ab+c' );
-  $ra->add( 'ab+\\d*\\s+c' );
-  $ra->add( 'a\\w+\\d+' );
-  $ra->add( 'a\\d+' );
-  print $ra->re; # prints (?:a(?:b+(?:\d*\s+)?c|(?:\w+)?\d+))
+  $ra->add( 'ab+-' );
+  $ra->add( 'a\w\d+' );
+  $ra->add( 'a\d+' );
+  print $ra->re; # prints a(?:\w?\d+|b+[-c])
 
 =head1 DESCRIPTION
 
-Regexp::Assemble allows you to take a number of regular expressions
-and assemble them into a single regular expression (or RE) that
-will match everything that any of the individual REs match.
+Regexp::Assemble take an arbitrary number of regular expressions
+and assembles them into a single regular expression (or RE) that
+will match all that each of the individual REs match.
 
-As a result, instead of having a large list of expressions to loop
-over, the string only needs to be tested against one expression.
-This is especially interesting when on average the expression fails
-to match most of the time. It is also interesting when you have
-several thousand patterns to deal with.
+As a result, instead of having a large list of expressions to loop over,
+the string only needs to be tested against one expression.  This is
+interesting when on average the expression fails to match most of the
+time. It is also interesting when you have several thousand patterns to
+deal with.
 
-The assembled RE is more sophisticated than a brute force C<join( '|', @list)>
-concatenation. Common subexpressions are shared; alternations are
-introduced only when patterns diverge. As a result, backtracking
-is kept to a minimum. If a given path fails... there are no other
-paths to try and so the expression fails quickly. If no wildcards
+The assembled RE is more sophisticated than a brute force
+C<join( '|', @list)> concatenation. Common subexpressions are shared;
+alternations are introduced only when patterns diverge. As a result,
+backtracking is kept to a minimum. If a given path fails... there are no
+other paths to try and so the expression fails quickly. If no wildcards
 like C<.*> appear, no backtracking will be performed. In very large
 expressions, this can provide a large speed boost.
 
@@ -76,11 +76,11 @@ use Carp 'croak';
 use constant DEBUG_ADD  => 1;
 use constant DEBUG_TAIL => 2;
 
-# The following pattern was generated using naive.pl and pasted in here
-$Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[-aefnrtdDwWsS.,=+*:%|?<>(){}[\]\\\200-\377^]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
+# The following patterns were generated using naive.pl and pasted in here
+$Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[aefnrtdDwWsS]|\\[^\w*+?@-]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
 
 # Character class candidates
-$Single_Char = qr/^(?:\\(?:[-aefnrtdDwWsS.,=+*:%|?<>(){}[\]\\\200-\377^]|0\d{2}|x[\da-fA-F]{2}|c?\.)|.)$/;
+$Single_Char = qr/^(?:\\[aefnrtdDwWsS]|\\[^\w\/{|}-]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|.)$/;
 
 =head1 METHODS
 
@@ -101,7 +101,7 @@ B<chomp>, controls whether the pattern should be chomped before being
 lexed. Handy if you are reading lines from a file. By default, no
 chomping is performed.
 
-B<clookahead>, controls whether the pattern should contain zero-width
+B<lookahead>, controls whether the pattern should contain zero-width
 lookahead assertions (C<i.e.> (?=[abc])(?:bob|alice|charles). This is
 not activated by default, because in many circumstances the cost of
 processing the assertion itself outweighs the benefit of its faculty
@@ -247,20 +247,16 @@ sub _lex {
     my $record = shift;
     my $len    = 0;
     my @path   = ();
-    # print "in $record\n";
     while( $record =~ /($self->{lex})/g ) {
         my $token_len = length($1);
-        # print "matched at $len ", pos($record), " $token_len <$1>\n";
         
         if( (my $diff = pos($record) - $len) > $token_len ) {
-            # print "fixup [", substr( $record, $len, $diff - $token_len ), "]\n\t";
             push @path,  substr( $record, $len, $diff - $token_len );
             $len += $diff - $token_len;
         }
         push @path, $1;
         $len += $token_len;
     }
-    # print  "tail: ", substr($record,$len), "\n" if $len < length($record);
     push @path, substr($record,$len) if $len < length($record);
     @path;
 }
@@ -303,7 +299,7 @@ sub insert {
     my @token = map {
         # undo quotemeta's brute-force escapades
         my $token = $_;
-        $token =~ s/^\\([^.+*?$|(){}\w\\\[\]^])$/$1/ if defined $token;
+        $token =~ s/^\\([^\w$()*+.?@\[\\\]^|])$/$1/ if defined $token;
         $token;
     } @_;
     $self->{path} = _insert_path( $self->_path, $self->_debug(DEBUG_ADD), @token );
@@ -366,7 +362,7 @@ sub as_string {
         $self->{path} = [] unless $self->{mutable};
     }
     # the assembled pattern, otherwise explicitly match nothing
-    $self->{str} || '^a\bz';
+    length($self->{str}) ? $self->{str} : '^a\bz';
 }
 
 =item re
@@ -1950,8 +1946,8 @@ The expressions produced by this module can be used with the PCRE
 library.
 
 Where possible, feed R::A the simplest tokens possible. Don't add
-C<a(?-\d+){2})b> when C<a-\d+-\d+b>. The reason is that if you
-also add C<a\d+c> the resulting REs change dramatically:
+C<a(?-\d+){2})b> when C<a-\d+-\d+b> will do. The reason is that
+if you also add C<a\d+c> the resulting REs change dramatically:
 C<a(?:(?:-\d+){2}b|-\d+c)> I<versus> C<a-\d+(?:-\d+b|c)>.  Since
 R::A doesn't analyse tokens, it doesn't know how to "unroll" the
 C<{2}> quantifier, and will fail to notice the divergence after the
@@ -1971,8 +1967,8 @@ first character in the class.  When ^ appears as a candidate for a
 character class it will be the last character in the class.
 
 It also knows about meta-characters than can "absorb" regular
-characters. For instance, given C<a\d> and C<a5>, it knows that <5>
-can be represented by C<\d> and so the assembly is just C<a\d>. The
+characters. For instance, given C<X\d> and C<X5>, it knows that <5>
+can be represented by C<\d> and so the assembly is just C<X\d>. The
 "absorbent" meta-characters it deals with are C<.>, C<\d>, C<\s>
 and C<\W> and their complements. It also knows that C<\d> and C<\D>
 can be replaced by C<.>.
@@ -1980,6 +1976,13 @@ can be replaced by C<.>.
 Regexp::Assemble will also replace all the digits 0..9 appearing
 in a character class by C<\d>. I'd do it for letters as well, but
 thinking about accented characters and other glyphs hurts my head.
+
+In an alternation, the longest paths are chosen first (I<e.g.>
+C<horse|bird|dog>). When two paths have the same length,
+the path with the most subpaths will appear first. This aims to
+put the "busiest" paths to the front of the alternation. I<E.g.>,
+the list C<bad>, C<bit>, C<few>, C<fig> and C<fun> will produce
+the pattern C<(?:f(?:ew|ig|un)|b(?:ad|it))>.
 
 When tracking is in use, no reduction is performed. Furthermore,
 no character classes are formed. The reason is that it becomes just
@@ -1997,12 +2000,12 @@ has not yet been visited. Deferring things to make this work correctly
 is a vast hassle. Tracked patterns will therefore be bulkier than
 simple patterns.
 
-Beware of cargo-cult backslashes. Don't backslash things that don't need
-to be, such as in the pattern C<x\-y> (a dash has no meta-meaning that
-needs to be escaped outside of a character class). This can cause the
-backslash to escape the opening parentheses of a C<(?:...)> capturing
-group, resulting in imbalanced parentheses and an uncompilable assembled
-pattern.
+C<Regexp::Assemble> deals correctly with C<quotemeta>'s propensity
+to backslash many characters that have no need to be. Backslashes on
+non-metacharacters will be removed. Similarly, in character classes,
+a number of characters lose their magic and so no longer need to be
+backslashed within a character class. Two common examples are C<.>
+(dot) and C<$>. Such characters will lose their backslash.
 
 =head1 SEE ALSO
 
@@ -2040,7 +2043,7 @@ bushy (read: many alternations) patterns.
 =head1 LIMITATIONS
 
 C<Regexp::Assemble> does not attempt to find common substrings. For
-instance, it will not collapse C</aabababc/> down to C</a(?:ab}{3}c/>.
+instance, it will not collapse C</cabababc/> down to C</c(?:ab){3}c/>.
 If there's a module out there that performs this sort of string
 analysis I'd like to know about it. But keep in mind that the
 algorithms that do this are very expensive: quadratic or worse.

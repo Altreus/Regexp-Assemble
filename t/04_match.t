@@ -6,8 +6,8 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 63 # miscellaneous tests
-	+ (3508 * 4); # count of all args passed to match() * 4 RE variants 
+use Test::More tests => 780 # miscellaneous tests
+	+ (3520 * 4); # count of all args passed to match() * 4 RE variants 
 
 use Regexp::Assemble;
 
@@ -41,33 +41,6 @@ sub match_list {
         ok( $str =~ /^$re$/, "$tag: $str" ) or diag " fail $str\n# in $re\n";
     }
 }
-
-{
-    my $re = Regexp::Assemble->new
-        ->add( 'de' )
-        ->re;
-    ok( $re eq '(?-xism:de)', 'de' ) or die $re;
-}
-
-{
-
-    my $re = Regexp::Assemble->new
-        ->add( '^ab' )
-        ->add( '^ac' )
-        ->add( 'de' )
-        ->re;
-    ok( $re eq '(?-xism:(?:^a[bc]|de))', 'ab, ac, de' );
-}
-
-{
-    my $re = Regexp::Assemble->new( flags => 'i' )
-        ->add( '^ab' )
-        ->add( '^ac' )
-        ->add( 'de' )
-        ->re;
-    ok( $re eq '(?-xism:(?i:(?:^a[bc]|de)))', 'ab, ac, de /i' );
-}
-
 {
     my $re = Regexp::Assemble->new( flags => 'i' )
         ->add( '^fg' )
@@ -91,6 +64,38 @@ sub match_list {
     ok( 'fetish'  =~ /$re/, 'fetish/x' );
     ok( 'foolish' =~ /$re/, 'foolish/x' );
     ok( 'fetch'   !~ /$re/, 'fetch/x' );
+}
+
+{
+    for my $outer ( 0 .. 15 ) {
+        my $re = Regexp::Assemble->new;
+        for my $inner ( 0 .. 15 ) {
+            $re->add( quotemeta( chr( $outer*16 + $inner )));
+        }
+        for my $inner ( 0 .. 15 ) {
+            my $ch = chr($outer*16 + $inner);
+            ok( $ch =~ /^$re$/,
+                "run $ch ($outer:$inner) $re"
+            );
+        }
+    }
+}
+
+for( 0 .. 255 ) {
+    my $ch = chr($_);
+    my $qm = Regexp::Assemble->new->add(quotemeta($ch));
+    ok( $ch =~ /^$qm$/, "$_: quotemeta($ch)" );
+}
+
+for( 0 .. 127 ) {
+    my $lo = chr($_);
+    my $hi = chr($_+128);
+    my $qm = Regexp::Assemble->new->add(
+        quotemeta($lo),
+        quotemeta($hi),
+    );
+    ok( $lo =~ /^$qm$/, "$_: quotemeta($lo) lo" );
+    ok( $hi =~ /^$qm$/, "$_: quotemeta($hi) hi" );
 }
 
 match_list( 'lookahead car.*',

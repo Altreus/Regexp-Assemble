@@ -14,6 +14,7 @@ eg/hostmatch/error.canonical
 eg/hostmatch/good.canonical
 eg/hostmatch/hostmatch
 eg/hostmatch/source.in
+eg/unquotemeta
 t/00_basic.t
 t/01_insert.t
 t/02_reduce.t

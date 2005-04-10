@@ -6,7 +6,7 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 110;
+use Test::More tests => 114;
 
 use Regexp::Assemble;
 
@@ -160,6 +160,12 @@ cmp_ok( Regexp::Assemble->new
     ->as_string, 'eq', '[\\d^]?', '/\d/ /^/ //' );
 
 cmp_ok( Regexp::Assemble->new
+    ->insert( '\\d' )
+    ->insert( '\\^' )
+    ->insert( '' )
+    ->as_string, 'eq', '[\\d^]?', '/\d/ /^/ //' );
+
+cmp_ok( Regexp::Assemble->new
     ->insert( 'a', "\@", 'z' )
     ->insert( 'a', "\?", 'z' )
     ->as_string, 'eq', 'a[?@]z', '/a\@z/ /a\?z/' );
@@ -219,6 +225,31 @@ ok( ($_ = Regexp::Assemble->new
     ->insert( '-' )
     ->insert( '0' )
     ->as_string) eq '[-\w^]', '/^/ /-/ /0/ /\w/ /z/' ) or warn "# $_\n";
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( 'de' )
+        ->re;
+    ok( $re eq '(?-xism:de)', 'de' ) or die $re;
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( '^ab' )
+        ->add( '^ac' )
+        ->add( 'de' )
+        ->re;
+    ok( $re eq '(?-xism:(?:^a[bc]|de))', 'ab, ac, de' );
+}
+
+{
+    my $re = Regexp::Assemble->new( flags => 'i' )
+        ->add( '^ab' )
+        ->add( '^ac' )
+        ->add( 'de' )
+        ->re;
+    ok( $re eq '(?-xism:(?i:(?:^a[bc]|de)))', 'ab, ac, de /i' );
+}
 
 cmp_ok( Regexp::Assemble->new
     ->add( quotemeta( 'a%d' ))

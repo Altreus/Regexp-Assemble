@@ -1,6 +1,16 @@
 Revision history for Perl extension Regexp::Assemble.
 
-0.11 Sat Ap  9 19:44:19 2005 UTC
+0.12 Sun Apr 11 23:49:16 2005 UTC
+    - Forgot to guard against the possibility of
+      Test::Differences not being available. This would cause
+	  erroneous failures in the test suite if it was not
+	  installed.
+    - Quotemeta was still giving troubles. Exhaustive testing
+      also turned up the fact that a bare add('0') would be
+      ignored (and thus the null-match pattern would be returned.
+    - More tweaks to the documentation.
+
+0.11 Sat Apr 9 19:44:19 2005 UTC
     - Performed coverage testing with Devel::Cover
       Numerous tests added as a result. Borderline bugs
       fixed (bizarre copy of ARRAY in leave under D::C -
