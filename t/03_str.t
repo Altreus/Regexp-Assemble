@@ -6,9 +6,12 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 114;
+use Test::More tests => 115;
 
 use Regexp::Assemble;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 ok( Regexp::Assemble->new->as_string eq '^a\bz', 'empty' );
 
@@ -110,39 +113,39 @@ cmp_ok( Regexp::Assemble->new
     ->insert( ' ' )
     ->as_string, 'eq', '\\s', '/\s/ / /' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\s' )
     ->insert( '' )
-    ->as_string) eq '\\s?', '/\s/ //' ) or warn "# $_\n";
+    ->as_string, 'eq', '\\s?', '/\s/ //' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\d' )
     ->insert( '5' )
     ->insert( '7' )
     ->insert( '0' )
-    ->as_string) eq '\\d', '/\d/ /0/ /5/ /7/' ) or warn "# $_\n";
+    ->as_string, 'eq', '\\d', '/\d/ /0/ /5/ /7/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\d' )
     ->insert( 'x' )
     ->insert( '5' )
     ->insert( '7' )
     ->insert( '0' )
-    ->as_string) eq '[\\dx]', '/\d/ /x/ /0/ /5/ /7/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[\\dx]', '/\d/ /x/ /0/ /5/ /7/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\d' )
     ->insert( '\\s' )
     ->insert( ' ' )
     ->insert( '5' )
     ->insert( '7' )
     ->insert( '0' )
-    ->as_string) eq '[\\d\\s]', '/\d/ /\s/ / / /0/ /5/ /7/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[\\d\\s]', '/\d/ /\s/ / / /0/ /5/ /7/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\.' )
     ->insert( 'p' )
-    ->as_string) eq '[.p]', '/\./ /p/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[.p]', '/\./ /p/' );
 
 cmp_ok( Regexp::Assemble->new
     ->insert( '\\w' )
@@ -188,43 +191,43 @@ cmp_ok( Regexp::Assemble->new
     ->insert( quotemeta '*' )
     ->as_string, 'eq', '[*+]', 'quotemeta + *' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '-' )
     ->insert( 'z' )
     ->insert( '0' )
-    ->as_string) eq '[-0z]', '/-/ /0/ /z/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[-0z]', '/-/ /0/ /z/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '-' )
     ->insert( '\\+' )
     ->insert( '\\*' )
-    ->as_string) eq '[-*+]', '/-/ /\+/ /\*/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[-*+]', '/-/ /\+/ /\*/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\.' )
     ->insert( '-' )
-    ->as_string) eq '[-.]', '/\./ /-/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[-.]', '/\./ /-/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '^' )
     ->insert( 'z' )
     ->insert( '0' )
-    ->as_string) eq '[0z^]', '/^/ /0/ /z/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[0z^]', '/^/ /0/ /z/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '^' )
     ->insert( 'z' )
     ->insert( '-' )
     ->insert( '0' )
-    ->as_string) eq '[-0z^]', '/^/ /-/ /0/ /z/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[-0z^]', '/^/ /-/ /0/ /z/' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '^' )
     ->insert( '\w' )
     ->insert( 'z' )
     ->insert( '-' )
     ->insert( '0' )
-    ->as_string) eq '[-\w^]', '/^/ /-/ /0/ /\w/ /z/' ) or warn "# $_\n";
+    ->as_string, 'eq', '[-\w^]', '/^/ /-/ /0/ /\w/ /z/' );
 
 {
     my $re = Regexp::Assemble->new
@@ -272,7 +275,7 @@ cmp_ok( Regexp::Assemble->new
     ->as_string, 'eq', 'a[-*=]'
 );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '0' )
     ->insert( '1' )
     ->insert( '2' )
@@ -283,7 +286,7 @@ ok( ($_ = Regexp::Assemble->new
     ->insert( '7' )
     ->insert( '8' )
     ->insert( '9' )
-    ->as_string) eq '\\d', '/0/ .. /9/' ) or warn "# $_\n";
+    ->as_string, 'eq', '\\d', '/0/ .. /9/' );
 
 ok( Regexp::Assemble->new
     ->insert( 'x' )
@@ -450,71 +453,70 @@ eq
 )'
 ,  'dldrt dndrt dldt dndt dx (indent 3)' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/foo bar/ )
-    ->as_string(indent => 2))
-eq
+    ->as_string(indent => 2),
+'eq',
 '(?:
   bar
   |foo
 )'
-, 'pretty foo bar' ) or print "\n# <$_>\n";
+, 'pretty foo bar' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/food fool bar/ )
-    ->as_string(indent => 2))
-eq
+    ->as_string(indent => 2),
+'eq',
 '(?:
   foo[dl]
   |bar
 )'
-, 'pretty food fool bar' ) or print "\n# <$_>\n";
+, 'pretty food fool bar' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/afood afool abar/ )
-    ->as_string(indent => 2))
-eq
+    ->as_string(indent => 2),
+'eq',
 'a
 (?:
   foo[dl]
   |bar
 )'
-, 'pretty afood afool abar' ) or print "\n# <$_>\n";
+, 'pretty afood afool abar' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/dab dam day/ )
-    ->as_string(indent => 2))
-eq 'da[bmy]'
-, 'pretty dab dam day' ) or print "\n# <$_>\n";
+    ->as_string(indent => 2),
+'eq', 'da[bmy]', 'pretty dab dam day' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/be bed/ )
-    ->as_string(indent => 2))
-eq 'bed?'
-, 'pretty be bed' ) or print "\n# <$_>\n";
+    ->as_string(indent => 2),
+'eq', 'bed?'
+, 'pretty be bed' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/be bed beg bet / )
-    ->as_string(indent => 2))
-eq 'be[dgt]?'
-, 'pretty be bed beg bet' ) or print "\n# <$_>\n";
+    ->as_string(indent => 2),
+'eq', 'be[dgt]?'
+, 'pretty be bed beg bet' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/afoodle afoole abarle/ )
-    ->as_string(indent => 2))
-eq
+    ->as_string(indent => 2),
+'eq',
 'a
 (?:
   food?
   |bar
 )
 le'
-, 'pretty afoodle afoole abarle' ) or print "\n# <$_>\n";
+, 'pretty afoodle afoole abarle' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/afar afoul abate aback/ )
-    ->as_string(indent => 2))
-eq
+    ->as_string(indent => 2),
+'eq',
 'a
 (?:
   ba
@@ -528,13 +530,13 @@ eq
     |ar
   )
 )'
-, 'pretty pretty afar afoul abate aback' ) or print "\n# <$_>\n";
+, 'pretty pretty afar afoul abate aback' );
 
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/stormboy steamboy saltboy sockboy/ )
-    ->as_string(indent => 5))
-eq
+    ->as_string(indent => 5),
+'eq',
 's
 (?:
      t
@@ -547,12 +549,12 @@ eq
      |ock
 )
 boy'
-, 'pretty stormboy steamboy saltboy sockboy' ) or print "\n# <$_>\n";
+, 'pretty stormboy steamboy saltboy sockboy' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/stormboy steamboy stormyboy steamyboy saltboy sockboy/ )
-    ->as_string(indent => 4))
-eq
+    ->as_string(indent => 4),
+'eq',
 's
 (?:
     t
@@ -565,12 +567,12 @@ eq
     |ock
 )
 boy'
-, 'pretty stormboy steamboy stormyboy steamyboy saltboy sockboy' ) or print "\n# <$_>\n";
+, 'pretty stormboy steamboy stormyboy steamyboy saltboy sockboy' );
 
-ok( ($_ = Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/stormboy steamboy stormyboy steamyboy stormierboy steamierboy saltboy/ )
-    ->as_string(indent => 1))
-eq
+    ->as_string(indent => 1),
+'eq',
 's
 (?:
  t
@@ -587,8 +589,7 @@ eq
  |alt
 )
 boy'
-, 'pretty stormboy steamboy stormyboy steamyboy stormierboy steamierboy saltboy' )
-    or print "\n# <$_>\n";
+, 'pretty stormboy steamboy stormyboy steamyboy stormierboy steamierboy saltboy' );
 
 cmp_ok( Regexp::Assemble->new
     ->add( qw/showerless showeriness showless showiness show shows/ )
@@ -660,10 +661,10 @@ cmp_ok( Regexp::Assemble->new->add( qw/
 )', 'pretty 200.1 202.1 207.4 208.3 213.2' );
 
 
-ok( ($_ = Regexp::Assemble->new->add( qw/
+cmp_ok( Regexp::Assemble->new->add( qw/
         yammail\.com yanmail\.com yeah\.net yourhghorder\.com yourload\.com
-    / )->as_string(indent => 4))
-eq
+    / )->as_string(indent => 4),
+'eq',
 'y
 (?:
     (?:
@@ -677,13 +678,12 @@ eq
     \.com
     |eah\.net
 )'
-, 'pretty yammail.com yanmail.com yeah.net yourhghorder.com yourload.com' )
-    or print "\n# <$_>\n";
+, 'pretty yammail.com yanmail.com yeah.net yourhghorder.com yourload.com' );
 
-ok( ($_ = Regexp::Assemble->new->debug(1)->add( qw/
+cmp_ok( Regexp::Assemble->new->debug(1)->add( qw/
         0\.0 0\.2 0\.7 0\.01 0\.003
-    / )->as_string(indent => 4))
-eq
+    / )->as_string(indent => 4),
+'eq',
 '0\.
 (?:
     0
@@ -694,13 +694,12 @@ eq
     ?
     |[27]
 )'
-, 'pretty 0.0 0.2 0.7 0.01 0.003' )
-    or print "\n# <$_>\n";
+, 'pretty 0.0 0.2 0.7 0.01 0.003' );
 
-ok( ($_ = Regexp::Assemble->new->add( qw/
+cmp_ok( Regexp::Assemble->new->add( qw/
         convenient containment consort concert
-    / )->as_string(indent => 4))
-eq
+    / )->as_string(indent => 4),
+'eq',
 'con
 (?:
     (?:
@@ -716,13 +715,12 @@ eq
     r
 )
 t'
-, 'pretty convenient containment consort concert' )
-    or print "\n# <$_>\n";
+, 'pretty convenient containment consort concert' );
 
-ok( ($_ = Regexp::Assemble->new->add( qw/
+cmp_ok( Regexp::Assemble->new->add( qw/
         sat sit bat bit sad sid bad bid
-    / )->as_string(indent => 5))
-eq
+    / )->as_string(indent => 5),
+'eq',
 '(?:
      b
      (?:
@@ -735,14 +733,13 @@ eq
           |i[dt]
      )
 )'
-, 'pretty sat sit bat bit sad sid bad bid' )
-    or print "\n# <$_>\n";
+, 'pretty sat sit bat bit sad sid bad bid' );
 
-ok( ($_ = Regexp::Assemble->new->add( qw/
+cmp_ok( Regexp::Assemble->new->add( qw/
         commercial\.net compuserve\.com compuserve\.net concentric\.net
         coolmail\.com coventry\.com cox\.net
-    / )->as_string(indent => 5))
-eq
+    / )->as_string(indent => 5),
+'eq',
 'co
 (?:
      m
@@ -767,7 +764,7 @@ eq
      )
      \.net
 )'
-, 'pretty c*.*' ) or print "\n# <$_>\n";
+, 'pretty c*.*' );
 
 cmp_ok( Regexp::Assemble->new->add( qw/
         ambient\.at agilent\.com americanexpress\.com amnestymail\.com
@@ -1102,3 +1099,4 @@ cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
 	'(?=[uv])(?:u(?=[nr])(?:n(?=[iprs])(?:(?=[ip])(?:(?:p[or]|impr))?i|(?:sea)?|rea)|r)|v(?=[ei])(?:en(?=[it])(?:trime|i)|i))son',
 	'lookahead u.*son v.*son' );
 
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

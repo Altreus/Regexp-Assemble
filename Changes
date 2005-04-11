@@ -1,10 +1,22 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.13
+    - Deal with \Q...\E patterns.
+    - $Default_Lexer pattern fails on 5.6.x: it would lex
+      '\-' as '\', '-'. 
+    - Tests to prove that the global $_ is not clobbered
+      by the module.
+    - Used cmp_ok rather than ok where it makes sense.
+    - Added a (belated) DEBUG_LEX debugging mode
+    - Removed some debugging traces left over during
+      lookahead development
+	- Minor performance tweaks to _lex() and insert()
+
 0.12 Sun Apr 11 23:49:16 2005 UTC
     - Forgot to guard against the possibility of
       Test::Differences not being available. This would cause
-	  erroneous failures in the test suite if it was not
-	  installed.
+      erroneous failures in the test suite if it was not
+      installed.
     - Quotemeta was still giving troubles. Exhaustive testing
       also turned up the fact that a bare add('0') would be
       ignored (and thus the null-match pattern would be returned.

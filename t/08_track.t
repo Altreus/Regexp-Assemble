@@ -6,9 +6,12 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use constant TESTS => 47;
+use constant TESTS => 48;
 use Test::More tests => TESTS + 4;
 use Regexp::Assemble;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 my $ra = Regexp::Assemble->new;
 
@@ -137,3 +140,5 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
 }
 
 } # SKIP
+
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

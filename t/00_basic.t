@@ -11,9 +11,12 @@
 use strict;
 use constant TEST_560 => 3; # tests to ignore when running under 5.6.0
 
-use Test::More tests => 121 + TEST_560;
+use Test::More tests => 127 + TEST_560;
 
 use Regexp::Assemble;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 diag( "testing Regexp::Assemble v$Regexp::Assemble::VERSION" );
 
@@ -326,127 +329,156 @@ cmp_ok( Regexp::Assemble::_make_class( qw/ \\. \\+ / ),
 	'eq', '[+.]', '_make_class \\. \\+'
 );
 
-my $r = Regexp::Assemble->new;
 
-is_deeply( [$r->_lex( '' )], [], '_lex empty string' );
+{
+	my $r = Regexp::Assemble->new;
+	is_deeply( [$r->_lex( '' )], [], '_lex empty string' );
 
-my $str = 'abc';
-is_deeply( [$r->_lex( $str )],
-    [ 'a', 'b', 'c' ],
-    "_lex $str",
-);
+	my $str = 'abc';
+	is_deeply( [$r->_lex( $str )],
+		[ 'a', 'b', 'c' ],
+		"_lex $str",
+	);
 
-$str = 'a+b*c?';
-is_deeply( [$r->_lex( $str )],
-    [ 'a+', 'b*', 'c?' ],
-    "_lex $str",
-);
+	$str = 'a+b*c?';
+	is_deeply( [$r->_lex( $str )],
+		[ 'a+', 'b*', 'c?' ],
+		"_lex $str",
+	);
 
-$str = 'a+\\d+';
-is_deeply( [$r->_lex( $str )],
-    [ 'a+', '\\d+' ],
-    "_lex $str",
-);
+	$str = 'a+\\d+';
+	is_deeply( [$r->_lex( $str )],
+		[ 'a+', '\\d+' ],
+		"_lex $str",
+	);
 
-$str = 'a+?b*?c??';
-is_deeply( [$r->_lex( $str )],
-    [ 'a+?', 'b*?', 'c??' ],
-    "_lex $str",
-);
+	$str = 'a+?b*?c??';
+	is_deeply( [$r->_lex( $str )],
+		[ 'a+?', 'b*?', 'c??' ],
+		"_lex $str",
+	);
 
-$str = 'abc[def]g';
-is_deeply( [$r->_lex( $str )],
-    [ 'a', 'b', 'c', '[def]', 'g' ],
-    "_lex $str",
-);
+	$str = 'abc[def]g';
+	is_deeply( [$r->_lex( $str )],
+		[ 'a', 'b', 'c', '[def]', 'g' ],
+		"_lex $str",
+	);
 
-$str = '(?:ab)?c[def]+g';
-is_deeply( [$r->_lex( $str )],
-    [ '(?:ab)?', 'c', '[def]+', 'g' ],
-    "_lex $str",
-);
+	$str = '(?:ab)?c[def]+g';
+	is_deeply( [$r->_lex( $str )],
+		[ '(?:ab)?', 'c', '[def]+', 'g' ],
+		"_lex $str",
+	);
 
-$str = 'abc[def]g(?:hi[jk]lm[no]p)';
-is_deeply( [$r->_lex( $str )],
-    [ 'a', 'b', 'c', '[def]', 'g', '(?:hi[jk]lm[no]p)' ],
-    "_lex $str",
-);
+	$str = 'abc[def]g(?:hi[jk]lm[no]p)';
+	is_deeply( [$r->_lex( $str )],
+		[ 'a', 'b', 'c', '[def]', 'g', '(?:hi[jk]lm[no]p)' ],
+		"_lex $str",
+	);
 
-$str = 'abc[def]g[,.%\\]$&].\\.$';
-is_deeply( [$r->_lex( $str )],
-    [ 'a', 'b', 'c', '[def]', 'g', '[,.%\\]$&]', '.', '\\.', '$' ],
-    "_lex $str",
-);
+	$str = 'abc[def]g[,.%\\]$&].\\.$';
+	is_deeply( [$r->_lex( $str )],
+		[ 'a', 'b', 'c', '[def]', 'g', '[,.%\\]$&]', '.', '\\.', '$' ],
+		"_lex $str",
+	);
 
-$str = '\\w+\\d{2,}\\s+?\\w{1,100}?'; is_deeply( [$r->_lex( $str  )],
-    [ '\\w+', '\\d{2,}', '\\s+?', '\\w{1,100}?' ],
-    "_lex $str",
-);
+	$str = '\\w+\\d{2,}\\s+?\\w{1,100}?'; is_deeply( [$r->_lex( $str  )],
+		[ '\\w+', '\\d{2,}', '\\s+?', '\\w{1,100}?' ],
+		"_lex $str",
+	);
 
-$str = '\\012+\\.?\\xae+\\x{dead}\\x{beef}+';
-is_deeply( [$r->_lex( $str  )],
-    [ '\\012+', '\\.?', '\\xae+', '\\x{dead}', '\\x{beef}+' ],
-    "_lex $str",
-);
+	#$str = '\\012+\\.?\\xae+\\x{dead}\\x{beef}+';
+	#is_deeply( [$r->_lex( $str  )],
+	#    [ '\\012+', '\\.?', '\\xae+', '\\x{dead}', '\\x{beef}+' ],
+	#    "_lex $str",
+	#);
 
-$str = '\\c[\\ca\\c]\\N{foo}';
-is_deeply( [$r->_lex( $str  )],
-    [ '\\c[', '\\ca', '\\c]', '\\N{foo}' ],
-    "_lex $str",
-);
+	$str = '\\c[\\ca\\c]\\N{foo}';
+	is_deeply( [$r->_lex( $str  )],
+		[ '\\c[', '\\ca', '\\c]', '\\N{foo}' ],
+		"_lex $str",
+	);
 
-$str = '\\b(?:ab\(cd\)ef)+?(?:ab[cd]+e)*';
-is_deeply( [$r->_lex( $str  )],
-    [ '\\b', '(?:ab\(cd\)ef)+?', '(?:ab[cd]+e)*' ],
-    "_lex $str",
-);
+	$str = '\\b(?:ab\(cd\)ef)+?(?:ab[cd]+e)*';
+	is_deeply( [$r->_lex( $str  )],
+		[ '\\b', '(?:ab\(cd\)ef)+?', '(?:ab[cd]+e)*' ],
+		"_lex $str",
+	);
 
-$str = '\\A[^bc\]\d]+\\Z';
-is_deeply( [$r->_lex( $str  )],
-    [ '\\A', '[^bc\]\d]+', '\\Z' ],
-    "_lex $str",
-);
+	$str = '\\A[^bc\]\d]+\\Z';
+	is_deeply( [$r->_lex( $str  )],
+		[ '\\A', '[^bc\]\d]+', '\\Z' ],
+		"_lex $str",
+	);
 
-$str = 'a\\d+\\w*:[\\d\\s]+.z(?!foo)d';
-is_deeply( [$r->_lex( $str  )],
-    [ 'a', '\\d+', '\\w*', ':', '[\\d\\s]+', '.', 'z', '(?!foo)', 'd' ],
-    "_lex $str",
-);
+	$str = 'a\\d+\\w*:[\\d\\s]+.z(?!foo)d';
+	is_deeply( [$r->_lex( $str  )],
+		[ 'a', '\\d+', '\\w*', ':', '[\\d\\s]+', '.', 'z', '(?!foo)', 'd' ],
+		"_lex $str",
+	);
+}
 
-my $path;
+{
+	my $r = Regexp::Assemble->new->debug(4);
 
-$path = [];
-is_deeply( $path, Regexp::Assemble::_path_copy($path),
-    '_path_copy([])' );
+	my $str = 'a\\Q+x*\\Eb+';
+	is_deeply( [$r->_lex( $str )], [ 'a', '\\Q+x*\\E', 'b+' ], "_lex $str" );
 
-$path = [0, qw[ab cd ef]];
-is_deeply( $path, Regexp::Assemble::_path_copy($path),
-    '_path_copy(0 ab cd ef)' );
+	$str = 'a\\Q+x*b+';
+	is_deeply( [$r->_lex( $str  )], [ 'a', '\\Q+x*b+' ], "_lex $str" );
 
-$path = {};
-is_deeply( $path, Regexp::Assemble::_node_copy($path),
-    '_node_copy({})' );
+	$str = 'a\\Eb';
+	is_deeply( [$r->_lex( $str  )], [ 'a', '\\E', 'b', ], "_lex $str" );
 
-$path = {'a' => [qw[a bb ccc]], 'b'=>[qw[b cc ddd]]};
-is_deeply( $path, Regexp::Assemble::_node_copy($path),
-    '_node_copy({a,b})' );
+	$str = 'a\\Q+x*\\Eb+';
+	$r->reset->debug(4)->add( $str );
+	is_deeply( $r->_path, [ 'a', '\\+', 'x', '\\*', 'b+' ], "add $str" );
 
-$path = [
-    {'c'=>['c','d'],'e'=>['e','f']},
-    't',
-    {'d'=>['d','f'],'b'=>['b',0]},
-    { '' => undef, 'a' => ['a']},
-];
-is_deeply( $path, Regexp::Assemble::_path_copy($path),
-    '_path_copy({c,e} t {d,b} {* a}' );
+	$str = 'a\\Q+x*b+';
+	$r->reset->debug(0)->add( $str );
+	is_deeply( $r->_path, [ 'a', '\\+', 'x', '\\*', 'b', '\\+' ], "add $str" );
 
-$path = [
-    [0, 1, 2],
-    ['a','b','c'],
-    ['d',{'e'=>['e','f'],'g'=>['g','h']}],
-];
-is_deeply( $path, Regexp::Assemble::_path_copy($path),
-    '_path_copy(ab cd ef {* a})' );
+	$str = 'a\\Eb';
+	$r->reset->add( $str );
+	is_deeply( $r->_path, [ 'a', 'b', ], "add $str" );
+}
+
+{
+	my $path;
+
+	$path = [];
+	is_deeply( $path, Regexp::Assemble::_path_copy($path),
+		'_path_copy([])' );
+
+	$path = [0, qw[ab cd ef]];
+	is_deeply( $path, Regexp::Assemble::_path_copy($path),
+		'_path_copy(0 ab cd ef)' );
+
+	$path = {};
+	is_deeply( $path, Regexp::Assemble::_node_copy($path),
+		'_node_copy({})' );
+
+	$path = {'a' => [qw[a bb ccc]], 'b'=>[qw[b cc ddd]]};
+	is_deeply( $path, Regexp::Assemble::_node_copy($path),
+		'_node_copy({a,b})' );
+
+	$path = [
+		{'c'=>['c','d'],'e'=>['e','f']},
+		't',
+		{'d'=>['d','f'],'b'=>['b',0]},
+		{ '' => undef, 'a' => ['a']},
+	];
+	is_deeply( $path, Regexp::Assemble::_path_copy($path),
+		'_path_copy({c,e} t {d,b} {* a}' );
+
+	$path = [
+		[0, 1, 2],
+		['a','b','c'],
+		['d',{'e'=>['e','f'],'g'=>['g','h']}],
+	];
+	is_deeply( $path, Regexp::Assemble::_path_copy($path),
+		'_path_copy(ab cd ef {* a})' );
+}
 
 is_deeply( $rt->_path, [], 'path is empty' );
 
@@ -603,3 +635,6 @@ like( $@,
 	qr/^Don't pass a Regexp::Assemble to Default_Lexer\n\s+at \S+ line \d+/m,
 	'Default_Lexer die'
 );
+
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
+

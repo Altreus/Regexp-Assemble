@@ -10,11 +10,14 @@ use Regexp::Assemble;
 
 use constant file_testcount => 3; # tests requiring Test::File::Contents
 
-use Test::More tests => 9 + file_testcount;
+use Test::More tests => 10 + file_testcount;
 
 use constant NR_GOOD  => 45;
 use constant NR_BAD   => 529;
 use constant NR_ERROR => 0;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 my $have_Test_File_Contents = do {
     eval { require Test::File::Contents; import Test::File::Contents };
@@ -46,21 +49,21 @@ END {
 }
 
 ok( open(IN, 'eg/hostmatch/source.in'), "can open eg/hostmatch/source.in" ) or print "# $!\n";
-while( <IN> ) {
-    chomp;
-    if( /^$ra$/ ) {
+while( defined( my $rec = <IN> )) {
+    chomp $rec;
+    if( $rec =~ /^$ra$/ ) {
         my $seen = 0;
         my $re;
         for $re (@re) {
-            if( /^$re$/ ) {
-                print BAD "$_\n";
+            if( $rec =~ /^$re$/ ) {
+                print BAD "$rec\n";
                 ++$bad;
                 ++$seen;
                 last;
             }
         }
         if( not $seen ) {
-            print ERROR "$_\n";
+            print ERROR "$rec\n";
             ++$error;
         }
     }
@@ -68,15 +71,15 @@ while( <IN> ) {
         my $seen = 0;
         my $re;
         for $re (@re) {
-            if( /^$re$/ ) {
-                print ERROR "$_\n";
+            if( $rec =~ /^$re$/ ) {
+                print ERROR "$rec\n";
                 ++$error;
                 ++$seen;
                 last;
             }
         }
         if( not $seen ) {
-            print GOOD "$_\n";
+            print GOOD "$rec\n";
             ++$good;
         }
     }
@@ -99,6 +102,8 @@ SKIP: {
         file_contents_identical( "t/$file.out", "eg/hostmatch/$file.canonical", "saw expected $file output" );
     }
 } # SKIP
+
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
 
 __DATA__
 m\d+-\d+-\d+-\d+\.andorpac\.ad

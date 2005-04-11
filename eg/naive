@@ -13,24 +13,33 @@
 use strict;
 
 my $meta   =  q{\\\\[aefnrtdDwWsS]};
-my $compl  =  q{[^\\w$()*+.\\/?@\\[\\\\\\]^\\{\\|\\}]-};
+my $compl  =  q{[^\\w*+?@]};
 my $punct  = qq{\\\\$compl};
+my $single =  q{\\\\[^\\w\\/{|}-]};
 my $octal  =  q{\\\\0\d{2}};
-my $hex    =  q{\\\\x(?:[\da-fA-F]{2}|\{[\da-fA-F]{4}\})};
+my $hex    =  q{\\\\x[\da-fA-F]{2}};
 my $ctrl   =  q{\\\\c.};
 my $named  =  q{\\\\N\{\w+\}};
 my $prop   =  q{\\\\[Pp](?:.|\{\w+\})};
 my $class  =  q{\\[.*?(?<!\\\\)\\]};
 my $paren  =  q{\\(.*?(?<!\\\\)\\)};
 
-my $modifier   = q{(?:(?:[*+?]|\\{\\d+(?:,\\d*)?\\})\\??)};
 my $modifiable = qq{$meta|$punct|$octal|$hex|$ctrl|$named|$prop|$class|$paren|.};
+my $modifier   = q{(?:(?:[*+?]|\\{\\d+(?:,\\d*)?\\})\\??)};
 my $directive  = q{\\\\[bluABCEGLQUXZ]};
 
 print <<PATTS;
-default = (?:$directive|(?:$modifiable)$modifier?)
+# The following patterns were generated with eg/naive
+\$Default_Lexer = qr/$directive|(?:$modifiable)$modifier?/;
 
-single  = (?:$meta|$punct|$octal|$hex|$ctrl|.)
+\$Single_Char   = qr/^(?:$meta|$single|$octal|$hex|$ctrl|.)\$/;
 
-unmeta  = $compl
+# unmeta = $compl
+# -end-
 PATTS
+
+__END__
+$Default_Lexer = qr/(?:\\[bluABCEGLUXZ]|(?:\\[aefnrtdDwWsS]|\\[^\w*+?@]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
+
+# Character class candidates
+$Single_Char = qr/^(?:\\[aefnrtdDwWsS]|\\[^\w\/{|}-]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|.)$/;

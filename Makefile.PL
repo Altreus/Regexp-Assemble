@@ -1,6 +1,8 @@
 use ExtUtils::MakeMaker;
 eval "use ExtUtils::MakeMaker::Coverage";
 
+print "Adding testcover target\n" unless $@;
+
 WriteMakefile(
     'NAME'	       => 'Regexp::Assemble',
     'VERSION_FROM' => 'Assemble.pm',

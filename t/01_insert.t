@@ -19,7 +19,10 @@ use Regexp::Assemble;
 
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
-use Test::More tests => 44 + permute_testcount;
+use Test::More tests => 45 + permute_testcount;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 #eval { require Test::Differences; import Test::Differences };
 #if( $@ ) {
@@ -575,3 +578,5 @@ ok( $@, 'die on non-CODE filter' );
 
 eval { $r2->pre_filter('choke') };
 ok( $@, 'die on non-CODE pre_filter' );
+
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

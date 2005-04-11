@@ -8,11 +8,14 @@
 use strict;
 use Regexp::Assemble;
 
-use Test::More tests => 62;
+use Test::More tests => 63;
 
 use constant NR_GOOD  => 45;
 use constant NR_BAD   => 529;
 use constant NR_ERROR => 0;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 my $target;
 my $ra = Regexp::Assemble->new->add( qw/foo bar rat/ );
@@ -222,3 +225,5 @@ cmp_ok( $ra->add( qw/schoolkids skids acids acidoids/ )->as_string,
 
 cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
 	'eq', '(?:(?:s(?:chool)?)?k|ac(?:ido)?)ids' );
+
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

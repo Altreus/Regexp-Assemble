@@ -6,10 +6,13 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 780 # miscellaneous tests
+use Test::More tests => 781 # miscellaneous tests
 	+ (3520 * 4); # count of all args passed to match() * 4 RE variants 
 
 use Regexp::Assemble;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 sub match {
     my $re   = Regexp::Assemble->new;
@@ -769,3 +772,5 @@ match( '[pg].*(ess|ous)', qw[
     pyroligneous pyrolignous pyromorphous pyrophanous pyrophilous
     pyrophorous pyrophosphorous pyrrhous pythogenous pythoness
     pythonomorphous ]);
+
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

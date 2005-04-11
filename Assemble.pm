@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.12';
+$VERSION = '0.13';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into one RE
 
 =head1 VERSION
 
-This document describes version 0.12 of Regexp::Assemble,
-released 2005-04-10.
+This document describes version 0.13 of Regexp::Assemble,
+released 2005-04-11.
 
 =head1 SYNOPSIS
 
@@ -30,29 +30,20 @@ released 2005-04-10.
 
 =head1 DESCRIPTION
 
-Regexp::Assemble take an arbitrary number of regular expressions
+Regexp::Assemble takes an arbitrary number of regular expressions
 and assembles them into a single regular expression (or RE) that
 will match all that each of the individual REs match.
 
 As a result, instead of having a large list of expressions to loop over,
-the string only needs to be tested against one expression.  This is
+the string only needs to be tested against one expression. This is
 interesting when on average the expression fails to match most of the
 time. It is also interesting when you have several thousand patterns to
-deal with.
+deal with. Serious effort is made to produce the smallest pattern
+possible.
 
-The assembled RE is more sophisticated than a brute force
-C<join( '|', @list)> concatenation. Common subexpressions are shared;
-alternations are introduced only when patterns diverge. As a result,
-backtracking is kept to a minimum. If a given path fails... there are no
-other paths to try and so the expression fails quickly. If no wildcards
-like C<.*> appear, no backtracking will be performed. In very large
-expressions, this can provide a large speed boost.
-
-This is useful when you have a large number of patterns that you
-want to apply against a string. It is also possible to track the
-orginal patterns, so that you can determine which, among the source
-patterns that form the assembled pattern, was the one that caused
-the match to occur.
+It is also possible to track the orginal patterns, so that you can
+determine which, among the source patterns that form the assembled
+pattern, was the one that caused the match to occur.
 
 You should realise that large numbers of alternations are processed
 in perl's regular expression engine in O(n) time, not O(1). If you
@@ -75,12 +66,15 @@ use Carp 'croak';
 
 use constant DEBUG_ADD  => 1;
 use constant DEBUG_TAIL => 2;
+use constant DEBUG_LEX  => 4;
 
-# The following patterns were generated using naive.pl and pasted in here
-$Default_Lexer = qr/(?:\\[bluABCEGLQUXZ]|(?:\\[aefnrtdDwWsS]|\\[^\w*+?@-]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?)/;
+# The following patterns were generated with eg/naive
+$Default_Lexer = qr/\\Q.*?(?:\\E|$)|\\[bluABCEGLUXZ]|(?:\\[aefnrtdDwWsS]|\\[^\w*+?@]|\\0\d{2}|\\x[\da-fA-F]{2}|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?/;
 
-# Character class candidates
-$Single_Char = qr/^(?:\\[aefnrtdDwWsS]|\\[^\w\/{|}-]|\\0\d{2}|\\x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|\\c.|.)$/;
+$Single_Char   = qr/^(?:\\[aefnrtdDwWsS]|\\[^\w\/{|}-]|\\0\d{2}|\\x[\da-fA-F]{2}|\\c.|.)$/;
+
+# unmeta = [^\w*+?@]
+# -end-
 
 =head1 METHODS
 
@@ -247,15 +241,16 @@ sub _lex {
     my $record = shift;
     my $len    = 0;
     my @path   = ();
+    my $debug  = $self->{debug} & DEBUG_LEX;
     while( $record =~ /($self->{lex})/g ) {
-        my $token_len = length($1);
-        
-        if( (my $diff = pos($record) - $len) > $token_len ) {
-            push @path,  substr( $record, $len, $diff - $token_len );
-            $len += $diff - $token_len;
+        if( pos($record) - $len > length($1) ) {
+            my $token_len = pos($record) - $len - length($1);
+            push @path,  substr( $record, $len, $token_len );
+            $len += $token_len;
         }
+        print "lexed <$1>\n" if $debug;
         push @path, $1;
-        $len += $token_len;
+        $len += length($1);
     }
     push @path, substr($record,$len) if $len < length($record);
     @path;
@@ -267,7 +262,7 @@ sub add {
     while( defined( $record = shift @_ )) {
         chomp($record) if $self->{chomp};
         next if $self->{pre_filter} and not $self->{pre_filter}->($record);
-        print "record=<$record>\n" if $self->{debug} == DEBUG_ADD;
+        print "add <$record>\n" if $self->{debug} & DEBUG_ADD;
         $self->insert( $self->_lex($record) );
     }
     $self;
@@ -296,12 +291,31 @@ addition of the entire pattern on a token-by-token basis.
 sub insert {
     my $self = shift;
     return $self if $self->{filter} and not $self->{filter}->(@_);
-    my @token = map {
-        # undo quotemeta's brute-force escapades
-        my $token = $_;
-        $token =~ s/^\\([^\w$()*+.?@\[\\\]^|])$/$1/ if defined $token;
-        $token;
-    } @_;
+    my @token;
+	my $debug = $self->{debug} & DEBUG_LEX;
+    for my $token( @_ ) {
+        if( not defined $token ) {
+            push @token, undef;
+        }
+		else {
+        	print "insert <$token>\n" if $debug;
+			if( $token =~ /^\\Q(.*?)(?:\\E|$)/ ) {
+				my $literal = quotemeta($1);
+				print "token quoted <$literal>\n" if $debug;
+				for my $token( $self->_lex( $literal )) {
+					print "  subtoken <$token>\n" if $debug;
+					push @token, $token;
+				}
+			}
+			else {
+				# undo quotemeta's brute-force escapades
+				# take a copy, because we could modify a readonly scalar
+				(my $t = $token) =~ s/^\\([^\w$()*+.?@\[\\\]^|])$/$1/;
+				print "token <$t>\n" if $debug;
+				push @token, $t unless $t eq '\\E';
+			}
+		}
+    }
     $self->{path} = _insert_path( $self->_path, $self->_debug(DEBUG_ADD), @token );
     $self->{str} = $self->{re} = undef;
     $self;
@@ -589,8 +603,9 @@ carefully formatted output.
 
 0 turns debugging off, 1 emits debug traces dealing with
 adding new patterns to the object, 2 emits debug traces
-dealing with the reduction of the assembled pattern. Calling
-with no arguments also turns debugging off.
+dealing with the reduction of the assembled pattern. 4 emits
+debug traces dealing with the lexing of the input pattern.
+Calling with no arguments also turns debugging off.
 
 Values can be added (or or'ed together) to trace everything
 
@@ -1695,7 +1710,7 @@ sub _re_path_lookahead {
             keys %{$in->[$p]}
         ];
         my $ahead = _lookahead($in->[$p]);
-        print "ref($p): ", ref($in->[$p]), ' ', join( ',' => sort keys %$ahead ), "\n";
+        # print "ref($p): ", ref($in->[$p]), ' ', join( ',' => sort keys %$ahead ), "\n";
         my $more = 0;
         # if( ref($in->[$p]) eq 'HASH' and exists $in->[$p]{''} and $p + 1 < @$in ) {
         if( exists $in->[$p]{''} and $p + 1 < @$in ) {
@@ -1724,7 +1739,7 @@ sub _re_path_lookahead {
                 ?  _combine( '?=', grep { s/\+$//; $_ } keys %$ahead )
                 : '';
             my $patt = $nr > 1 ? _combine( '?:', @$path ) : $path->[0];
-            print "have nr=$nr n1=$nr_one n=", _dump($in->[$p]), ' a=', _dump([keys %$ahead]), " zwla=$zwla patt=$patt @{[_dump($path)]}\n";
+            # print "have nr=$nr n1=$nr_one n=", _dump($in->[$p]), ' a=', _dump([keys %$ahead]), " zwla=$zwla patt=$patt @{[_dump($path)]}\n";
             if( exists $in->[$p]{''} ) {
                 $out .=  $more ? "$zwla(?:$patt)?" : "(?:$zwla$patt)?";
             }
@@ -1973,6 +1988,13 @@ can be represented by C<\d> and so the assembly is just C<X\d>. The
 and C<\W> and their complements. It also knows that C<\d> and C<\D>
 can be replaced by C<.>.
 
+C<Regexp::Assemble> deals correctly with C<quotemeta>'s propensity
+to backslash many characters that have no need to be. Backslashes on
+non-metacharacters will be removed. Similarly, in character classes,
+a number of characters lose their magic and so no longer need to be
+backslashed within a character class. Two common examples are C<.>
+(dot) and C<$>. Such characters will lose their backslash.
+
 Regexp::Assemble will also replace all the digits 0..9 appearing
 in a character class by C<\d>. I'd do it for letters as well, but
 thinking about accented characters and other glyphs hurts my head.
@@ -2000,12 +2022,13 @@ has not yet been visited. Deferring things to make this work correctly
 is a vast hassle. Tracked patterns will therefore be bulkier than
 simple patterns.
 
-C<Regexp::Assemble> deals correctly with C<quotemeta>'s propensity
-to backslash many characters that have no need to be. Backslashes on
-non-metacharacters will be removed. Similarly, in character classes,
-a number of characters lose their magic and so no longer need to be
-backslashed within a character class. Two common examples are C<.>
-(dot) and C<$>. Such characters will lose their backslash.
+There is an open bug on this issue:
+
+L<http://rt.perl.org/rt3/Ticket/Display.html?id=32840>
+
+If this bug is ever resolved, tracking would become much easier
+to deal with (none of the C<match> hassle would be required - you could
+just match like a regular RE and it would Just Work).
 
 =head1 SEE ALSO
 
@@ -2030,7 +2053,7 @@ Which is the main reason why I wrote this module.
 
 C<Regexp::Optimizer> produces regular expressions that are similar to
 those produced by R::A with reductions switched off. It's biggest
-drawback is that it is exponetially slower than Regexp::Assemble on
+drawback is that it is exponentially slower than Regexp::Assemble on
 very large sets of patterns.
 
 =item Text::Trie
@@ -2049,7 +2072,7 @@ analysis I'd like to know about it. But keep in mind that the
 algorithms that do this are very expensive: quadratic or worse.
 
 C<Regexp::Assemble> does not attempt to interpret meta-character
-modifiers. For instance, if the following two pattern lists are
+modifiers. For instance, if the following two patterns are
 given: C<a\d> and C<a\d+>, it will not determine that C<\d> can be
 matched by C<\d+>. Instead, it will produce C<a(?:\d|\d+)>. Along
 a similar line of reasoning, it will not determine that C<a> and
@@ -2066,7 +2089,8 @@ Tracking doesn't really work at all with 5.6.0. It works better
 in subsequent 5.6 releases. For maximum reliability, the use of
 a 5.8 release is strongly recommended.
 
-C<Regexp::Assemble> does not (yet)? employ the C<(?>...)> construct.
+C<Regexp::Assemble> does not (yet)? employ the C<(?E<gt>...)>
+construct.
 
 The module does not produce POSIX-style regular expressions. This
 would be quite easy to add, if there was a demand for it.
@@ -2078,13 +2102,14 @@ use of mutually-recursive functions (I<i.e.>: A calls B, B calls A,
 ...) For deeply similar expressions, it may be possible to provoke
 "Deep recursion" warnings.
 
-The module has been tested extensively, and has an extensive test suite,
-but you never know... a bug may manifest itself in two way: creating
-a pattern that cannot be compiled, like C<a\(bc)>, or a pattern that
-compiles correctly, yet either matches things it shouldn't, or doesn't
-match things it should. Such problems will probably occur when the
-reduction algorithm encountered an edge case. A temporary work-around
-is to disable reductions:
+The module has been tested extensively, and has an extensive test
+suite (that achieves 100% statement coverage), but you never know...
+A bug may manifest itself in two ways: creating a pattern that cannot
+be compiled, such as C<a\(bc)>, or a pattern that compiles correctly
+that either matches things it shouldn't, or doesn't match things it
+should. Such problems will probably occur when the reduction algorithm
+encounters an edge case. A temporary work-around is to disable
+reductions:
 
   my $pattern = $assembler->reduce(0)->re;
 

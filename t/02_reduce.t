@@ -9,7 +9,10 @@
 use strict;
 use Regexp::Assemble;
 
-use Test::More tests => 47;
+use Test::More tests => 48;
+
+my $fixed = 'The scalar remains the same';
+$_ = $fixed;
 
 {
     my $ra = Regexp::Assemble->new;
@@ -1369,3 +1372,4 @@ use Test::More tests => 47;
     );
 }
 
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
