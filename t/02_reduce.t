@@ -9,10 +9,59 @@
 use strict;
 use Regexp::Assemble;
 
-use Test::More tests => 48;
+eval qq{ use Test::More tests => 61 };
+if( $@ ) {
+    warn "# Test::More not available, no tests performed\n";
+    print "1..1\nok 1\n";
+    exit 0;
+}
 
 my $fixed = 'The scalar remains the same';
 $_ = $fixed;
+
+{
+    # ran, reran
+    my $path  = ['r'];
+    my $tail  = { '' => undef, 'r' => [ 'r', 'e' ] };
+    my $head  = ['n', 'a'];
+    ($head, my $slide, $path) = Regexp::Assemble::_slide_tail( $head, $tail, $path, 0, 0 );
+    is_deeply( $head, ['n', 'a', 'r'], '_slide_tail ran/reran head' );
+    is_deeply( $slide, { '' => undef, 'e' => ['e', 'r'] }, '_slide_tail ran/reran slide' );
+    is_deeply( $path, [], '_slide_tail ran/reran path' );
+}
+
+{
+    # lit, limit
+    my $path  = ['i', 'l'];
+    my $tail  = { '' => undef, 'i' => [ 'i', 'm' ] };
+    my $head  = ['t'];
+    ($head, my $slide, $path) = Regexp::Assemble::_slide_tail( $head, $tail, $path, 0, 0 );
+    is_deeply( $head, ['t', 'i'], '_slide_tail lit/limit head' );
+    is_deeply( $slide, { '' => undef, 'm' => ['m', 'i'] }, '_slide_tail lit/limit slide' );
+    is_deeply( $path, ['l'], '_slide_tail lit/limit path' );
+}
+
+{
+    # acids/acidoids
+    my $path  = ['d', 'i', 'c', 'a'];
+    my $tail  = { '' => undef, 'd' => [ 'd', 'i', 'o' ] };
+    my $head  = ['s'];
+    ($head, my $slide, $path) = Regexp::Assemble::_slide_tail( $head, $tail, $path, 0, 0 );
+    is_deeply( $head, ['s', 'd', 'i'], '_slide_tail acids/acidoids head' );
+    is_deeply( $slide, { '' => undef, 'o' => ['o', 'd', 'i'] }, '_slide_tail acids/acidoids slide' );
+    is_deeply( $path, ['c', 'a'], '_slide_tail acids/acidoids path' );
+}
+
+{
+    # 007/00607
+    my $path  = ['0', '0'];
+    my $tail  = { '' => undef, '0' => [ '0', '6' ] };
+    my $head  = ['7'];
+    ($head, my $slide, $path) = Regexp::Assemble::_slide_tail( $head, $tail, $path, 0, 0 );
+    is_deeply( $head, ['7', '0'], '_slide_tail 007/00607 head' );
+    is_deeply( $slide, { '' => undef, '6' => ['6', '0'] }, '_slide_tail 007/00607 slide' );
+    is_deeply( $path, ['0'], '_slide_tail 007/00607 path' );
+}
 
 {
     my $ra = Regexp::Assemble->new;
@@ -624,7 +673,7 @@ $_ = $fixed;
         },
         's',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
     is_deeply( $res,
         [
             't',
@@ -657,7 +706,7 @@ $_ = $fixed;
         },
         'f',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
     is_deeply( $res,
         [
             't',
@@ -688,7 +737,7 @@ $_ = $fixed;
         },
         'e', 's',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
     is_deeply( $res,
         [
             't',
@@ -721,7 +770,7 @@ $_ = $fixed;
         },
         't', 'a', 'b',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
     is_deeply( $res,
         [
             'd', 'i',
@@ -758,7 +807,7 @@ $_ = $fixed;
         },
         't', 'm', 'x',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
     is_deeply( $res,
         [
             'd', 'i',
@@ -796,7 +845,7 @@ $_ = $fixed;
         },
         't', 'a', 'x',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, @$path );
+    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
     is_deeply( $res,
         [
             'd', 'i',
@@ -1370,6 +1419,32 @@ $_ = $fixed;
         ],
         join( ' ', map { "/$_/" } @list ),
     );
+}
+
+{
+    my $ra = Regexp::Assemble->new;
+    $ra->add( 'dasin' );
+    $ra->add( 'dosin' );
+    $ra->add( 'dastin' );
+    $ra->add( 'dostin' );
+
+    $ra->_reduce;
+    is_deeply( $ra->_path,
+        [
+            'd',
+            {
+                'a' =>['a'],
+                'o' =>['o'],
+            },
+            's',
+            {
+                ''  => undef,
+                't' => ['t'],
+            },
+            'i', 'n',
+        ],
+        'dasin/dosin/dastin/dosting'
+    ) or diag ($ra->_path);
 }
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

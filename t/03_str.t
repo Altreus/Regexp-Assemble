@@ -6,96 +6,106 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 115;
+
+eval qq{use Test::More tests => 116};
+if( $@ ) {
+    warn "# Test::More not available, no tests performed\n";
+    print "1..1\nok 1\n";
+    exit 0;
+}
 
 use Regexp::Assemble;
 
 my $fixed = 'The scalar remains the same';
 $_ = $fixed;
 
-ok( Regexp::Assemble->new->as_string eq '^a\bz', 'empty' );
+cmp_ok( Regexp::Assemble->new->as_string, 'eq', '^a\bz', 'empty' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
-    ->as_string eq '(?:)?', '//' );
+    ->as_string, 'eq', '(?:)?', '//' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd' )
-    ->as_string eq 'd', '/d/' );
+    ->as_string, 'eq', 'd', '/d/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
+    ->insert( 'd', 'o', 't' )
+    ->as_string, 'eq', 'dot', 'd o t' );
+
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd' )
     ->insert( 'o' )
     ->insert( 't' )
-    ->as_string eq '[dot]', '/d/ /o/ /t/' );
+    ->as_string, 'eq', '[dot]', '/d/ /o/ /t/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd' )
     ->insert( '' )
-    ->as_string eq 'd?', '// /d/' );
+    ->as_string, 'eq', 'd?', '// /d/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'a' )
-    ->as_string eq 'da', '/da/' );
+    ->as_string, 'eq', 'da', '/da/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd' )
     ->insert( 'd', 'a' )
-    ->as_string eq 'da?', '/d/ /da/' );
+    ->as_string, 'eq', 'da?', '/d/ /da/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
     ->insert( 'd', 'a' )
-    ->as_string eq '(?:da)?', '// /da/' );
+    ->as_string, 'eq', '(?:da)?', '// /da/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
     ->insert( 'a' )
     ->insert( 'd' )
-    ->as_string eq '[ad]?', '// /a/ /d/' );
+    ->as_string, 'eq', '[ad]?', '// /a/ /d/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
     ->insert( 'a' )
     ->insert( 'd', 'o' )
-    ->as_string eq '(?:do|a)?', '// /a/ /do/' );
+    ->as_string, 'eq', '(?:do|a)?', '// /a/ /do/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'x' )
     ->insert( '.' )
-    ->as_string eq '.', '/x/ /./' );
+    ->as_string, 'eq', '.', '/x/ /./' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\033' )
     ->insert( '.' )
-    ->as_string eq '.', '/\x033/ /./' );
+    ->as_string, 'eq', '.', '/\x033/ /./' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\d' )
     ->insert( '\\s' )
     ->insert( '.' )
-    ->as_string eq '.', '/\d/ /\s/ /./' );
+    ->as_string, 'eq', '.', '/\d/ /\s/ /./' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\d' )
     ->insert( '\\D' )
-    ->as_string eq '.', '/\d/ /\D/' );
+    ->as_string, 'eq', '.', '/\d/ /\D/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\s' )
     ->insert( '\\S' )
-    ->as_string eq '.', '/\s/ /\S/' );
+    ->as_string, 'eq', '.', '/\s/ /\S/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\w' )
     ->insert( '\\W' )
-    ->as_string eq '.', '/\w/ /\W/' );
+    ->as_string, 'eq', '.', '/\w/ /\W/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '\\w' )
     ->insert( '\\W' )
-    ->insert( '	' ) # that's a TAB character, by the way
-    ->as_string eq '.', '/\w/ /\W/ /\t/' );
+    ->insert( '    ' ) # that's a TAB character, by the way
+    ->as_string, 'eq', '.', '/\w/ /\W/ /\t/' );
 
 cmp_ok( Regexp::Assemble->new
     ->insert( '\\d' )
@@ -233,7 +243,7 @@ cmp_ok( Regexp::Assemble->new
     my $re = Regexp::Assemble->new
         ->add( 'de' )
         ->re;
-    ok( $re eq '(?-xism:de)', 'de' ) or die $re;
+    cmp_ok( $re, 'eq', '(?-xism:de)', 'de' ) or die $re;
 }
 
 {
@@ -242,7 +252,7 @@ cmp_ok( Regexp::Assemble->new
         ->add( '^ac' )
         ->add( 'de' )
         ->re;
-    ok( $re eq '(?-xism:(?:^a[bc]|de))', 'ab, ac, de' );
+    cmp_ok( $re, 'eq', '(?-xism:(?:^a[bc]|de))', 'ab, ac, de' );
 }
 
 {
@@ -251,7 +261,7 @@ cmp_ok( Regexp::Assemble->new
         ->add( '^ac' )
         ->add( 'de' )
         ->re;
-    ok( $re eq '(?-xism:(?i:(?:^a[bc]|de)))', 'ab, ac, de /i' );
+    cmp_ok( $re, 'eq', '(?-xism:(?i:(?:^a[bc]|de)))', 'ab, ac, de /i' );
 }
 
 cmp_ok( Regexp::Assemble->new
@@ -288,7 +298,7 @@ cmp_ok( Regexp::Assemble->new
     ->insert( '9' )
     ->as_string, 'eq', '\\d', '/0/ .. /9/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'x' )
     ->insert( '0' )
     ->insert( '1' )
@@ -300,49 +310,49 @@ ok( Regexp::Assemble->new
     ->insert( '7' )
     ->insert( '8' )
     ->insert( '9' )
-    ->as_string eq '[\\dx]', '/0/ .. /9/ /x/' );
+    ->as_string, 'eq', '[\\dx]', '/0/ .. /9/ /x/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
     ->insert( 'b', 'e' )
     ->insert( 'b', 'y' )
-    ->as_string eq '(?:b[ey])?', '// /be/ /by/' );
+    ->as_string, 'eq', '(?:b[ey])?', '// /be/ /by/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
     ->insert( 'b', 'e' )
     ->insert( 'd', 'o' )
-    ->as_string eq '(?:be|do)?', '// /be/ /do/' );
+    ->as_string, 'eq', '(?:be|do)?', '// /be/ /do/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
     ->insert( 'a' )
     ->insert( 'b', 'e' )
     ->insert( 'b', 'y' )
-    ->as_string eq '(?:b[ey]|a)?', '// /a/ /be/ /by/' );
+    ->as_string, 'eq', '(?:b[ey]|a)?', '// /a/ /be/ /by/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'b' )
     ->insert( 'd', 'a', 'y' )
-    ->as_string eq 'da[by]', '/dab/ /day/' );
+    ->as_string, 'eq', 'da[by]', '/dab/ /day/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'b' )
     ->insert( 'd', 'a', 'i', 'l', 'y' )
-    ->as_string eq 'da(?:ily|b)', '/dab/ /daily/' );
+    ->as_string, 'eq', 'da(?:ily|b)', '/dab/ /daily/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'b' )
     ->insert( 'd', 'a', 'y' )
     ->insert( 'd', 'a', 'i', 'l', 'y' )
-    ->as_string eq 'da(?:(?:il)?y|b)', '/dab/ /day/ /daily/' );
+    ->as_string, 'eq', 'da(?:(?:il)?y|b)', '/dab/ /day/ /daily/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'b' )
     ->insert( 'd', 'a', 'b', 'b', 'l', 'e' )
-    ->as_string eq 'dab(?:ble)?', '/dab/ /dabble/' );
+    ->as_string, 'eq', 'dab(?:ble)?', '/dab/ /dabble/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'o', 'b' )
     ->insert( 'd', 'o', 'e' )
     ->insert( 'd', 'o', 'g' )
@@ -350,34 +360,34 @@ ok( Regexp::Assemble->new
     ->insert( 'd', 'o', 't' )
     ->insert( 'd', 'u', 'b' )
     ->insert( 'd', 'u', 'd' )
-    ->as_string eq 'd(?:o[begnt]|u[bd])', '/dob/ /doe/ /dog/ /don/ /dot/ /dub/ /dud/' );
+    ->as_string, 'eq', 'd(?:o[begnt]|u[bd])', '/dob/ /doe/ /dog/ /don/ /dot/ /dub/ /dud/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd' )
     ->insert( 'd', 'o' )
     ->insert( 'd', 'o', 'n' )
     ->insert( 'd', 'o', 'n', 'e' )
-    ->as_string eq 'd(?:o(?:ne?)?)?', '/d/ /do/ /don/ /done/' );
+    ->as_string, 'eq', 'd(?:o(?:ne?)?)?', '/d/ /do/ /don/ /done/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( '' )
     ->insert( 'd' )
     ->insert( 'd', 'o' )
     ->insert( 'd', 'o', 'n' )
     ->insert( 'd', 'o', 'n', 'e' )
-    ->as_string eq '(?:d(?:o(?:ne?)?)?)?', '// /d/ /do/ /don/ /done/' );
+    ->as_string, 'eq', '(?:d(?:o(?:ne?)?)?)?', '// /d/ /do/ /don/ /done/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'y' )
     ->insert( 'n', 'i', 'g', 'h', 't' )
-    ->as_string eq '(?:night|day)', '/day/ /night/' );
+    ->as_string, 'eq', '(?:night|day)', '/day/ /night/' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->insert( 'd', 'a', 'm', 'p' )
     ->insert( 'd', 'a', 'm', 'e' )
     ->insert( 'd', 'a', 'r', 't' )
     ->insert( 'd', 'a', 'r', 'k' )
-    ->as_string eq 'da(?:m[ep]|r[kt])', '/dame/ /damp/ /dark/ /dart/' );
+    ->as_string, 'eq', 'da(?:m[ep]|r[kt])', '/dame/ /damp/ /dark/ /dart/' );
 
 cmp_ok( Regexp::Assemble->new
     ->add( qw/ lit limit / )
@@ -393,9 +403,9 @@ cmp_ok( Regexp::Assemble->new
     ->as_string, 'eq', 'a(?:(?:e(?:[gh]u|ft)|dkt|f)w|(?:(?:ij|g)m|hn)v)z',
     'adktwz aeftwz aeguwz aehuwz afwz agmvz ahnvz aijmvz' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/bcktx bckx bdix bdktx bdkx/ )
-    ->as_string eq 'b(?:d(?:kt?|i)|ckt?)x', 'bcktx bckx bdix bdktx bdkx' );
+    ->as_string, 'eq', 'b(?:d(?:kt?|i)|ckt?)x', 'bcktx bckx bdix bdktx bdkx' );
 
 cmp_ok( Regexp::Assemble->new
     ->add( qw/ dldrt dndrt dldt dndt dx / )
@@ -442,10 +452,10 @@ cmp_ok( $red->as_string, 'eq', 'dog', 'mute dog 2' );
 $red->add( 'dig' );
 cmp_ok( $red->as_string, 'eq', 'dig', 'mute dig 2' );
 
-ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new
     ->add( qw/ dldrt dndrt dldt dndt dx / )
-    ->as_string(indent => 3)
-eq
+    ->as_string(indent => 3),
+'eq',
 'd
 (?:
    [ln]dr?t
@@ -453,9 +463,9 @@ eq
 )'
 ,  'dldrt dndrt dldt dndt dx (indent 3)' );
 
-cmp_ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new( indent => 2 )
     ->add( qw/foo bar/ )
-    ->as_string(indent => 2),
+    ->as_string,
 'eq',
 '(?:
   bar
@@ -464,8 +474,9 @@ cmp_ok( Regexp::Assemble->new
 , 'pretty foo bar' );
 
 cmp_ok( Regexp::Assemble->new
+    ->indent(2)
     ->add( qw/food fool bar/ )
-    ->as_string(indent => 2),
+    ->as_string,
 'eq',
 '(?:
   foo[dl]
@@ -475,7 +486,8 @@ cmp_ok( Regexp::Assemble->new
 
 cmp_ok( Regexp::Assemble->new
     ->add( qw/afood afool abar/ )
-    ->as_string(indent => 2),
+    ->indent(2)
+    ->as_string,
 'eq',
 'a
 (?:
@@ -489,7 +501,7 @@ cmp_ok( Regexp::Assemble->new
     ->as_string(indent => 2),
 'eq', 'da[bmy]', 'pretty dab dam day' );
 
-cmp_ok( Regexp::Assemble->new
+cmp_ok( Regexp::Assemble->new(indent => 5)
     ->add( qw/be bed/ )
     ->as_string(indent => 2),
 'eq', 'bed?'
@@ -810,7 +822,7 @@ cmp_ok( Regexp::Assemble->new->add( qw/
 )' , 'pretty a*.*' );
 
 cmp_ok( Regexp::Assemble->new->add( qw/
-	looked choked hooked stoked toked baked faked
+    looked choked hooked stoked toked baked faked
     / )->as_string(indent => 4), 'eq',
 '(?:
     (?:
@@ -951,10 +963,10 @@ whoreson
 son' , '.*son' );
 
 cmp_ok( Regexp::Assemble->new->add( qw/
-	deathweed deerweed deeded detached debauched deboshed detailed
-	defiled deviled defined declined determined declared deminatured
-	debentured deceased decomposed demersed depressed dejected
-	deflected delighted
+    deathweed deerweed deeded detached debauched deboshed detailed
+    defiled deviled defined declined determined declared deminatured
+    debentured deceased decomposed demersed depressed dejected
+    deflected delighted
 / )->as_string(indent => 2), 'eq',
 'de
 (?:
@@ -1017,86 +1029,86 @@ cmp_ok( Regexp::Assemble->new->add( qw/
 ed', 'indent de.*ed' );
 
 cmp_ok( Regexp::Assemble->new->add( qw/
-	looked choked hooked stoked toked baked faked
+    looked choked hooked stoked toked baked faked
     / )->as_string( indent => 0 ), 'eq',
-	'(?:(?:[hl]o|s?t|ch)o|[bf]a)ked',
-	'looked choked hooked stoked toked baked faked' );
+    '(?:(?:[hl]o|s?t|ch)o|[bf]a)ked',
+    'looked choked hooked stoked toked baked faked' );
 
 cmp_ok( Regexp::Assemble->new->lookahead(1)->add( qw/
-	bird cat dog
-	/ )->as_string, 'eq',
-	'(?=[bcd])(?:bird|cat|dog)', 'lookahead bcd' );
+    bird cat dog
+    / )->as_string, 'eq',
+    '(?=[bcd])(?:bird|cat|dog)', 'lookahead bcd' );
 
 cmp_ok( Regexp::Assemble->new->lookahead(1)->add( qw/
-	seahorse season
-	/ )->as_string, 'eq',
-	'sea(?=[hs])(?:horse|son)', 'lookahead seahorse season' );
+    seahorse season
+    / )->as_string, 'eq',
+    'sea(?=[hs])(?:horse|son)', 'lookahead seahorse season' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-	car carrot
-	/ )->as_string, 'eq',
-	'car(?:rot)?', 'lookahead car carrot' );
+    car carrot
+    / )->as_string, 'eq',
+    'car(?:rot)?', 'lookahead car carrot' );
 
 cmp_ok( Regexp::Assemble->new->lookahead->add( qw/
-	car carrot card
-	/ )->as_string, 'eq',
-	'car(?:(?=[dr])(?:rot|d))?', 'lookahead car carrot card' );
+    car carrot card
+    / )->as_string, 'eq',
+    'car(?:(?=[dr])(?:rot|d))?', 'lookahead car carrot card' );
 
 cmp_ok( Regexp::Assemble->new->lookahead->add( qw/
-	car cart card carp
-	/ )->as_string, 'eq',
-	'car[dpt]?', 'lookahead car carp cart card' );
+    car cart card carp
+    / )->as_string, 'eq',
+    'car[dpt]?', 'lookahead car carp cart card' );
 
 cmp_ok( Regexp::Assemble->new->lookahead->add( qw/
-	car cart card carp carion
-	/ )->as_string, 'eq',
-	'car(?:(?=[dipt])(?:[dpt]|ion))?', 'lookahead car carp cart card carion' );
+    car cart card carp carion
+    / )->as_string, 'eq',
+    'car(?:(?=[dipt])(?:[dpt]|ion))?', 'lookahead car carp cart card carion' );
 
 cmp_ok( Regexp::Assemble->new->lookahead->add( qw/
-	car cart card carp carion caring
-	/ )->as_string, 'eq',
-	'car(?:(?=[dipt])(?:[dpt]|i(?=[no])(?:ng|on)))?',
-	'lookahead car carp cart card carion caring' );
+    car cart card carp carion caring
+    / )->as_string, 'eq',
+    'car(?:(?=[dipt])(?:[dpt]|i(?=[no])(?:ng|on)))?',
+    'lookahead car carp cart card carion caring' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-	bane bare cane care
-	/ )->debug(0)->as_string, 'eq',
-	'[bc]a[nr]e', 'lookahead cane care bane bare' );
+    bane bare cane care
+    / )->debug(0)->as_string, 'eq',
+    '[bc]a[nr]e', 'lookahead cane care bane bare' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-	faction reaction transaction
-	/ )->as_string, 'eq',
-	'(?=[frt])(?:trans|re|f)action', 'lookahead faction reaction transaction' );
+    faction reaction transaction
+    / )->as_string, 'eq',
+    '(?=[frt])(?:trans|re|f)action', 'lookahead faction reaction transaction' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-	faction reaction transaction direction section
-	/ )->as_string, 'eq',
-	'(?=[dfrst])(?:(?=[frt])(?:trans|re|f)a|(?=[ds])(?:dir|s)e)ction',
-	'lookahead faction reaction transaction direction section' );
+    faction reaction transaction direction section
+    / )->as_string, 'eq',
+    '(?=[dfrst])(?:(?=[frt])(?:trans|re|f)a|(?=[ds])(?:dir|s)e)ction',
+    'lookahead faction reaction transaction direction section' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-	card caret corn corpse
-	/ )->as_string, 'eq',
-	'c(?=[ao])(?:or(?=[np])(?:pse|n)|ar(?=[de])(?:et|d))',
-	'lookahead card caret corn corpse' );
+    card caret corn corpse
+    / )->as_string, 'eq',
+    'c(?=[ao])(?:or(?=[np])(?:pse|n)|ar(?=[de])(?:et|d))',
+    'lookahead card caret corn corpse' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-	refuse use
-	/ )->as_string, 'eq',
-	'(?=[ru])(?:ref)?use',
-	'lookahead use refuse' );
+    refuse use
+    / )->as_string, 'eq',
+    '(?=[ru])(?:ref)?use',
+    'lookahead use refuse' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-	caret caress careful careless caring carion carry carried
-	/ )->as_string, 'eq',
-	'car(?=[eir])(?:e(?=[flst])(?:(?=[ls])(?:le)?ss|ful|t)|i(?=[no])(?:ng|on)|r(?=[iy])(?:ied|y))',
-	'lookahead caret caress careless careful caring carion carry carried' );
+    caret caress careful careless caring carion carry carried
+    / )->as_string, 'eq',
+    'car(?=[eir])(?:e(?=[flst])(?:(?=[ls])(?:le)?ss|ful|t)|i(?=[no])(?:ng|on)|r(?=[iy])(?:ied|y))',
+    'lookahead caret caress careless careful caring carion carry carried' );
 
 cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
-		unimprison unison unpoison unprison unreason unseason
-		unson urson venison ventrimeson vison
-	/ )->as_string, 'eq',
-	'(?=[uv])(?:u(?=[nr])(?:n(?=[iprs])(?:(?=[ip])(?:(?:p[or]|impr))?i|(?:sea)?|rea)|r)|v(?=[ei])(?:en(?=[it])(?:trime|i)|i))son',
-	'lookahead u.*son v.*son' );
+        unimprison unison unpoison unprison unreason unseason
+        unson urson venison ventrimeson vison
+    / )->as_string, 'eq',
+    '(?=[uv])(?:u(?=[nr])(?:n(?=[iprs])(?:(?=[ip])(?:(?:p[or]|impr))?i|(?:sea)?|rea)|r)|v(?=[ei])(?:en(?=[it])(?:trime|i)|i))son',
+    'lookahead u.*son v.*son' );
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

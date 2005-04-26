@@ -1,6 +1,31 @@
 Revision history for Perl extension Regexp::Assemble.
 
-0.13
+0.14 Wed Apr 27 00:32:43 2005 UTC
+    - Performance tuning release. Played around significantly
+      with _insertr and lex but major improvement will only
+      come about by writing the lexing routine in C.
+    - Reordered $Default_Lexer to bring the most common cases
+      to the front of the pattern.
+    - Inline the effects of \U, \L, \c, \x. This is handled by
+      _lex_stateful (which offloads some of the worst case
+      lexing costs into a separate routine and thus makes the
+      more usual cases run faster). Handling of \Q in the
+      previous release was incorrect. (Sigh).
+    - Backslash slashes.
+    - Passed arrays around by reference between _lex and a
+      newly introduced _insertr routine.
+    - Silenced warning in _slide_tail (ran/reran)
+    - Fixed bug in _slide_tail (didn't handle '0' as a token).
+      One section of the code used to do its own sliding, now it
+      uses _slide_tail.
+    - Fixed bug in _node_eq revealed by 5.6.1 (implicit ordering
+      of hash keys).
+    - Optimized node_offset()
+    - replace ok() in tests by better things (is, like, ...)
+    - removed use of Test::Differences, since it doesn't work on
+      complex structures.
+
+0.13 Mon Apr 11 21:59:26 2005 UTC
     - Deal with \Q...\E patterns.
     - $Default_Lexer pattern fails on 5.6.x: it would lex
       '\-' as '\', '-'. 
@@ -8,9 +33,6 @@ Revision history for Perl extension Regexp::Assemble.
       by the module.
     - Used cmp_ok rather than ok where it makes sense.
     - Added a (belated) DEBUG_LEX debugging mode
-    - Removed some debugging traces left over during
-      lookahead development
-	- Minor performance tweaks to _lex() and insert()
 
 0.12 Sun Apr 11 23:49:16 2005 UTC
     - Forgot to guard against the possibility of

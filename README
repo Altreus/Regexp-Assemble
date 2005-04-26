@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.13
+The file is the README for Regexp::Assemble version 0.14
 
 INSTALLATION
 
@@ -16,8 +16,7 @@ This module requires the following modules for thorough testing:
     Test::Pod
     Test::Simple
 
-It can also make use of Devel::Cover, and with therefore use
-Test::Differences (a prerequisite of D::C) if it's available.
+It can also make use of Devel::Cover if available.
 
 UNINSTALLATION
 
@@ -392,8 +391,8 @@ then one of the original patterns should also match. If the
 assembled pattern doesn't match, then none of the original
 patterns should match.
 
-The two scripts assemble and assemble-check, supplied as examples,
-can also help you play around with this process.
+The assemble script, supplied as an example, can help with this
+process.
 
 When tracking is in use, no reduction is performed.
 
@@ -402,6 +401,9 @@ different output routines. Each routine emits things in a different
 way, but the underlying structure remains the same. Which is one
 reason why you can't have pretty-printed tracked patterns (Well you
 can, but I haven't written the routine that would do so).
+
+Zero-width lookahead assertions can be added to the pattern. This may
+be a win, but it may also slow things down.
 
 DEBUGGING NOTES
 

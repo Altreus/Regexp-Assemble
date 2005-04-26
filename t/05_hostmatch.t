@@ -10,7 +10,12 @@ use Regexp::Assemble;
 
 use constant file_testcount => 3; # tests requiring Test::File::Contents
 
-use Test::More tests => 10 + file_testcount;
+eval qq{use Test::More tests => 10 + file_testcount};
+if( $@ ) {
+    warn "# Test::More not available, no tests performed\n";
+    print "1..1\nok 1\n";
+    exit 0;
+}
 
 use constant NR_GOOD  => 45;
 use constant NR_BAD   => 529;
@@ -95,7 +100,7 @@ ok( NR_ERROR == $error, NR_ERROR. ' records in error' );
 ok( NR_GOOD+NR_BAD+NR_ERROR == $., "$. total records" );
 
 SKIP: {
-    skip 'Test::File::Contents not installed on this system', file_testcount
+    skip( 'Test::File::Contents not installed on this system', file_testcount )
         unless $have_Test_File_Contents;
     my $file;
     for $file( qw/good bad error/ ) {

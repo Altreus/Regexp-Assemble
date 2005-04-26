@@ -7,7 +7,16 @@
 
 use strict;
 use constant TESTS => 48;
-use Test::More tests => TESTS + 4;
+
+eval qq{use Test::More tests => TESTS + 4};
+if( $@ ) {
+    warn "# Test::More not available, no tests performed\n";
+    print "1..1\nok 1\n";
+    exit 0;
+}
+
+my $IS_5_006 = $] eq '5.006';
+
 use Regexp::Assemble;
 
 my $fixed = 'The scalar remains the same';
@@ -19,17 +28,13 @@ is_deeply( $ra->mbegin, [], 'mbegin is [] on non-tracked R::A object' );
 is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
 
 {
-	my $re = Regexp::Assemble->new
-		->add( 'cat' )
-		->add( 'dog' )
-	;
-	ok( $re->match( 'cat' ), 'match without tracking' );
-	ok( not( defined $re->match( 'eagle' )), 'match fail without tracking' );
+    my $re = Regexp::Assemble->new
+        ->add( 'cat' )
+        ->add( 'dog' )
+    ;
+    ok( $re->match( 'cat' ), 'match without tracking' );
+    ok( !defined( $re->match( 'eagle' )), 'match fail without tracking' );
 }
-
-SKIP: {
-
-skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
 
 {
     my $re = Regexp::Assemble->new( track=>1 )
@@ -37,27 +42,27 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
     $re->add('foolish-\\d+');
     ok( $re->match('dog'), 're pattern-1 dog match' );
     SKIP: {
-        skip 'matched() is not implemented in 5.6.0', 1 if $] eq '5.006';
+        skip( 'matched() is not implemented in 5.6.0', 1 ) if $IS_5_006;
         ok( $re->matched eq 'dog', 're pattern-1 dog matched' );
     }
     ok( $re->match('dogged'), 're pattern-1 dogged match' );
     SKIP: {
-        skip 'matched() is not implemented in 5.6.0', 1 if $] eq '5.006';
+        skip( 'matched() is not implemented in 5.6.0', 1 ) if $IS_5_006;
         ok( $re->matched eq 'dogged', 're pattern-1 dogged matched' );
     }
     ok( $re->match('fetish'), 're pattern-1 fetish match' );
     SKIP: {
-        skip 'matched() is not implemented in 5.6.0', 1 if $] eq '5.006';
+        skip( 'matched() is not implemented in 5.6.0', 1 ) if $IS_5_006;
         ok( $re->matched eq 'fetish', 're pattern-1 fetish matched' );
     }
     ok( $re->match('foolish-245'), 're pattern-1 foolish-\\d+ match' );
     SKIP: {
-        skip 'matched() is not implemented in 5.6.0', 1 if $] eq '5.006';
+        skip( 'matched() is not implemented in 5.6.0', 1 ) if $IS_5_006;
         ok( $re->matched eq 'foolish-\\d+', 're pattern-1 foolish-\\d+ matched' );
     }
     ok( !defined($re->match('foolish-')), 're pattern-1 foolish-\\d+ 4' );
     SKIP: {
-        skip 'matched() is not implemented in 5.6.0', 1 if $] eq '5.006';
+        skip( 'matched() is not implemented in 5.6.0', 1 ) if $IS_5_006;
         ok( !defined($re->matched), 're pattern-1 foolish-\\d+ 5' );
     }
     ok( do {use re 'eval'; 'cat' !~ /$re/}, 're pattern-1 cat' );
@@ -78,7 +83,7 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
     }
     ok( $re->match('a-000'), 're pattern-2 a-000 match' );
     SKIP: {
-        skip 'matched() is not implemented in 5.6.0', 1 if $] eq '5.006';
+        skip( 'matched() is not implemented in 5.6.0', 1 ) if $IS_5_006;
         ok( $re->matched eq '^a-\\d+$', 're pattern-2 a-000 matched' );
     }
 }
@@ -93,9 +98,9 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
     ok( $re->mvar(0) eq 'b-34-56', 'match pattern-3 capture 1' );
     ok( $re->mvar(1) == 34, 'match pattern-3 capture 2' );
     ok( $re->mvar(2) == 56, 'match pattern-3 capture 3' );
-	is_deeply( $re->mvar, ['b-34-56', 34, 56], 'match pattern-3 mvar' );
-	is_deeply( $re->mbegin, [0, 2, 5], 'match pattern-3 mbegin' );
-	is_deeply( $re->mend, [7, 4, 7], 'match pattern-3 ' );
+    is_deeply( $re->mvar, ['b-34-56', 34, 56], 'match pattern-3 mvar' );
+    is_deeply( $re->mbegin, [0, 2, 5], 'match pattern-3 mbegin' );
+    is_deeply( $re->mend, [7, 4, 7], 'match pattern-3 ' );
     ok( defined $re->match('b-789'), 'match pattern-3 b-789' );
     ok( $re->mvar(0) eq 'b-789', 'match pattern-3 capture 4' );
     ok( $re->mvar(1) == 789, 'match pattern-3 capture 5' );
@@ -120,8 +125,8 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
     ok( $re->mvar(0) eq $target, 'match pattern-4 capture 4' );
     ok( $re->mvar(1) == 2048, 'match pattern-4 capture 5' );
     ok( !defined($re->mvar(2)), 'match pattern-4 undef' );
-	is_deeply( $re->mbegin, [0, undef, undef, 2], 'match pattern-3 mbegin' );
-	is_deeply( $re->mend, [6, undef, undef, 6, undef], 'match pattern-3 mend' );
+    is_deeply( $re->mbegin, [0, undef, undef, 2], 'match pattern-3 mbegin' );
+    is_deeply( $re->mend, [6, undef, undef, 6, undef], 'match pattern-3 mend' );
 }
 
 {
@@ -138,7 +143,5 @@ skip '(?{...}) is borked below 5.6.0', TESTS if $] < 5.006;
     ok( !defined $re->mvar(1), 'match pattern-5 no capture 2' );
     ok( !defined $re->mvar(2), 'match pattern-5 no capture 3' );
 }
-
-} # SKIP
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

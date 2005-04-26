@@ -6,8 +6,15 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use Test::More tests => 781 # miscellaneous tests
-	+ (3520 * 4); # count of all args passed to match() * 4 RE variants 
+eval qq{
+    use Test::More tests => 781 # miscellaneous tests
+        + (3520 * 4); # count of all args passed to match() * 4 RE variants 
+};
+if( $@ ) {
+    warn "# Test::More not available, no tests performed\n";
+    print "1..1\nok 1\n";
+    exit 0;
+}
 
 use Regexp::Assemble;
 
@@ -18,17 +25,17 @@ sub match {
     my $re   = Regexp::Assemble->new;
     my $rela = Regexp::Assemble->new->lookahead(1);
     my $tag = shift;
-	$re->add(@_);
-	$rela->add(@_);
-	my $reind = $re->clone;
-	$reind = $re->clone->flags('x')->re(indent => 3);
-	my $rered = $re->clone->reduce(0);
-	my $str;
+    $re->add(@_);
+    $rela->add(@_);
+    my $reind = $re->clone;
+    $reind = $re->clone->flags('x')->re(indent => 3);
+    my $rered = $re->clone->reduce(0);
+    my $str;
     for $str (@_) {
-        ok( $str =~ /^$re$/,     "-- $tag: $str" ) or diag " fail $str\n# match by $re\n";
-		ok( $str =~ /^$rela$/,   "LA $tag: $str" ) or diag " fail $str\n# match by lookahead $rela\n";
-        ok( $str =~ /^$reind$/x, "IN $tag: $str" ) or diag " fail $str\n# match by indented $reind\n";
-        ok( $str =~ /^$rered$/,  "RD $tag: $str" ) or diag " fail $str\n# match by non-reduced $rered\n";
+        ok( $str =~ /^$re$/,     "-- $tag: $str" ) or diag( " fail $str\n# match by $re\n" );
+        ok( $str =~ /^$rela$/,   "LA $tag: $str" ) or diag( " fail $str\n# match by lookahead $rela\n" );
+        ok( $str =~ /^$reind$/x, "IN $tag: $str" ) or diag( " fail $str\n# match by indented $reind\n" );
+        ok( $str =~ /^$rered$/,  "RD $tag: $str" ) or diag( " fail $str\n# match by non-reduced $rered\n" );
     }
 }
 
@@ -38,10 +45,10 @@ sub match_list {
     my $test = shift;
     my $re   = Regexp::Assemble->new->add(@$patt);
     my $rela = Regexp::Assemble->new->lookahead(1)->add(@$patt);
-	my $str;
+    my $str;
     for $str (@$test) {
-        ok( $str =~ /^$re$/, "$tag: $str" ) or diag " fail $str\n# in $re\n";
-        ok( $str =~ /^$re$/, "$tag: $str" ) or diag " fail $str\n# in $re\n";
+        ok( $str =~ /^$re$/, "$tag: $str" ) or diag( " fail $str\n# in $re\n" );
+        ok( $str =~ /^$re$/, "$tag: $str" ) or diag( " fail $str\n# in $re\n" );
     }
 }
 {
@@ -102,19 +109,15 @@ for( 0 .. 127 ) {
 }
 
 match_list( 'lookahead car.*',
-	[qw[caret caress careful careless caring carion carry carried]],
-	[qw[caret caress careful careless caring carion carry carried]],
+    [qw[caret caress careful careless caring carion carry carried]],
+    [qw[caret caress careful careless caring carion carry carried]],
 );
 
 match_list( 'a.x', [qw[ abx adx a.x ]] , [qw[ aax abx acx azx a4x a%x a+x a?x ]] );
 
 match_list( 'c.z', [qw[ c^z c-z c5z cmz ]] , [qw[ c^z c-z c5z cmz ]] );
 
-SKIP: {
-    skip 'backslashes in qw// operator give incorrect results in 5.6.0', 5 if $] eq '5.006';
-
-    match_list( '\d, \D', [qw[ b\\d b\\D ]] , [qw[ b4 bX b% b. b? ]] );
-}
+match_list( '\d, \D', [ 'b\\d', 'b\\D' ] , [qw[ b4 bX b% b. b? ]] );
 
 match( 'foo', qw[ foo bar rat quux ]);
 
@@ -139,10 +142,10 @@ match( 'd*', qw[ den-at dot-at den-pt dot-pt d-at d-pt dx ]);
 match( 'un*ed', qw[ unimped unimpeded unimpelled ]);
 
 match( '(un)?*(ing)?ing', qw[
-	sing swing sting sling
-	singing swinging stinging slinging
-	unsing unswing unsting unsling
-	unsinging unswinging unstinging unslinging
+    sing swing sting sling
+    singing swinging stinging slinging
+    unsing unswing unsting unsling
+    unsinging unswinging unstinging unslinging
 ]);
 
 match( 's.*at 1', qw[ sat sweat sailbat ]);

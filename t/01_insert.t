@@ -19,31 +19,24 @@ use Regexp::Assemble;
 
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
-use Test::More tests => 45 + permute_testcount;
+eval qq{use Test::More tests => 51 + permute_testcount};
+if( $@ ) {
+    warn "# Test::More not available, no tests performed\n";
+    print "1..1\nok 1\n";
+    exit 0;
+}
 
 my $fixed = 'The scalar remains the same';
 $_ = $fixed;
-
-#eval { require Test::Differences; import Test::Differences };
-#if( $@ ) {
-#	*identical = *is_deeply;
-#}
-#else {
-#	*identical = *eq_or_diff;
-#}
-
-*identical = *is_deeply;
-
-identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
 
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( '' );
     my $r = ($rt->_path)->[0];
-    ok( ref($r) eq 'HASH',  q{'' => first element is a HASH} );
-    ok( keys %$r == 1,      q{'' => ...and contains one key} );
-    ok( exists $r->{''},    q{'' => ...which is an empty string} );
-    ok( !defined($r->{''}), q{'' => ...and points to undef} );
+    ok( ref($r) eq 'HASH',  q{insert('') => first element is a HASH} );
+    ok( keys %$r == 1,      q{...and contains one key} );
+    ok( exists $r->{''},    q{...which is an empty string} );
+    ok( !defined($r->{''}), q{...and points to undef} );
 }
 
 {
@@ -55,19 +48,26 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
 }
 
 {
+    my $r = Regexp::Assemble->new;
+    $r->insert();
+    $r->insert('a');
+    is_deeply( $r->_path, [{'' => undef, 'a' => ['a']}], q{insert(), insert('a')} );
+}
+
+{
     my $rt = Regexp::Assemble->new;
     $rt->insert( 'a', 'b' );
     my $r = $rt->_path;
     ok( scalar @$r == 2,  q{'ab' => path of length 2} );
     ok( join( '' => @$r ) eq 'ab', q{'ab' => ...and is 'a', 'b'} );
-	cmp_ok( $rt->dump, 'eq', '[a b]', 'dump([a b])' );
+    cmp_ok( $rt->dump, 'eq', '[a b]', 'dump([a b])' );
 }
 
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( 'a', 'b' );
     $rt->insert( 'a', 'c' );
-	cmp_ok( $rt->dump, 'eq', '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
+    cmp_ok( $rt->dump, 'eq', '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
     my $r = $rt->_path;
     ok( scalar @$r == 2,        q{'ab,ac' => path of length 2} );
     ok( $r->[0] eq 'a',         q{'ab,ac' => ...and first atom is 'a'} );
@@ -85,25 +85,31 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( undef );
-    identical( $rt->_path,
-        [],
-        '// (from undef)'
-    );
+    is_deeply( $rt->_path, [], 'insert(undef)' );
+}
+
+{
+    my $rt = Regexp::Assemble->new(debug => 1);
+    $rt->insert( undef );
+    is_deeply( $rt->_path, [], 'insert(undef) debug' );
 }
 
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( '' );
-    identical( $rt->_path,
-        [{'' => undef}],
-        q{// (from '')},
-    );
+    is_deeply( $rt->_path, [{'' => undef}], q{insert('')} );
+}
+
+{
+    my $r = Regexp::Assemble->new;
+    $r->insert();
+    is_deeply( $r->_path, [{'' => undef}], 'insert()' );
 }
 
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( '0' );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [0],
         q{/0/},
     );
@@ -112,25 +118,70 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         ['d'],
         '/d/',
     );
 }
 
 {
-    my $r = Regexp::Assemble->new->lex( '\w' );
-    $r->add( 'ab12-xy' );
-    identical( $r->_path,
-        [ 'a', 'b', '1', '2', '-', 'x', 'y' ],
-        'ab12-xy (with /\w/ lexer)'
+    my $r = Regexp::Assemble->new->lex( '\([^(]*(?:\([^)]*\))?[^)]*\)|.' );
+
+    $r->reset->add( 'ab(cd)ef' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '(cd)', 'e', 'f' ],
+        'ab(cd)ef (with parenthetical lexer)'
+    );
+
+    $r->reset->add( 'ab(cd(ef)gh)ij' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '(cd(ef)gh)', 'i', 'j' ],
+        'ab(cd(ef)gh)ij (with parenthetical lexer)'
+    );
+
+    $r->reset->add( 'ab((ef)gh)ij' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '((ef)gh)', 'i', 'j' ],
+        'ab((ef)gh)ij (with parenthetical lexer)'
+    );
+
+    $r->reset->add( 'ab(cd(ef))ij' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '(cd(ef))', 'i', 'j' ],
+        'ab(cd(ef))ij (with parenthetical lexer)'
+    );
+
+    $r->reset->add( 'ab((ef))ij' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '((ef))', 'i', 'j' ],
+        'ab((ef))ij (with parenthetical lexer)'
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->debug(4)->add( '67abc123def+' )->_path,
+        [ '6', '7', 'abc', '1', '2', '3', 'def+' ],
+        '67abc123def+ with \\d+ lexer',
+    );
+    is_deeply( $r->reset->debug(0)->add( '67ab12de+' )->_path,
+        [ '6', '7', 'ab', '1', '2', 'de+' ],
+        '67ab12de+ with \\d+ lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->debug(4)->add( '67\\Uabc\\E123def' )->_path,
+        [ '6', '7', '\\Uabc\\E', '1', '2', '3', 'def' ],
+        '67\Uabc\\E123def with \\d+ lexer',
     );
 }
 
 {
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a b/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [qw/d a b/],
         '/dab/',
     );
@@ -140,7 +191,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/0 1/ );
     $rt->insert( qw/0 2/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             '0',
             {
@@ -157,7 +208,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
     $rt->insert( qw/0/ );
     $rt->insert( qw/0 1/ );
     $rt->insert( qw/0 2/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             '0',
             {
@@ -174,7 +225,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a m/ );
     $rt->insert( qw/d a m/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a', 'm',
         ],
@@ -184,57 +235,57 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
 
 {
     my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a m/ );
+    $rt->insert( qw/d a y/ );
     $rt->insert( qw/d a/ );
     $rt->insert( qw/d a/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a',
             {
-                'm' => ['m'],
+                'y' => ['y'],
                 ''  => undef,
             },
         ],
-        '/dam/, /da/ x 2',
+        '/day/, /da/ x 2',
     );
 }
 
 {
     my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a m/ );
-    $rt->insert( qw/d a/ );
+    $rt->insert( qw/d o t/ );
+    $rt->insert( qw/d o/ );
     $rt->insert( qw/d/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd',
             {
-                'a' => [
-                    'a',
+                'o' => [
+                    'o',
                     {
-                        'm' => ['m'],
+                        't' => ['t'],
                         ''  => undef,
                     },
                 ],
                 '' => undef,
             },
         ],
-        '/dam/ /da/ /d/',
+        '/dot/ /do/ /d/',
     );
 }
 
 {
     my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a b/ );
-    $rt->insert( qw/d a m/ );
-    identical( $rt->_path,
+    $rt->insert( qw/b i g/ );
+    $rt->insert( qw/b i d/ );
+    is_deeply( $rt->_path,
         [
-            'd', 'a',
+            'b', 'i',
             {
-                'b' => ['b'],
-                'm' => ['m'],
+                'd' => ['d'],
+                'g' => ['g'],
             },
         ],
-        '/dab/ /dam/',
+        '/big/ /bid/',
     );
 }
 
@@ -242,7 +293,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a r t/ );
     $rt->insert( qw/d a m p/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a',
             {
@@ -258,7 +309,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/a m b l e/ );
     $rt->insert( qw/i d l e/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             {
                 'a' => ['a', 'm', 'b', 'l', 'e'],
@@ -274,7 +325,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
     $rt->insert( qw/a m b l e/ );
     $rt->insert( qw/a m p l e/ );
     $rt->insert( qw/i d l e/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             {
                 'a' => [
@@ -295,7 +346,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
     my $rt = Regexp::Assemble->new;
     $rt->insert( qw/d a m/ );
     $rt->insert( qw/d a r e/ );
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd', 'a',
             {
@@ -314,7 +365,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
         ->insert(qw/d b/)
         ->insert(qw/d c/)
     ;
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd',
             {
@@ -333,7 +384,7 @@ identical( Regexp::Assemble->new->insert->_path, [{'' => undef}], 'insert()' );
         ->insert(qw/d b c d/)
         ->insert(qw/d c/)
     ;
-    identical( $rt->_path,
+    is_deeply( $rt->_path,
         [
             'd',
             {
@@ -366,7 +417,7 @@ sub permute {
                             ->insert( @{$path->[$x4]} )
                             ->insert( @{$path->[$x5]} )
                         ;
-                        identical( $rt->_path, $target,
+                        is_deeply( $rt->_path, $target,
                             '/' . join( '/ /', 
                                 join( '' => @{$path->[$x1]}),
                                 join( '' => @{$path->[$x2]}),
@@ -375,11 +426,11 @@ sub permute {
                                 join( '' => @{$path->[$x5]}),
                             ) . '/'
                         ) or diag(
-							$rt->dump(),
-							' versus ',
-							Regexp::Assemble->_dump($target),
-							"\n",
-						);
+                            $rt->dump(),
+                            ' versus ',
+                            Regexp::Assemble->_dump($target),
+                            "\n",
+                        );
                     }
                 }
             }
@@ -531,52 +582,34 @@ permute(
     ],
 );
 
-my $rx = Regexp::Assemble->new( lex => '(?:\d+|.)' );
-$rx->add( 'ab1' );
-$rx->add( 'ab123' );
-identical( $rx->_path,
-	[ 'a', 'b', { '1' => ['1'], '123' => ['123'] }],
-	'/\\d+|./ new lexer'
-);
+Regexp::Assemble::Default_Lexer( '\([^(]*(?:\([^)]*\))?[^)]*\)|.' );
 
-Regexp::Assemble::Default_Lexer('.');
+{
+    my $r = Regexp::Assemble->new;
 
-my $r1 = Regexp::Assemble->new;
-$r1->add( '\\d+' );
-identical( $r1->_path,
-	[ '\\', 'd', '+' ],
-	'\\d+ (with /./ lexer)'
-);
+    $r->reset->add( 'ab(cd)ef' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '(cd)', 'e', 'f' ],
+        'ab(cd)ef (with Default parenthetical lexer)'
+    );
 
-my $r2 = Regexp::Assemble->new;
-$r2->add( 'a[bc]' );
-identical( $r2->_path,
-	[ 'a', '[', 'b', 'c', ']' ],
-	'a[bc] (with /./ lexer)'
-);
+    $r->reset->add( 'ab((ef)gh)ij' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '((ef)gh)', 'i', 'j' ],
+        'ab((ef)gh)ij (with Default parenthetical lexer)'
+    );
 
-$r2->lex('\\d')->reset()->add( '123abc456' );
-identical( $r2->_path,
-	[ '1', '2', '3', 'abc', '4', '5', '6' ],
-	'123abc456 (with /\\d/ lexer)'
-);
+    $r->reset->add( 'ab(ef(gh))ij' );
+    is_deeply( $r->_path,
+        [ 'a', 'b', '(ef(gh))', 'i', 'j' ],
+        'ab(ef(gh))ij (with Default parenthetical lexer)'
+    );
 
-$r2->reset()->add( '123abc' );
-identical( $r2->_path,
-	[ '1', '2', '3', 'abc', ],
-	'123abc (with /\\d/ lexer)'
-);
+    eval { $r->filter('choke') };
+    ok( $@, 'die on non-CODE filter' );
 
-$r2->reset()->add( 'abc123' );
-identical( $r2->_path,
-	[ 'abc', '1', '2', '3', ],
-	'abc123 (with /\\d/ lexer)'
-);
-
-eval { $r2->filter('choke') };
-ok( $@, 'die on non-CODE filter' );
-
-eval { $r2->pre_filter('choke') };
-ok( $@, 'die on non-CODE pre_filter' );
+    eval { $r->pre_filter('choke') };
+    ok( $@, 'die on non-CODE pre_filter' );
+}
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
