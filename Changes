@@ -1,5 +1,11 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.15 Wed Apr 27 06:50:31 2005 UTC
+    - Oops. Detabbed all the files and did not rerun the tests.
+	  t/03_str.t explicitly performs a test on a literal TAB
+	  character, and so it failed. Always, always, *ALWAYS* run
+	  the test suite as the last task before uploading. Grrr.
+
 0.14 Wed Apr 27 00:32:43 2005 UTC
     - Performance tuning release. Played around significantly
       with _insertr and lex but major improvement will only

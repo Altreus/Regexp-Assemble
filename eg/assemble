@@ -8,7 +8,8 @@ use strict;
 use Getopt::Std;
 use Regexp::Assemble;
 
-use vars '$VERSION'; $VERSION = '0.3';
+use vars '$VERSION';
+$VERSION = '0.3';
 
 getopts( 'abcd:i:nprt:vw', \my %opt );
 
@@ -69,7 +70,7 @@ if( $opt{t} ) {
 
 =head1 NAME
 
-assemble - Assemble a list of regular expressions into a file
+assemble - Assemble a list of regular expressions from a file
 
 =head1 SYNOPSIS
 

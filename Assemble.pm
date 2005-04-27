@@ -6,15 +6,15 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.14';
+$VERSION = '0.15';
 
 =head1 NAME
 
-Regexp::Assemble - Assemble multiple Regular Expressions into one RE
+Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.14 of Regexp::Assemble,
+This document describes version 0.15 of Regexp::Assemble,
 released 2005-04-27.
 
 =head1 SYNOPSIS
