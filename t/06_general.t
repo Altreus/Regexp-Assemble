@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 58 };
+eval qq{use Test::More tests => 63 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -225,5 +225,14 @@ cmp_ok( $ra->add( qw/schoolkids skids acids acidoids/ )->as_string,
 
 cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
     'eq', '(?:(?:s(?:chool)?)?k|ac(?:ido)?)ids' );
+
+{
+	my $re = Regexp::Assemble->new( flags => 'i' )->add( qw/ ^ab ^are de / );
+	ok( 'able'  =~ /$re/, '{^ab ^are de} /i matches able' );
+	ok( 'About' =~ /$re/, '{^ab ^are de} /i matches About' );
+	ok( 'bare'  !~ /$re/, '{^ab ^are de} /i fails bare' );
+	ok( 'death' =~ /$re/, '{^ab ^are de} /i matches death' );
+	ok( 'DEEP'  =~ /$re/, '{^ab ^are de} /i matches DEEP' );
+}
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

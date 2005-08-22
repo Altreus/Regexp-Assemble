@@ -6,7 +6,7 @@
 # copyright (C) 2004-2005 David Landgren
 
 use strict;
-use constant TESTS => 48;
+use constant TESTS => 56;
 
 eval qq{use Test::More tests => TESTS + 4};
 if( $@ ) {
@@ -142,6 +142,26 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
     ok( $re->mvar(0) eq $target, 'match pattern-5' );
     ok( !defined $re->mvar(1), 'match pattern-5 no capture 2' );
     ok( !defined $re->mvar(2), 'match pattern-5 no capture 3' );
+}
+
+{
+    my $re = Regexp::Assemble->new( track=>1 )
+        ->add( '^cat' )
+        ->add( '^candle$' )
+        ->flags( 'i' )
+    ;
+    ok( !defined $re->match('foo'), 'not match pattern-6 foo' );
+    my $target = 'cat';
+    ok( defined $re->match($target), "match pattern-6 $target" );
+    cmp_ok( $re->matched, 'eq', '^cat', "match pattern-6 $target re" );
+    $target = 'CATFOOD';
+    ok( defined $re->match($target), "match pattern-6 $target" );
+    cmp_ok( $re->matched, 'eq', '^cat', "match pattern-6 $target re" );
+    $target = 'candle';
+    ok( defined $re->match($target), "match pattern-6 $target" );
+    cmp_ok( $re->matched, 'eq', '^candle$', "match pattern-6 $target re" );
+    $target = 'Candlestick';
+    ok( !defined $re->match($target), "match pattern-6 $target" );
 }
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

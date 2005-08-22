@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.15';
+$VERSION = '0.16';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.15 of Regexp::Assemble,
-released 2005-04-27.
+This document describes version 0.16 of Regexp::Assemble,
+released 2005-08-22.
 
 =head1 SYNOPSIS
 
@@ -524,15 +524,16 @@ sub re {
     my $self = shift;
     if( not defined $self->{re} ) {
         my $re = $self->as_string(@_);
-        #$self->{re} = length $self->{flags}
-        #    ? qr/(?$self->{flags}:$re)/
-        #    : qr/$re/;
-        if( length $self->{flags} ) {
-            $self->{re} = qr/(?$self->{flags}:$re)/;
-        }
-        else {
-            $self->{re} = qr/$re/;
-        }
+        $self->{re} = length $self->{flags}
+            ? qr/(?$self->{flags}:$re)/
+            : qr/$re/;
+        #if( length $self->{flags} ) {
+        #    $self->{re} = qr/(?$self->{flags}:$re)/;
+		#	warn "flags has length\n";
+        #}
+        #else {
+        #    $self->{re} = qr/$re/;
+        #}
     }
     $self->{re};
 }
@@ -599,7 +600,9 @@ sub match {
     if( !$self->{re} ) {
         my $str = $self->as_string;
         use re 'eval';
-        $self->{re} = qr/$str/;
+        $self->{re} = length $self->{flags}
+            ? qr/(?$self->{flags}:$str)/
+            : qr/$str/;
     }
     $self->{m}    = undef;
     $self->{mvar} = [];
