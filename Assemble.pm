@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.16';
+$VERSION = '0.17';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.16 of Regexp::Assemble,
-released 2005-08-22.
+This document describes version 0.17 of Regexp::Assemble,
+released 2005-09-10.
 
 =head1 SYNOPSIS
 
@@ -456,8 +456,8 @@ sub as_string {
         else {
             $self->_reduce unless ($self->{mutable} or not $self->{reduce});
             my $arg  = {@_};
-			$arg->{indent} = $self->{indent}
-				if not exists $arg->{indent} and $self->{indent} > 0;
+            $arg->{indent} = $self->{indent}
+                if not exists $arg->{indent} and $self->{indent} > 0;
             if( exists $arg->{indent} and $arg->{indent} > 0 ) {
                 $arg->{depth} = 0;
                 $self->{str}  = _re_path_pretty($self->_path, $arg);
@@ -522,20 +522,24 @@ C<match> and C<matched> methods must be used instead, see below.
 
 sub re {
     my $self = shift;
-    if( not defined $self->{re} ) {
-        my $re = $self->as_string(@_);
-        $self->{re} = length $self->{flags}
-            ? qr/(?$self->{flags}:$re)/
-            : qr/$re/;
-        #if( length $self->{flags} ) {
-        #    $self->{re} = qr/(?$self->{flags}:$re)/;
-		#	warn "flags has length\n";
-        #}
-        #else {
-        #    $self->{re} = qr/$re/;
-        #}
-    }
+    $self->_build_re($self->as_string(@_)) unless defined $self->{re};
     $self->{re};
+}
+
+sub _build_re {
+    my $self = shift;
+    my $str  = shift;
+    if( $self->{track} ) {
+        use re 'eval';
+        $self->{re} = length $self->{flags}
+            ? qr/(?$self->{flags}:$str)/
+            : qr/$str/;
+    }
+    else {
+        $self->{re} = length $self->{flags}
+            ? qr/(?$self->{flags}:$str)/
+            : qr/$str/;
+    }
 }
 
 # strip off the garbage that overloading wishes to provide us.
@@ -588,9 +592,9 @@ returns true or undef, and the C<matched> method always returns
 undef).
 
 If you are capturing parts of the pattern I<e.g.> C<foo(bar)rat>
-you will want to get at the captures. See the C<mbegin>, C<mend>
-and C<mvar> methods. If you are not using captures then you may
-safely ignore this section.
+you will want to get at the captures. See the C<mbegin>, C<mend>,
+C<mvar> and C<capture> methods. If you are not using captures
+then you may safely ignore this section.
 
 =cut
 
@@ -598,11 +602,7 @@ sub match {
     my $self = shift;
     my $target = shift;
     if( !$self->{re} ) {
-        my $str = $self->as_string;
-        use re 'eval';
-        $self->{re} = length $self->{flags}
-            ? qr/(?$self->{flags}:$str)/
-            : qr/$str/;
+        $self->_build_re($self->as_string(@_)) unless defined $self->{re};
     }
     $self->{m}    = undef;
     $self->{mvar} = [];
@@ -668,6 +668,30 @@ sub mvar {
     my $self = shift;
     return undef unless exists $self->{mvar};
     defined($_[0]) ? $self->{mvar}[$_[0]] : $self->{mvar};
+}
+
+=item capture
+
+The C<capture> method returns the the captures of the last
+match as an array. Unlink C<mvar>, this method does not
+include the matched string. It is equivalent to getting an
+array back that contains C<$1, $2, $3, ...>.
+
+If no captures were found in the match, an empty array is
+returned, rather than undef. You are therefore guaranteed
+to be able to use C<for my $c (@{$re->capture}) { ...> without
+have to check whether C<capture> returns a valid array.
+
+=cut
+
+sub capture {
+    my $self = shift;
+    if( $self->{mvar} ) {
+        my @capture = @{$self->{mvar}};
+        shift @capture;
+        return @capture;
+    }
+    return ();
 }
 
 =item matched
@@ -1074,28 +1098,31 @@ sub _insert_path {
     my $list  = shift;
     my $debug = shift;
     my $in    = shift;
+    if( @$list == 0 ) { # special case the first time
+        if( @$in == 0 or (@$in == 1 and (not defined $in->[0] or $in->[0] eq ''))) {
+            return [{'' => undef}];
+        }
+        else {
+            return $in;
+        }
+    }
     $debug and print "_insert_path @{[_dump($in)]} into @{[_dump($list)]}\n";
     my $path   = $list;
     my $offset = 0;
     my $token;
     if( not @$in ) {
-        if( @$list ) {
-            if( ref($list->[0]) ne 'HASH' ) {
-                return [ { '' => undef, $list->[0] => $list } ];
-            }
-            else {
-                $list->[0]{''} = undef;
-                return $list;
-            }
+        if( ref($list->[0]) ne 'HASH' ) {
+            return [ { '' => undef, $list->[0] => $list } ];
         }
         else {
-            return [{'' => undef}];
+            $list->[0]{''} = undef;
+            return $list;
         }
     }
     while( defined( $token = shift @$in )) {
         if( ref($token) eq 'HASH' ) {
             $path = _insert_node( $path, $offset, $token, $debug, @$in );
-            return $list;
+            last;
         }
         if( ref($path->[$offset]) eq 'HASH' ) {
             $debug and print "  at (off=$offset len=@{[scalar @$path]}) ", _dump($path->[$offset]), "\n";
@@ -1109,7 +1136,7 @@ sub _insert_path {
             else {
                 $debug and print "  add path ($token:@{[_dump($in)]}) into @{[_dump($node)]}\n";
                 $node->{$token} = [ $token, @$in ];
-                return $list;
+                last;
             }
         }
 
@@ -1124,18 +1151,12 @@ sub _insert_path {
         }
 
         if( $offset >= @$path ) {
-            push @$path, @$path
-                ? { $token => [ $token, @$in ], '' => undef, }
-                : length $token
-                    ? ( $token, @$in )
-                    : { '' => undef }
-            ;
+            push @$path, { $token => [ $token, @$in ], '' => undef };
             $debug and print "  added remaining @{[_dump($path)]}\n";
-            return $list;
+            last;
         }
         elsif( $token ne $path->[$offset] ) {
             $debug and print "  token $token not present\n";
-
             splice @$path, $offset, @$path-$offset, {
                 length $token
                     ? ( _node_key($token) => [$token, @$in])
@@ -1143,7 +1164,7 @@ sub _insert_path {
                 ,
                 $path->[$offset] => [@{$path}[$offset..$#{$path}]],
             };
-            return $list;
+            last;
         }
         elsif( not @$in ) {
             $debug and print "  last token to add\n";
@@ -1162,13 +1183,11 @@ sub _insert_path {
                 }
             }
             # nothing at offset+1 => we've already seen this pattern
-            return $list;
+            last;
         }
         # if we get here then @_ still contains a token
         ++$offset;
     }
-	# only get here if one of the tokens was undef
-    $debug and print "    := ", _dump($list), "\n";
     $list;
 }
 

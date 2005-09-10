@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 63 };
+eval qq{use Test::More tests => 73 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -97,13 +97,13 @@ like(   'abc', qr/^$ra$/, 'abc matched by comment-filtered assembly' );
 {
     my $orig = Regexp::Assemble->new;
     my $clone = $orig->clone;
-    # is_deeply( $orig, $clone, 'clone empty' );
+    is_deeply( $orig, $clone, 'clone empty' );
 }
 
 {
     my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
     my $clone = $orig->clone;
-    # is_deeply( $orig, $clone, 'clone path' );
+    is_deeply( $orig, $clone, 'clone path' );
 }
 
 {
@@ -111,21 +111,64 @@ like(   'abc', qr/^$ra$/, 'abc matched by comment-filtered assembly' );
     my $clone = $orig->clone;
     $orig->add( 'digger' );
     $clone->add( 'digger' );
-    # is_deeply( $orig, $clone, 'clone then add' );
+    is_deeply( $orig, $clone, 'clone then add' );
 }
 
 {
     my $orig = Regexp::Assemble->new
         ->add( qw/ bird cat dog elephant fox/ );
     my $clone = $orig->clone;
-    # is_deeply( $orig, $clone, 'clone node' );
+    is_deeply( $orig, $clone, 'clone node' );
 }
 
 {
     my $orig = Regexp::Assemble->new
         ->add( qw/ after alter amber cheer steer / );
     my $clone = $orig->clone;
-    # is_deeply( $orig, $clone, 'clone more' );
+    is_deeply( $orig, $clone, 'clone more' );
+}
+
+SKIP: {
+	# If the Storable module is available, we will have used
+	# that above, however, we will not have tested the pure-Perl
+	# fallback routines.
+   	skip( 'Pure-Perl clone() already tested', 2 )
+       	unless $Regexp::Assemble::have_Storable;
+
+	local $Regexp::Assemble::have_Storable = 0;
+	{
+		my $orig = Regexp::Assemble->new;
+		my $clone = $orig->clone;
+		is_deeply( $orig, $clone, 'clone empty' );
+	}
+
+	{
+		my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
+		my $clone = $orig->clone;
+		is_deeply( $orig, $clone, 'clone path' );
+	}
+
+	{
+		my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
+		my $clone = $orig->clone;
+		$orig->add( 'digger' );
+		$clone->add( 'digger' );
+		is_deeply( $orig, $clone, 'clone then add' );
+	}
+
+	{
+		my $orig = Regexp::Assemble->new
+			->add( qw/ bird cat dog elephant fox/ );
+		my $clone = $orig->clone;
+		is_deeply( $orig, $clone, 'clone node' );
+	}
+
+	{
+		my $orig = Regexp::Assemble->new
+			->add( qw/ after alter amber cheer steer / );
+		my $clone = $orig->clone;
+		is_deeply( $orig, $clone, 'clone more' );
+	}
 }
 
 {
@@ -163,13 +206,13 @@ like(   'abc', qr/^$ra$/, 'abc matched by comment-filtered assembly' );
 {
     my $slide = Regexp::Assemble->new;
     cmp_ok( $slide->add( qw/schoolkids acids acidoids/ )->as_string,
-        'eq', '(?:ac(?:ido)?|schoolk)ids' );
+        'eq', '(?:ac(?:ido)?|schoolk)ids', 'schoolkids acids acidoids' );
 
     cmp_ok( $slide->add( qw/schoolkids acidoids/ )->as_string,
-        'eq', '(?:schoolk|acido)ids' );
+        'eq', '(?:schoolk|acido)ids', 'schoolkids acidoids' );
 
     cmp_ok( $slide->add( qw/nonschoolkids nonacidoids/ )->as_string,
-        'eq', 'non(?:schoolk|acido)ids' );
+        'eq', 'non(?:schoolk|acido)ids', 'nonschoolkids nonacidoids' );
 }
 
 $ra = Regexp::Assemble->new->debug(3);

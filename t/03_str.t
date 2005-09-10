@@ -104,7 +104,7 @@ cmp_ok( Regexp::Assemble->new
 cmp_ok( Regexp::Assemble->new
     ->insert( '\\w' )
     ->insert( '\\W' )
-    ->insert( '	' ) # that's a TAB character, by the way
+    ->insert( "\t" )
     ->as_string, 'eq', '.', '/\w/ /\W/ /\t/' );
 
 cmp_ok( Regexp::Assemble->new

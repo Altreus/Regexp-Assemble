@@ -10,7 +10,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 306 };
+eval qq{use Test::More tests => 307 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -268,6 +268,10 @@ cmp_ok( Regexp::Assemble::_make_class( qw/ a b c / ),
 
 cmp_ok( Regexp::Assemble::_make_class( qw/ a a c / ),
     'eq', '[ac]', '_make_class a a c'
+);
+
+cmp_ok( Regexp::Assemble::_make_class( qw/ 0 1 2 / ),
+    'eq', '[012]', '_make_class 0 1 2'
 );
 
 cmp_ok( Regexp::Assemble::_make_class( qw/ 0 1 2 3 4 5 6 7 8 9 / ),

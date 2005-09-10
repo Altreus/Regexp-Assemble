@@ -30,9 +30,9 @@ my $fixed = 'The scalar remains the same';
 $_ = $fixed;
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( '' );
-    my $r = ($rt->_path)->[0];
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( '' );
+    my $r = ($ra->_path)->[0];
     ok( ref($r) eq 'HASH',  q{insert('') => first element is a HASH} );
     ok( keys %$r == 1,      q{...and contains one key} );
     ok( exists $r->{''},    q{...which is an empty string} );
@@ -40,9 +40,9 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( 'a' );
-    my $r = $rt->_path;
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( 'a' );
+    my $r = $ra->_path;
     ok( scalar @$r == 1,  q{'a' => path of length 1} );
     ok( $r->[0] eq 'a',   q{'a' => ...and is an 'a'} );
 }
@@ -55,20 +55,20 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( 'a', 'b' );
-    my $r = $rt->_path;
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( 'a', 'b' );
+    my $r = $ra->_path;
     ok( scalar @$r == 2,  q{'ab' => path of length 2} );
     ok( join( '' => @$r ) eq 'ab', q{'ab' => ...and is 'a', 'b'} );
-    cmp_ok( $rt->dump, 'eq', '[a b]', 'dump([a b])' );
+    cmp_ok( $ra->dump, 'eq', '[a b]', 'dump([a b])' );
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( 'a', 'b' );
-    $rt->insert( 'a', 'c' );
-    cmp_ok( $rt->dump, 'eq', '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
-    my $r = $rt->_path;
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( 'a', 'b' );
+    $ra->insert( 'a', 'c' );
+    cmp_ok( $ra->dump, 'eq', '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
+    my $r = $ra->_path;
     ok( scalar @$r == 2,        q{'ab,ac' => path of length 2} );
     ok( $r->[0] eq 'a',         q{'ab,ac' => ...and first atom is 'a'} );
     ok( ref($r->[1]) eq 'HASH', q{'ab,ac' => ...and second is a node} );
@@ -83,21 +83,21 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( undef );
-    is_deeply( $rt->_path, [], 'insert(undef)' );
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( undef );
+    is_deeply( $ra->_path, [{'' => undef}], 'insert(undef)' );
 }
 
 {
-    my $rt = Regexp::Assemble->new(debug => 1);
-    $rt->insert( undef );
-    is_deeply( $rt->_path, [], 'insert(undef) debug' );
+    my $ra = Regexp::Assemble->new(debug => 1);
+    $ra->insert( undef );
+    is_deeply( $ra->_path, [{'' => undef}], 'insert(undef)' );
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( '' );
-    is_deeply( $rt->_path, [{'' => undef}], q{insert('')} );
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( '' );
+    is_deeply( $ra->_path, [{'' => undef}], q{insert('')} );
 }
 
 {
@@ -107,18 +107,18 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( '0' );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( '0' );
+    is_deeply( $ra->_path,
         [0],
         q{/0/},
     );
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/d/ );
+    is_deeply( $ra->_path,
         ['d'],
         '/d/',
     );
@@ -179,19 +179,19 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a b/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/d a b/ );
+    is_deeply( $ra->_path,
         [qw/d a b/],
         '/dab/',
     );
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/0 1/ );
-    $rt->insert( qw/0 2/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/0 1/ );
+    $ra->insert( qw/0 2/ );
+    is_deeply( $ra->_path,
         [
             '0',
             {
@@ -204,11 +204,11 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/0/ );
-    $rt->insert( qw/0 1/ );
-    $rt->insert( qw/0 2/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/0/ );
+    $ra->insert( qw/0 1/ );
+    $ra->insert( qw/0 2/ );
+    is_deeply( $ra->_path,
         [
             '0',
             {
@@ -222,10 +222,10 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a m/ );
-    $rt->insert( qw/d a m/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/d a m/ );
+    $ra->insert( qw/d a m/ );
+    is_deeply( $ra->_path,
         [
             'd', 'a', 'm',
         ],
@@ -234,11 +234,11 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a y/ );
-    $rt->insert( qw/d a/ );
-    $rt->insert( qw/d a/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/d a y/ );
+    $ra->insert( qw/d a/ );
+    $ra->insert( qw/d a/ );
+    is_deeply( $ra->_path,
         [
             'd', 'a',
             {
@@ -251,11 +251,11 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d o t/ );
-    $rt->insert( qw/d o/ );
-    $rt->insert( qw/d/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/d o t/ );
+    $ra->insert( qw/d o/ );
+    $ra->insert( qw/d/ );
+    is_deeply( $ra->_path,
         [
             'd',
             {
@@ -274,10 +274,10 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/b i g/ );
-    $rt->insert( qw/b i d/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/b i g/ );
+    $ra->insert( qw/b i d/ );
+    is_deeply( $ra->_path,
         [
             'b', 'i',
             {
@@ -290,10 +290,10 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a r t/ );
-    $rt->insert( qw/d a m p/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/d a r t/ );
+    $ra->insert( qw/d a m p/ );
+    is_deeply( $ra->_path,
         [
             'd', 'a',
             {
@@ -306,10 +306,10 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/a m b l e/ );
-    $rt->insert( qw/i d l e/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/a m b l e/ );
+    $ra->insert( qw/i d l e/ );
+    is_deeply( $ra->_path,
         [
             {
                 'a' => ['a', 'm', 'b', 'l', 'e'],
@@ -321,11 +321,11 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/a m b l e/ );
-    $rt->insert( qw/a m p l e/ );
-    $rt->insert( qw/i d l e/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/a m b l e/ );
+    $ra->insert( qw/a m p l e/ );
+    $ra->insert( qw/i d l e/ );
+    is_deeply( $ra->_path,
         [
             {
                 'a' => [
@@ -343,10 +343,10 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new;
-    $rt->insert( qw/d a m/ );
-    $rt->insert( qw/d a r e/ );
-    is_deeply( $rt->_path,
+    my $ra = Regexp::Assemble->new;
+    $ra->insert( qw/d a m/ );
+    $ra->insert( qw/d a r e/ );
+    is_deeply( $ra->_path,
         [
             'd', 'a',
             {
@@ -360,12 +360,12 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new
+    my $ra = Regexp::Assemble->new
         ->insert(qw/d a/)
         ->insert(qw/d b/)
         ->insert(qw/d c/)
     ;
-    is_deeply( $rt->_path,
+    is_deeply( $ra->_path,
         [
             'd',
             {
@@ -379,12 +379,12 @@ $_ = $fixed;
 }
 
 {
-    my $rt = Regexp::Assemble->new
+    my $ra = Regexp::Assemble->new
         ->insert(qw/d a/)
         ->insert(qw/d b c d/)
         ->insert(qw/d c/)
     ;
-    is_deeply( $rt->_path,
+    is_deeply( $ra->_path,
         [
             'd',
             {
@@ -410,14 +410,14 @@ sub permute {
                     next if grep { $_ == $x4 } ($x1, $x2, $x3);
                     for $x5( 0..4 ) {
                         next if grep { $_ == $x5 } ($x1, $x2, $x3, $x4);
-                        my $rt = Regexp::Assemble->new
+                        my $ra = Regexp::Assemble->new
                             ->insert( @{$path->[$x1]} )
                             ->insert( @{$path->[$x2]} )
                             ->insert( @{$path->[$x3]} )
                             ->insert( @{$path->[$x4]} )
                             ->insert( @{$path->[$x5]} )
                         ;
-                        is_deeply( $rt->_path, $target,
+                        is_deeply( $ra->_path, $target,
                             '/' . join( '/ /', 
                                 join( '' => @{$path->[$x1]}),
                                 join( '' => @{$path->[$x2]}),
@@ -426,7 +426,7 @@ sub permute {
                                 join( '' => @{$path->[$x5]}),
                             ) . '/'
                         ) or diag(
-                            $rt->dump(),
+                            $ra->dump(),
                             ' versus ',
                             Regexp::Assemble->_dump($target),
                             "\n",
