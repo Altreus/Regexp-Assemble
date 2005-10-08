@@ -1,7 +1,21 @@
 1. Tree equivalencies. Currently, /contend/ /content/ /resend/ /resent/
 produces (?:conten[dt]|resend[dt]) but it is possible to produce
 (?:cont|res)en[dt] if one can spot the common tail nodes (and walk back
-the equivalent paths).
+the equivalent paths). Or be by me my => /[bm][ey]/ in the simplest case.
+
+To do this requires a certain amount of restructuring of the code.
+Currently, the algorithm uses a two-phase approach. In the first
+phase, the trie is traversed and reductions are performed. In the
+second phase, the reduced trie is traversed and the pattern is
+emitted.
+
+What has to occur is that the reduction and emission have to occur
+together. As a node is completed, it is replaced by its string
+representation. This then allows child nodes to be compared for
+equality with a simple 'eq'. Since there is only a single traversal,
+the overall generation time might drop, even though the context
+baggage required to delve through the tree will be more expensive
+to carry along (a hash rather than a couple of scalars).
 
 2. Investigate how (?>foo) works. Can it be applied?
 
@@ -11,9 +25,7 @@ the equivalent paths).
 
 7. Deal with [:punct:] character classes
 
-8. saw this foo(?:\.|-)bar but the test checks out ok
-
-11. is eg/assemble-check obsolete?
+8. foo(?:\.|-)bar is not character classed in indented patterns
 
 12. utf-8... hmmmm...
 
@@ -46,4 +58,18 @@ the equivalent paths).
     /s(?:ing(?:ing)?|ting)/
 
     In other words, there is scope for a further approach to tail-sliding.
-        
+
+	Remember, there is more than one place in the code that deals with tail
+	sliding. Why is it so?
+
+14. Adding qr//'ed patterns. For example, consider
+    $r->add ( qr/^abc/i )
+		->add( qr/^abd/ )
+		->add( qr/^ab e/x );
+    this should admit abc abC aBc aBC abd abe as matches
+
+15. Methods to specify adding ^, $, \b, \A, \Z to resulting pattern,
+    and/or any arbitrary prefix/suffix
+
+16. Allow a fast, unsafe tracking mode, that can be used if a(?bc)?
+    can't happen. (Possibly carp if it does appear during traversal)?

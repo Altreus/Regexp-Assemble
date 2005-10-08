@@ -10,7 +10,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 307 };
+eval qq{use Test::More tests => 314 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -597,6 +597,30 @@ lcmp( '\\|{2,4}?', __LINE__ );
         "_lex $str",
     );
 
+    $str = '\Q[';
+    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
+        [ '\\[' ],
+        "_lex $str",
+    );
+
+    $str = '\Q]';
+    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
+        [ '\\]' ],
+        "_lex $str",
+    );
+
+    $str = '\Q(';
+    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
+        [ '\\(' ],
+        "_lex $str",
+    );
+
+    $str = '\Q)';
+    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
+        [ '\\)' ],
+        "_lex $str",
+    );
+
     $str = '\Qa+b*c?';
     is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
         [ 'a', '\+', 'b', '\*', 'c', '\?' ],
@@ -618,6 +642,12 @@ lcmp( '\\|{2,4}?', __LINE__ );
     $str = 'a\\ub';
     is_deeply( Regexp::Assemble->new->_lex( $str  ),
         [ 'a', 'B' ],
+        "_lex $str",
+    );
+
+    $str = 'a\\uC';
+    is_deeply( Regexp::Assemble->new(debug => 4) ->_lex( $str  ),
+        [ 'a', 'C' ],
         "_lex $str",
     );
 
@@ -698,9 +728,9 @@ lcmp( '\\|{2,4}?', __LINE__ );
     is_deeply( Regexp::Assemble->new->debug(4)->add( $str )->_path,
         [ 'p', 'a', '\\+', 'Z' ], "add $str" );
 
-    $str = 'q\\U\\Qh{2,4}\\Ew';
+    $str = 'q\\U\\Qh{7,9}\\Ew';
     is_deeply( Regexp::Assemble->new->add( $str )->_path,
-        [ 'q', 'H', '\{', '2', ',', '4', '}', 'w' ], "add $str" );
+        [ 'q', 'H', '\{', '7', ',', '9', '\}', 'w' ], "add $str" );
 
     $str = 'a\\Ubc\\ldef\\Eg';
     is_deeply( Regexp::Assemble->new->add( $str )->_path,
@@ -710,6 +740,13 @@ lcmp( '\\|{2,4}?', __LINE__ );
     is_deeply( Regexp::Assemble->new->add( $str )->_path,
         [ 'a', 'b', 'l+', 'X', 'y', 'z', '\+' ], "add $str" );
 
+    $str = '^\Qa[b[';
+    is_deeply( Regexp::Assemble->new->debug(15)->add( $str )->_path,
+        [ '^', 'a', '\\[', 'b', '\\[' ], "add $str" );
+
+    $str = '\Q^a[b[';
+    is_deeply( Regexp::Assemble->new->add( $str )->_path,
+        [ '\\^', 'a', '\\[', 'b', '\\[' ], "add $str" );
 }
 
 {
@@ -751,57 +788,59 @@ lcmp( '\\|{2,4}?', __LINE__ );
 
 is_deeply( $rt->_path, [], 'path is empty' );
 
+my $context = { debug => 0, depth => 0 };
+
 is_deeply( Regexp::Assemble::_unrev_path(
-    [0, 1], 0, 0),
+    [0, 1], $context),
     [1, 0], 'path(0,1)' );
 
 is_deeply( Regexp::Assemble::_unrev_path(
-    [qw[ ab cd ef ]], 0, 0),
+    [qw[ ab cd ef ]], $context),
     [qw[ ef cd ab ]], 'path(ab,cd,ef)' );
 
 is_deeply( Regexp::Assemble::_unrev_path( Regexp::Assemble::_unrev_path(
-    [qw[ ab cd ef ]], 0, 0), 0, 0),
+    [qw[ ab cd ef ]], $context), $context),
     [qw[ ab cd ef ]], 'path(ab,cd,ef) back' );
 
 is_deeply( Regexp::Assemble::_unrev_path(
-    [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], 0, 0),
+    [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], $context),
     [qw[ mno jkl ghi \\D \\d+ ef cd ab ]], 'path(ab cd...)' );
 
 is_deeply( Regexp::Assemble::_unrev_path( Regexp::Assemble::_unrev_path(
-    [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], 0, 0), 0, 0),
-    [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], 'path(ab cd...) back' ),
+    [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], $context), $context),
+    [qw[ ab cd ef \\d+ \\D ghi jkl mno ]], 'path(ab cd...) back' );
 
 is_deeply( Regexp::Assemble::_unrev_node(
-    { 0 => [0, 1]}, 0, 0),
+    { 0 => [0, 1]}, $context),
     { 1 => [1, 0]},
     'node(0)' );
 
 is_deeply( Regexp::Assemble::_unrev_node(
-    { 0 => [0, 1], 2 => [2, 0]}, 0, 0),
+    { 0 => [0, 1], 2 => [2, 0]}, $context),
     { 1 => [1, 0], 0 => [0, 2]},
     'node(0,2)' );
 
 is_deeply( Regexp::Assemble::_unrev_node(
-    { '' => undef, a => [qw[a b]] }, 0, 0),
+    { '' => undef, a => [qw[a b]] }, $context),
     { '' => undef, b => [qw[b a]] },
     'node(*,a,b)' );
 
 is_deeply( Regexp::Assemble::_unrev_node(
-    { '' => undef, a => [qw[a b]], b => [qw[b c d e f g]] }, 0, 0),
+    { '' => undef, a => [qw[a b]], b => [qw[b c d e f g]] }, $context),
     { '' => undef, b => [qw[b a]], g => [qw[g f e d c b]] },
     'node(*a,b2)' );
 
 is_deeply( Regexp::Assemble::_unrev_path(
-    [{x => [qw[x 0]], '' => undef }], 0, 0 ),
+    [{x => [qw[x 0]], '' => undef }], $context),
     [{0 => [qw[0 x]], '' => undef }], 'node(* 0)' );
 
 is_deeply( Regexp::Assemble::_unrev_node(
-    { ab => [qw[ab bc]], bc => [qw[bc cd de ef fg gh]], ef => [qw[ef gh ij]] }, 0, 0),
+    { ab => [qw[ab bc]], bc => [qw[bc cd de ef fg gh]], ef => [qw[ef gh ij]] }, $context),
     { bc => [qw[bc ab]], gh => [qw[gh fg ef de cd bc]], ij => [qw[ij gh ef]] },
     'node(ab,bc,ef)' );
 
 is_deeply( Regexp::Assemble::_unrev_path(
-    [qw[a b], {c=>[qw[c d e]], f=>[qw[f g h]], i=>[qw[i j], {k => [qw[k l m]], n=>[qw[n o p]]}, 'x' ]}], 0, 0),
+    [qw[a b], {c=>[qw[c d e]], f=>[qw[f g h]], i=>[qw[i j], {k => [qw[k l m]], n=>[qw[n o p]]}, 'x' ]}], $context),
     [{e=>[qw[e d c]], h=>[qw[h g f]], x=>['x', {m=>[qw[m l k]], p=>[qw[p o n]]}, qw[j i]]}, qw[b a]],
     'path(node(path))');
 
@@ -891,15 +930,15 @@ cmp_ok( Regexp::Assemble::_combine( '?=', qw/ in og 0 1 2 3 4 5 6 7 8 9 / ),
 );
 
 is_deeply( Regexp::Assemble::_unrev_path(
-    [{x1     => ['x1', 'z\\d'], '' => undef }], 0, 0 ),
+    [{x1     => ['x1', 'z\\d'], '' => undef }], $context),
     [{'z\\d' => ['z\\d', 'x1'], '' => undef }], 'node(* metachar)' );
 
 is_deeply( Regexp::Assemble::_unrev_path(
-    [{x     => ['x', '\\d'], '' => undef }], 0, 0 ),
+    [{x     => ['x', '\\d'], '' => undef }], $context),
     [{'\\d' => ['\\d', 'x'], '' => undef }], 'node(* metachar) 2' );
 
 is_deeply( Regexp::Assemble::_unrev_path(
-    [qw[ ab cd ef ], {x1 => ['x1', 'y2', 'z\\d'], mx => [qw[mx us ca]] }], 0, 0 ),
+    [qw[ ab cd ef ], {x1 => ['x1', 'y2', 'z\\d'], mx => [qw[mx us ca]] }], $context),
     [{ 'z\\d' => ['z\\d', 'y2', 'x1'], ca => [qw[ca us mx]]}, qw[ef cd ab]], 'path(node)' );
 
 eval {

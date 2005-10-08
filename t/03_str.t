@@ -7,7 +7,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 116};
+eval qq{use Test::More tests => 122};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -430,6 +430,40 @@ cmp_ok( Regexp::Assemble->new
     ->add( '\\*mens', '\\(scan', '\\[mail' )
     ->as_string, 'eq', '(?:\(scan|\*mens|\[mail)',
     '\\*mens \\(scan \\[mail' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( '\Qa[b[c' )
+    ->as_string, 'eq', 'a\[b\[c',
+    'a[b[c' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( '\Qa]b]c' )
+    ->as_string, 'eq', 'a\]b\]c',
+    'a]b]c' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( '\Qa(b(c' )
+    ->as_string, 'eq', 'a\(b\(c',
+    'a(b(c' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( '\Qa)b)c' )
+    ->as_string, 'eq', 'a\)b\)c',
+    'a)b)c' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( '\Qa(b' )
+    ->add( '\Qa[b' )
+    ->add( '\Qa+b' )
+    ->as_string, 'eq', 'a[(+[]b',
+    'a(b a[b a+b' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add( '\Qa^b' )
+    ->add( '\Qa-b' )
+    ->add( '\Qa+b' )
+    ->as_string, 'eq', 'a[-+^]b',
+    'a^b a-b a+b' );
 
 my $mute = Regexp::Assemble->new->mutable(1);
 

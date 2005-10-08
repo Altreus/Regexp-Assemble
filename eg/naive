@@ -42,10 +42,4 @@ print <<PATTS;
 \$Single_Char   = qr/^(?:\\\\(?:$meta|$ctrl|$single|$octal|$hex)|.)\$/;
 PATTS
 
-__END__
-
-# \$Default_Lexer = qr/\\\\(?:$directive|Q.*?(?:\\\\E|\$)|(?:(?:$modifiable)$modifier?))|(?:$class|$group|.)$modifier?/;
-
-$Default_Lexer = qr/\\Q.*?(?:\\E|$)|\\[bluABCEGLUXZ]|(?:\\[aefnrtdDwWsS]|\\[^\w*+?@]|\\0\d{2}|\\x[\da-fA-F]{2}|\\c.|\\N{\w+}|\\[Pp](?:.|{\w+})|\[.*?(?<!\\)\]|\(.*?(?<!\\)\)|.)(?:(?:[*+?]|\{\d+(?:,\d*)?\})\??)?/;
-
-$Single_Char   = qr/^(?:\\[aefnrtdDwWsS]|\\[^\w\/{|}-]|\\0\d{2}|\\x[\da-fA-F]{2}|\\c.|.)$/;
+# my brain hurts just looking at this

@@ -1,6 +1,35 @@
 Revision history for Perl extension Regexp::Assemble.
 
-0.17 Sat Sep 10 16:41:22 2005 UTC
+0.18 2005-10-08 20:37:53 UTC
+    - Fixed '\Q[' to be as treated as '\[' instead of '['.
+      What's more, the tests had this as the Right Thing.
+      What was I thinking? Wound up rewriting _lex_stateful
+      in a much less hairier way, even though it now uses
+      gotos.
+    - Introduced a context hash for dragging around the bits
+      and pieces required by the descent into _reduce_path.
+      It doesn't really help much right now, but is vital for
+      solving the qw(be by my me) => /[bm][ey]/ problem. See
+      TODO for more notes.
+    - Fixed the debug output to play nicely with the test
+      harness (by prefixing everything with a #). It had never
+      been a problem, but you never know.
+    - Added a script named 'debugging' to help people figure
+      out why assembled patterns go wonky (which is invariably
+      due to nested parentheses).
+    - Added a script 'tld', that produces a regexp for
+      matching internet Top Level Domain names. This happens to
+      be an ideal example of showing how the alternations are
+      sorted.
+    - Added a script 'roman', that produces a regexp for
+      matching Roman numerals. Just for fun.
+    - Removed the 'assemble-check' script, whose functionality
+      is adequately dealt with via 'assemble -t'.
+    - Tightened up the explanation of why tracked patterns are
+      bulkier
+    - ISOfied the dates in this file.
+
+0.17 2005-09-10 16:41:22 UTC
     - Add capture() method.
     - Restructure _insert_path().
     - Factor out duplicated code introduced in 0.16 into
@@ -11,17 +40,17 @@ Revision history for Perl extension Regexp::Assemble.
     - Added test_pod_coverage, merely to earn a free
       Kwalitee point.
 
-0.16 Mon Aug 22 23:04:02 2005 UTC
+0.16 2005-08-22 23:04:02 UTC
     - Tracked patterns silently ignored imsx flags. Spotted by
       Bart Lateur.
 
-0.15 Wed Apr 27 06:50:31 2005 UTC
+0.15 2005-04-27 06:50:31 UTC
     - Oops. Detabbed all the files and did not rerun the tests.
       t/03_str.t explicitly performs a test on a literal TAB
       character, and so it failed. Always, always, *ALWAYS* run
       the test suite as the last task before uploading. Grrr.
 
-0.14 Wed Apr 27 00:32:43 2005 UTC
+0.14 2005-04-27 00:32:43 UTC
     - Performance tuning release. Played around significantly
       with _insertr and lex but major improvement will only
       come about by writing the lexing routine in C.
@@ -46,7 +75,7 @@ Revision history for Perl extension Regexp::Assemble.
     - removed use of Test::Differences, since it doesn't work on
       complex structures.
 
-0.13 Mon Apr 11 21:59:26 2005 UTC
+0.13 2005-04-11 21:59:26 UTC
     - Deal with \Q...\E patterns.
     - $Default_Lexer pattern fails on 5.6.x: it would lex
       '\-' as '\', '-'. 
@@ -55,7 +84,7 @@ Revision history for Perl extension Regexp::Assemble.
     - Used cmp_ok rather than ok where it makes sense.
     - Added a (belated) DEBUG_LEX debugging mode
 
-0.12 Sun Apr 11 23:49:16 2005 UTC
+0.12 2005-04-11 23:49:16 UTC
     - Forgot to guard against the possibility of
       Test::Differences not being available. This would cause
       erroneous failures in the test suite if it was not
@@ -87,7 +116,7 @@ Revision history for Perl extension Regexp::Assemble.
     - Added documentation about the mailing list. Sundry
       documentation tweaks.
 
-0.10 Tue Mar 29 09:01:49 2005 UTC
+0.10 2005-03-29 09:01:49 UTC
     - Correct Default_Lexer$ pattern to deal with the
       excessively backslashed tokens that C<quotemeta>
       likes to produce. Bug spotted by Walter Roberson.
@@ -95,7 +124,7 @@ Revision history for Perl extension Regexp::Assemble.
       uncovered. The next release will fold in similar
       improvements found by using Devel::Cover.
 
-0.09 Sat Jan 22 9:28:21 2005 UTC
+0.09 2005-01-22 9:28:21 UTC
     - Added lookahead assertions at nodes. (This concept is
       shamelessly pinched from Dan Kogai's Regexp::Optimizer).
       The code is currently commented out, because in all my
@@ -112,7 +141,7 @@ Revision history for Perl extension Regexp::Assemble.
     - Started to switch from ok() to cmp_ok() in the test suite
       to produce human-readable test failures.
 
-0.08 Mon Jan 3 11:23:50 2005 UTC
+0.08 2005-01-03 11:23:50 UTC
     - Bug in insert_node fixed: did not deal with the following
       correctly: qw/bcktx bckx bdix bdktx bdkx/ (The assymetry
       introduced by 'bdix' threw things off, or something like
@@ -122,11 +151,11 @@ Revision history for Perl extension Regexp::Assemble.
     - Rewrote the tests to eliminate the need for Test::Deep.
       Test::More::is_deeply is sufficient.
 
-0.07 Fri Dec 17 19:31:18 2004 UTC
+0.07 2004-12-17 19:31:18 UTC
     - It would have been nice to have remembered to update the
       release date in the POD, and the version in the README.
 
-0.06 Fri Dec 17 17:38:41 2004 UTC
+0.06 2004-12-17 17:38:41 UTC
     - Can now track regular expressions. Given a match, it is
       possible to determine which original pattern gave rise to the
       match.
@@ -143,18 +172,18 @@ Revision history for Perl extension Regexp::Assemble.
     - Additions to the README
     - Added Test::Simple and Test::More as prerequisites.
 
-0.05 Fri Dec 10 11:52:13 2004 UTC
+0.05 2004-12-10 11:52:13 UTC
     - Bug fix in tests. The skip test in version 0.04 did not deal
       correctly with non-5.6.0 perls that do not have Test::Deep
       installed.
 
-0.04 Fri Dec 9 22:29:56 2004 UTC
+0.04 2004-12-09 22:29:56 UTC
     - In 5.6.0, the backlashes in a quoted word list, qw[ \\d ],
       will have their backslashes doubled up. In this case, don't
       run the tests. (Reading from a file or getting input from
       some other source other than qw[] operators works just fine).
 
-0.03 Wed Dec 8 21:55:27 2004 UTC
+0.03 2004-12-08 21:55:27 UTC
     - Bug fix: Leading 0s could be omitted from paths because of the
       difference between while($p) versus while(defined($p)).
     - An assembled pattern can be generated with whitespace. This can be
@@ -166,7 +195,7 @@ Revision history for Perl extension Regexp::Assemble.
       control its behaviour.
     - More tests. Now with Test::Pod.
 
-0.02  Fri Nov 19 11:16:33 2004 UTC
+0.02 2004-11-19 11:16:33 UTC
     - An R::A object that has had nothing added to it now produces a
       pattern that explicitly matches nothing (the original behaviour would
       match anything).
@@ -186,5 +215,5 @@ Revision history for Perl extension Regexp::Assemble.
     - Tweaked eg/hostmatch/hostmatch; added eg/assemble, eg/assemble-check
     - Typos, corrections and addtions to the documentation.
 
-0.01  Fri Jul 9 21:05:18 2004 UTC
+0.01 2004-07-09 21:05:18 UTC
     - original version; created by h2xs 1.19 (seriously!)

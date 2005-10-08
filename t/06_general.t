@@ -129,46 +129,46 @@ like(   'abc', qr/^$ra$/, 'abc matched by comment-filtered assembly' );
 }
 
 SKIP: {
-	# If the Storable module is available, we will have used
-	# that above, however, we will not have tested the pure-Perl
-	# fallback routines.
-   	skip( 'Pure-Perl clone() already tested', 2 )
-       	unless $Regexp::Assemble::have_Storable;
+    # If the Storable module is available, we will have used
+    # that above, however, we will not have tested the pure-Perl
+    # fallback routines.
+       skip( 'Pure-Perl clone() already tested', 2 )
+           unless $Regexp::Assemble::have_Storable;
 
-	local $Regexp::Assemble::have_Storable = 0;
-	{
-		my $orig = Regexp::Assemble->new;
-		my $clone = $orig->clone;
-		is_deeply( $orig, $clone, 'clone empty' );
-	}
+    local $Regexp::Assemble::have_Storable = 0;
+    {
+        my $orig = Regexp::Assemble->new;
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone empty' );
+    }
 
-	{
-		my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
-		my $clone = $orig->clone;
-		is_deeply( $orig, $clone, 'clone path' );
-	}
+    {
+        my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone path' );
+    }
 
-	{
-		my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
-		my $clone = $orig->clone;
-		$orig->add( 'digger' );
-		$clone->add( 'digger' );
-		is_deeply( $orig, $clone, 'clone then add' );
-	}
+    {
+        my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
+        my $clone = $orig->clone;
+        $orig->add( 'digger' );
+        $clone->add( 'digger' );
+        is_deeply( $orig, $clone, 'clone then add' );
+    }
 
-	{
-		my $orig = Regexp::Assemble->new
-			->add( qw/ bird cat dog elephant fox/ );
-		my $clone = $orig->clone;
-		is_deeply( $orig, $clone, 'clone node' );
-	}
+    {
+        my $orig = Regexp::Assemble->new
+            ->add( qw/ bird cat dog elephant fox/ );
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone node' );
+    }
 
-	{
-		my $orig = Regexp::Assemble->new
-			->add( qw/ after alter amber cheer steer / );
-		my $clone = $orig->clone;
-		is_deeply( $orig, $clone, 'clone more' );
-	}
+    {
+        my $orig = Regexp::Assemble->new
+            ->add( qw/ after alter amber cheer steer / );
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone more' );
+    }
 }
 
 {
@@ -270,12 +270,12 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
     'eq', '(?:(?:s(?:chool)?)?k|ac(?:ido)?)ids' );
 
 {
-	my $re = Regexp::Assemble->new( flags => 'i' )->add( qw/ ^ab ^are de / );
-	ok( 'able'  =~ /$re/, '{^ab ^are de} /i matches able' );
-	ok( 'About' =~ /$re/, '{^ab ^are de} /i matches About' );
-	ok( 'bare'  !~ /$re/, '{^ab ^are de} /i fails bare' );
-	ok( 'death' =~ /$re/, '{^ab ^are de} /i matches death' );
-	ok( 'DEEP'  =~ /$re/, '{^ab ^are de} /i matches DEEP' );
+    my $re = Regexp::Assemble->new( flags => 'i' )->add( qw/ ^ab ^are de / );
+    ok( 'able'  =~ /$re/, '{^ab ^are de} /i matches able' );
+    ok( 'About' =~ /$re/, '{^ab ^are de} /i matches About' );
+    ok( 'bare'  !~ /$re/, '{^ab ^are de} /i fails bare' );
+    ok( 'death' =~ /$re/, '{^ab ^are de} /i matches death' );
+    ok( 'DEEP'  =~ /$re/, '{^ab ^are de} /i matches DEEP' );
 }
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

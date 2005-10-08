@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.17
+The file is the README for Regexp::Assemble version 0.18
 
 INSTALLATION
 
@@ -58,8 +58,7 @@ print Regexp::Assemble->new->add(@word)->as_string;
 print Regexp::Assemble->new->add(@word)->reduce(0)->as_string;
     # produces (?:fl(?:ip|op)|sl(?:ip|op))
 
-See the ./eg directory for some example scripts. More will be added
-in subsequent releases.
+See the ./eg directory for some example scripts.
 
 ADVANCED USAGE
 
@@ -430,13 +429,16 @@ simple to, even if it did result in a certain amount of code
 factoring. So I think that in general the structure of the code
 is a good one.
 
+The eg/debugging script offers a good strategy for dealing with
+assemblies that give rise to uncompilable patterns.
+
 STATUS
 
 This module is under active development.
 
 AUTHOR
 
-David Landgren <david@landgren.net>
+David Landgren
 
 I do appreciate getting e-mail, especially about Perl. Please keep in
 mind that I get a lot of spam, and take drastic measures to reduce the
@@ -446,7 +448,7 @@ dialup/residential/home IP addresses. That pattern is of course built
 with this module.
 
 It would be ironic if I rejected your mail coming from such an address.
-Please use your ISPs outbound MX, or pay what it takes to get your
+Please use your ISP's outbound MX, or pay what it takes to get your
 reverse DNS changed to something else.
 
 COPYRIGHT

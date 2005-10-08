@@ -32,6 +32,7 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
         ->add( 'cat' )
         ->add( 'dog' )
     ;
+    my $regexp = $re->re;
     ok( $re->match( 'cat' ), 'match without tracking' );
     ok( !defined( $re->match( 'eagle' )), 'match fail without tracking' );
 }
@@ -165,34 +166,35 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
 }
 
 {
-	my @capture;
+    my @capture;
     my $re = Regexp::Assemble->new( track=>1 )
         ->add( '^ab-(\d+)-(\d+)' )
         ->add( '^ac-(\d+)' )
         ->add( '^nothing' )
         ->add( '^ad-((\d+)-(\d+))' )
-	;
-	cmp_ok( scalar($re->capture), '==', 0, 'match p7 no prior capture' );
+    ;
+    ok( !defined($re->capture), 'match p7 no prior capture' );
 
     ok( defined $re->match('nothing captured'), 'match p7-1' );
-	cmp_ok( scalar($re->capture), '==', 0, 'match p7-1 no capture' );
+    cmp_ok( scalar($re->capture), '==', 0, 'match p7-1 no capture' );
 
     ok( defined $re->match('ac-417 captured'), 'match p7-2' );
-	@capture = $re->capture;
-	cmp_ok( scalar(@capture), '==', 1, 'match p7-2 capture' );
-	cmp_ok( $capture[0], '==', 417, "match p7-2 value 0 ok" );
+    @capture = $re->capture;
+    cmp_ok( scalar(@capture), '==', 1, 'match p7-2 capture' );
+    cmp_ok( $capture[0], '==', 417, "match p7-2 value 0 ok" );
 
     ok( defined $re->match('ab-21-17 captured'), 'match p7-3' );
-	@capture = $re->capture;
-	cmp_ok( scalar(@capture), '==', 2, 'match p7-3 capture' );
-	cmp_ok( $capture[0], '==', 21, "match p7-3 value 0 ok" );
-	cmp_ok( $capture[1], '==', 17, "match p7-3 value 1 ok" );
+    @capture = $re->capture;
+    cmp_ok( scalar(@capture), '==', 2, 'match p7-3 capture' );
+    cmp_ok( $capture[0], '==', 21, "match p7-3 value 0 ok" );
+    cmp_ok( $capture[1], '==', 17, "match p7-3 value 1 ok" );
 
     ok( defined $re->match('ad-808-245 captured'), 'match p7-4' );
-	@capture = $re->capture;
-	cmp_ok( scalar(@capture), '==', 3, 'match p7-4 capture' );
-	cmp_ok( $capture[0], 'eq', '808-245', "match p7-4 value 0 ok" );
-	cmp_ok( $capture[1], '==', 808, "match p7-4 value 1 ok" );
-	cmp_ok( $capture[2], '==', 245, "match p7-4 value 2 ok" );
+    @capture = $re->capture;
+    cmp_ok( scalar(@capture), '==', 3, 'match p7-4 capture' );
+    cmp_ok( $capture[0], 'eq', '808-245', "match p7-4 value 0 ok" );
+    cmp_ok( $capture[1], '==', 808, "match p7-4 value 1 ok" );
+    cmp_ok( $capture[2], '==', 245, "match p7-4 value 2 ok" );
 }
+
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

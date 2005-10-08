@@ -19,7 +19,7 @@ use Regexp::Assemble;
 
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
-eval qq{use Test::More tests => 51 + permute_testcount};
+eval qq{use Test::More tests => 58 + permute_testcount};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -162,11 +162,59 @@ $_ = $fixed;
     my $r = Regexp::Assemble->new(lex => '\\d');
     is_deeply( $r->debug(4)->add( '67abc123def+' )->_path,
         [ '6', '7', 'abc', '1', '2', '3', 'def+' ],
-        '67abc123def+ with \\d+ lexer',
+        '67abc123def+ with \\d lexer',
     );
     is_deeply( $r->reset->debug(0)->add( '67ab12de+' )->_path,
         [ '6', '7', 'ab', '1', '2', 'de+' ],
-        '67ab12de+ with \\d+ lexer',
+        '67ab12de+ with \\d lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->debug(4)->add( '67\\Q1a*\\E12jk' )->_path,
+        [ '6', '7', '1', 'a', '\\*', '1', '2', 'jk' ],
+        '67\\Q1a*\\E12jk with \\d lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->debug(4)->add( '67\\Q1a*45k+' )->_path,
+        [ '6', '7', '1', 'a', '\\*', '4', '5', 'k', '\\+' ],
+        '67\\Q1a*45k+ with \\d lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->debug(4)->add( '7\U6a' )->_path,
+        [ '7', '6', 'A' ],
+        '7\\U6a with \\d lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->debug(4)->add( '8\L9C' )->_path,
+        [ '8', '9', 'c' ],
+        '8\\L9C with \\d lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->add( '0\Q0C,+' )->_path,
+        [ '0', '0', 'C', ',', '\\+' ],
+        '0\\Q0C,+ with \\d lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->debug(4)->add( '57\\Q2a+23d+' )->_path,
+        [ '5', '7', '2', 'a', '\\+', '2', '3', 'd', '\\+' ],
+        '57\\Q2a+23d+ with \\d lexer',
     );
 }
 
@@ -174,7 +222,15 @@ $_ = $fixed;
     my $r = Regexp::Assemble->new(lex => '\\d');
     is_deeply( $r->debug(4)->add( '67\\Uabc\\E123def' )->_path,
         [ '6', '7', '\\Uabc\\E', '1', '2', '3', 'def' ],
-        '67\Uabc\\E123def with \\d+ lexer',
+        '67\Uabc\\E123def with \\d lexer',
+    );
+}
+
+{
+    my $r = Regexp::Assemble->new(lex => '\\d');
+    is_deeply( $r->add( '67\\Q(?:a)?\\E123def' )->_path,
+        [ '6', '7', '\\Q(?:a)?\\E', '1', '2', '3', 'def' ],
+        '67\Uabc\\E123def with \\d lexer',
     );
 }
 

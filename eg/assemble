@@ -149,15 +149,18 @@ or line from the file.
 
 =back
 
+=head1 DIAGNOSTICS
+
+Will print out a summary of the problem if an added pattern causes
+the assembly to fail.
+
 =head1 SEE ALSO
 
 L<Regexp::Assemble>
 
 =head1 AUTHOR
 
-David Landgren, <david@landgren.net>
-
-Copyright 2004-2005 David Landgren. All rights reserved.
+Copyright (C) 2004-2005 David Landgren. All rights reserved.
 
 =head1 LICENSE
 
