@@ -34,11 +34,6 @@ cmp_ok( length(Regexp::Assemble::Default_Lexer), '>', 0,
 cmp_ok( ref( $rt->_path ), 'eq', 'ARRAY', '_path() isa ARRAY' );
 cmp_ok( scalar @{$rt->_path}, '==', 0, '_path() is empty' );
 
-my $have_Test_Deep = do {
-    eval { require Test::Deep; import Test::Deep };
-    $@ ? 0 : 1;
-};
-
 {
     my $r = Regexp::Assemble->new( chomp => 1 );
     is( $r->{chomp}, 1, 'chomp new(1)' );
@@ -947,8 +942,8 @@ eval {
 };
 
 like( $@,
-    qr/^Don't pass a Regexp::Assemble to Default_Lexer\n\s+at \S+ line \d+/m,
-    'Default_Lexer die'
+    qr/^Cannot pass a Regexp::Assemble to Default_Lexer at \S+ line \d+/m,
+	'Default_Lexer die'
 );
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

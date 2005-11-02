@@ -1,5 +1,13 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.19 2005-11-02 15:16:16 UTC
+    - Change croaking diagnostic concerning Default_Lexer.
+      Bug spotted by barbie in ticket #15044.
+    - Pointer to C<Tree::Trie> in the documentation.
+    - Excised Test::Deep probe in 00_basic.t, since the
+      module is no longer used.
+    - Detabbed eg/*
+
 0.18 2005-10-08 20:37:53 UTC
     - Fixed '\Q[' to be as treated as '\[' instead of '['.
       What's more, the tests had this as the Right Thing.

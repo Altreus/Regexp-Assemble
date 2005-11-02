@@ -9,63 +9,63 @@ use Getopt::Std;
 use Regexp::Assemble;
 
 use vars '$VERSION';
-$VERSION = '0.3';
+$VERSION = '0.4';
 
 getopts( 'abcd:i:nprt:vw', \my %opt );
 
 print "$VERSION\n" and exit if $opt{v};
 
 my $ra = Regexp::Assemble->new(
-	chomp     => 1,
-	debug     => $opt{d} || 0,
-	reduce    => exists $opt{r} ? 0 : 1,
-	lookahead => exists $opt{a} ? 1 : 0,
+    chomp     => 1,
+    debug     => $opt{d} || 0,
+    reduce    => exists $opt{r} ? 0 : 1,
+    lookahead => exists $opt{a} ? 1 : 0,
 );
 
 if( $opt{b} or $opt{c} ) {
-	if( !$opt{b} ) {
-		# filter comments
-		$ra->pre_filter( sub { $_[0] =~ s/\s*#.*$//; 1 } );
-	}
-	elsif( !$opt{c} ) {
-		# filter blank lines
-		$ra->pre_filter( sub { length(shift) } );
-	}
-	else {
-		# filter comments and blank lines.
-		# (removing a comment may can cause a line to become blank
-		$ra->pre_filter( sub {
-			$_[0] =~ s/\s*#.*$//;
-			length($_[0])
-		} );
-	}
+    if( !$opt{b} ) {
+        # filter comments
+        $ra->pre_filter( sub { $_[0] =~ s/\s*#.*$//; 1 } );
+    }
+    elsif( !$opt{c} ) {
+        # filter blank lines
+        $ra->pre_filter( sub { length(shift) } );
+    }
+    else {
+        # filter comments and blank lines.
+        # (removing a comment may can cause a line to become blank
+        $ra->pre_filter( sub {
+            $_[0] =~ s/\s*#.*$//;
+            length($_[0])
+        } );
+    }
 }
 
 $ra->add( <> );
 
 if( $opt{i} or $opt{p} or not $opt{t} ) {
-	print $ra->as_string( indent => $opt{i} || 0 );
-	print "\n" unless $opt{n};
+    print $ra->as_string( indent => $opt{i} || 0 );
+    print "\n" unless $opt{n};
 }
 
 if( $opt{t} ) {
-	my $error = 0;
-	my $file = $opt{t};
-	open IN, $file or die "Cannot open $file for input: $!\n";
-	print $ra->as_string, "\n";
-	while( <IN> ) {
-		chomp;
-		if( $opt{w} ) {
-			next if $_ =~ /^$ra$/;
-		}
-		else {
-			next if $_ =~ /$ra/;
-		}
-		print "FAIL <$_>\n";
-		++$error;
-	}
-	close IN;
-	exit $error ? 1 : 0;
+    my $error = 0;
+    my $file = $opt{t};
+    open IN, $file or die "Cannot open $file for input: $!\n";
+    print $ra->as_string, "\n";
+    while( <IN> ) {
+        chomp;
+        if( $opt{w} ) {
+            next if $_ =~ /^$ra$/;
+        }
+        else {
+            next if $_ =~ /$ra/;
+        }
+        print "FAIL <$_>\n";
+        ++$error;
+    }
+    close IN;
+    exit $error ? 1 : 0;
 }
 
 =head1 NAME

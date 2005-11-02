@@ -59,13 +59,13 @@ to carry along (a hash rather than a couple of scalars).
 
     In other words, there is scope for a further approach to tail-sliding.
 
-	Remember, there is more than one place in the code that deals with tail
-	sliding. Why is it so?
+    Remember, there is more than one place in the code that deals with tail
+    sliding. Why is it so?
 
 14. Adding qr//'ed patterns. For example, consider
     $r->add ( qr/^abc/i )
-		->add( qr/^abd/ )
-		->add( qr/^ab e/x );
+        ->add( qr/^abd/ )
+        ->add( qr/^ab e/x );
     this should admit abc abC aBc aBC abd abe as matches
 
 15. Methods to specify adding ^, $, \b, \A, \Z to resulting pattern,
@@ -73,3 +73,6 @@ to carry along (a hash rather than a couple of scalars).
 
 16. Allow a fast, unsafe tracking mode, that can be used if a(?bc)?
     can't happen. (Possibly carp if it does appear during traversal)?
+
+17. Add stats (number patterns added, dups added, raw length, cooked
+    length (i.e. after \Qa.b.c\E), final length as_string).

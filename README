@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.18
+The file is the README for Regexp::Assemble version 0.19
 
 INSTALLATION
 
@@ -11,10 +11,10 @@ TESTING
 
 This module requires the following modules for thorough testing:
 
-    Test::File::Contents
-    Test::More
-    Test::Pod
-    Test::Simple
+  Test::File::Contents
+  Test::More
+  Test::Pod
+  Test::Pod::Coverage
 
 It can also make use of Devel::Cover if available.
 

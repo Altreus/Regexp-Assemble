@@ -17,7 +17,7 @@ while( <> ) {
     if( /^$ra$/ ) {
         ++$bad;
     }
-	else {
+    else {
         print GOOD "$_\n";
         ++$good;
     }

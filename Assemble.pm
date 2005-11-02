@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.18';
+$VERSION = '0.19';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.18 of Regexp::Assemble,
-released 2005-10-08.
+This document describes version 0.19 of Regexp::Assemble,
+released 2005-11-02.
 
 =head1 SYNOPSIS
 
@@ -876,7 +876,7 @@ sub pre_filter {
     my $self   = shift;
     my $pre_filter = shift;
     if( defined $pre_filter and ref($pre_filter) ne 'CODE' ) {
-        croak "pre_filter method not passed a coderef\n";
+        croak "pre_filter method not passed a coderef";
     }
     $self->{pre_filter} = $pre_filter;
     $self;
@@ -919,7 +919,7 @@ sub filter {
     my $self   = shift;
     my $filter = shift;
     if( defined $filter and ref($filter) ne 'CODE' ) {
-        croak "filter method not passed a coderef\n";
+        croak "filter method not passed a coderef";
     }
     $self->{filter} = $filter;
     $self;
@@ -1035,7 +1035,7 @@ all non-digit characters as single chucks.
 sub Default_Lexer {
     if( $_[0] ) {
         if( my $refname = ref($_[0]) ) {
-            croak "Don't pass a $refname to Default_Lexer\n";
+            croak "Cannot pass a $refname to Default_Lexer";
         }
         $Default_Lexer = $_[0];
     }
@@ -2055,7 +2055,7 @@ sub _dump_node {
 
 =head1 DIAGNOSTICS
 
-"don't pass a C<refname> to Default_Lexer"
+"Cannot pass a C<refname> to Default_Lexer"
 
 You tried to replace the default lexer pattern with an object
 instead of a scalar. Solution: You probably tried to call
@@ -2190,6 +2190,13 @@ very large sets of patterns.
 
 C<Text::Trie> is well worth investigating. Tries can outperform very
 bushy (read: many alternations) patterns.
+
+=item Tree::Trie
+
+C<Tree::Trie> is another module that builds tries. The algorithm that
+C<Regexp::Assemble> uses appears to be quite similar to the
+algorithm described therein, except that C<R::A> solves its
+end-marker problem without having to rewrite the leaves.
 
 =back
 

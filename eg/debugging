@@ -22,28 +22,28 @@ my $r = Regexp::Assemble->new;
 while( <> ) {
     chomp;
 
-	# take a copy of the assembly and add the next pattern
+    # take a copy of the assembly and add the next pattern
     my $clone = $r->clone;
     $clone->add($_);
 
-	# if we compile the regexp, does it blow up?
+    # if we compile the regexp, does it blow up?
     eval { my $regexp = $clone->re };
 
-	# it blew up
+    # it blew up
     if( $@ ) {
-		report();
+        report();
     }
     else {
-		# ok, now add it for real to the assembly
+        # ok, now add it for real to the assembly
         $r->add( $_ );
     }
 }
 
 sub report {
-	my $lsqb = $_ =~ tr/[/[/;
-	my $rsqb = $_ =~ tr/]/]/;
-	my $lpar = $_ =~ tr/(/(/;
-	my $rpar = $_ =~ tr/)/)/;
+    my $lsqb = $_ =~ tr/[/[/;
+    my $rsqb = $_ =~ tr/]/]/;
+    my $lpar = $_ =~ tr/(/(/;
+    my $rpar = $_ =~ tr/)/)/;
 
     warn <<WARNING;
 $ARGV($.): [$_]
