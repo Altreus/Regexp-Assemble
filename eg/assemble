@@ -9,9 +9,9 @@ use Getopt::Std;
 use Regexp::Assemble;
 
 use vars '$VERSION';
-$VERSION = '0.4';
+$VERSION = '0.5';
 
-getopts( 'abcd:i:nprt:vw', \my %opt );
+getopts( 'abcd:i:nprst:vw', \my %opt );
 
 print "$VERSION\n" and exit if $opt{v};
 
@@ -46,6 +46,10 @@ $ra->add( <> );
 if( $opt{i} or $opt{p} or not $opt{t} ) {
     print $ra->as_string( indent => $opt{i} || 0 );
     print "\n" unless $opt{n};
+}
+
+if( $opt{s} ) {
+    warn qq{# nr=@{[$ra->stats_add]} dup=@{[$ra->stats_dup]} raw=@{[$ra->stats_raw]} cooked=@{[$ra->stats_cooked]} len=@{[$ra->stats_length]}\n};
 }
 
 if( $opt{t} ) {
@@ -128,6 +132,12 @@ off. This can help you determine how much reduction is performed.
   assemble pattern.file | wc
   # versus
   assemble -r pattern.file | wc
+
+=item B<-s>
+
+Statistics. Print some statistics about the assembled pattern. The
+output is sent to STDERR (in order to allow the generated pattern
+to be redirected elsewhere).
 
 =item B<-t>
 

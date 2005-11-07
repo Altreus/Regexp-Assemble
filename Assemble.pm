@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.19';
+$VERSION = '0.20';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.19 of Regexp::Assemble,
-released 2005-11-02.
+This document describes version 0.20 of Regexp::Assemble,
+released 2005-11-07.
 
 =head1 SYNOPSIS
 
@@ -69,7 +69,7 @@ use constant DEBUG_LEX  => 4;
 # The following patterns were generated with eg/naive
 $Default_Lexer = qr/(?![[(\\]).(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\\(?:[bABCEGLQUXZ]|[lu].|(?:[^\w]|[aefnrtdDwWsS]|c.|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|N\{\w+\}|[Pp](?:\{\w+\}|.))(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?)|\[.*?(?<!\\)\](?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\(.*?(?<!\\)\)(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?/;
 
-$Single_Char   = qr/^(?:\\(?:[aefnrtdDwWsS]|c.|[^\w\/{|}-]|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}}))|.)$/;
+$Single_Char   = qr/^(?:\\(?:[aefnrtdDwWsS]|c.|[^\w\/{|}-]|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}}))|[^\$^])$/;
 
 =head1 METHODS
 
@@ -377,6 +377,7 @@ sub add {
         chomp($record) if $self->{chomp};
         next if $self->{pre_filter} and not $self->{pre_filter}->($record);
         $debug and print "# add <$record>\n";
+        $self->{stats_raw} += length $record;
         my $list = $self->_lex($record);
         next if $self->{filter} and not $self->{filter}->(@$list);
         $self->_insertr( $list );
@@ -412,9 +413,18 @@ sub insert {
 }
 
 sub _insertr {
-    my $self = shift;
-    my $debug = $self->{debug} & DEBUG_LEX;
-    $self->{path} = _insert_path( $self->_path, $self->_debug(DEBUG_ADD), $_[0] );
+    my $self   = shift;
+    my $cooked = 0;
+    $cooked   += defined($_) ? length($_) : 0 for @{$_[0]};
+    my $dup    = $self->{stats_dup} || 0;
+    $self->{path} = $self->_insert_path( $self->_path, $self->_debug(DEBUG_ADD), $_[0] );
+    if( not defined $self->{stats_dup} or $dup == $self->{stats_dup} ) {
+        ++$self->{stats_add};
+        # need to calc cooked beforehand, as _insert_path() plays
+        # fast and loose with the contents of $_[0]
+        # _insert_path should probably be rewritten to behave more nicely
+        $self->{stats_cooked} += $cooked;
+    }
     $self->{str} = $self->{re} = undef;
 }
 
@@ -719,6 +729,77 @@ limitations in the implementation of C<(?{...})> at the time.
 sub matched {
     my $self = shift;
     defined $self->{m} ? $self->{mlist}[$self->{m}] : undef;
+}
+
+=item stats_add
+
+Returns the number of patterns added to the assembly (whether
+by C<add> or C<insert>). Duplicate patterns are not included
+in this total.
+
+=cut
+
+sub stats_add {
+    my $self = shift;
+    return $self->{stats_add} || 0;
+}
+
+=item stats_dup
+
+Returns the number of duplicate patterns added to the assembly.
+If non-zero, this may be a sign that something is wrong.
+
+=cut
+
+sub stats_dup {
+    my $self = shift;
+    return $self->{stats_dup} || 0;
+}
+
+=item stats_raw
+
+Returns the raw number of bytes in the patterns added to the
+assembly. This includes both original and duplicate patterns.
+For instance, adding the two patterns C<ab> and C<ab> will
+count as 4 bytes.
+
+=cut
+
+sub stats_raw {
+    my $self = shift;
+    return $self->{stats_raw} || 0;
+}
+
+=item stats_cooked
+
+Return the true number of bytes added to the assembly. This
+will not include duplicate patterns. Furthermore, it may differ
+from the raw bytes due to quotemeta treatment. For instance,
+C<abc\,def> will count as 7 (not 8) bytes, because C<\,> will
+be stored as C<,>. Also, C<\Qa.b\E> is 7 bytes long, however,
+after the quotemeta directives are processed, C<a\.b> will be
+stored, for a total of 4 bytes.
+
+=cut
+
+sub stats_cooked {
+    my $self = shift;
+    return $self->{stats_cooked} || 0;
+}
+
+=item stats_length
+
+Returns the length of the resulting assembled expression.
+Until C<as_string> or C<re> have been called, the length
+will be 0 (since the assembly will have not yet been
+performed). The length includes only the pattern, not the
+addition fluff (C<(?-xism...>) added by the compilation.
+
+=cut
+
+sub stats_length {
+    my $self = shift;
+    return defined $self->{str} ? length $self->{str} : 0;
 }
 
 =item debug(NUMBER)
@@ -1102,6 +1183,7 @@ sub _node_copy {
 }
 
 sub _insert_path {
+    my $self  = shift;
     my $list  = shift;
     my $debug = shift;
     my $in    = shift;
@@ -1128,7 +1210,7 @@ sub _insert_path {
     }
     while( defined( $token = shift @$in )) {
         if( ref($token) eq 'HASH' ) {
-            $path = _insert_node( $path, $offset, $token, $debug, @$in );
+            $path = $self->_insert_node( $path, $offset, $token, $debug, @$in );
             last;
         }
         if( ref($path->[$offset]) eq 'HASH' ) {
@@ -1154,7 +1236,7 @@ sub _insert_path {
                 $msg .= ' ' if $n;
                 $msg .= $n == $offset ? "off=<$path->[$n]>" : $path->[$n];
             }
-            print " at path ($msg)\n";
+            print "# at path ($msg)\n";
         }
 
         if( $offset >= @$path ) {
@@ -1189,7 +1271,7 @@ sub _insert_path {
                     };
                 }
             }
-            # nothing at offset+1 => we've already seen this pattern
+            ++$self->{stats_dup}; # already seen this pattern
             last;
         }
         # if we get here then @_ still contains a token
@@ -1199,6 +1281,7 @@ sub _insert_path {
 }
 
 sub _insert_node {
+    my $self   = shift;
     my $path   = shift;
     my $offset = shift;
     my $token  = shift;
@@ -1222,10 +1305,10 @@ sub _insert_node {
             else {
                 my $sub_path = $path_end->[0]{$token_key};
                 shift @$sub_path;
-                $debug and print "#   +_insert_path sub_path=@{[_dump($sub_path)]}\n";
-                my $new = _insert_path( $path_end->[0]{$token_key}, $debug, \@_ );
+                $debug and print "#   +_insert_node sub_path=@{[_dump($sub_path)]}\n";
+                my $new = $self->_insert_path( $path_end->[0]{$token_key}, $debug, \@_ );
                 $path_end->[0]{$token_key} = [$token, @$new];
-                $debug and print "#   +_insert_path result=@{[_dump($path_end)]}\n";
+                $debug and print "#   +_insert_node result=@{[_dump($path_end)]}\n";
                 splice( @$path, $offset, @$path_end, @$path_end );
             }
         }
@@ -1257,15 +1340,8 @@ sub _insert_node {
                 ++$offset;
             }
             if( @$path_end ) {
-                # coverage shows this condition is never true
-                # need to determine why I did this in the first place...
-                #if( ref($path->[$offset+1]) eq 'HASH' ) {
-                #    $debug and print "#   add path into node @{[_dump(\@_)]}\n";
-                #    $path->[$offset+1]{$_[0]} = [@_];
-                #}
-                #else {
                     $debug and print "#   insert at $offset $token:@{[_dump(\@_)]} into @{[_dump($path_end)]}\n";
-                    my $new = _insert_path( $path_end, $debug, [$token, @_] );
+                    my $new = $self->_insert_path( $path_end, $debug, [$token, @_] );
                     splice( @$path, $offset, @$path_end+1, @$new );
                 #}
             }
@@ -1927,24 +2003,18 @@ sub _re_path_pretty {
                 grep { $_ ne '' }
                 keys %{$in->[$p]}
             ];
-            my $nr     = @$path;
-            my $nr_one = grep { length($_) == 1 } @$path;
-            if( $nr_one == $nr ) {
-                # $out .= "\n$pre" if $prev_was_paren;
-                $out .=  $nr == 1 ? $path->[0] : _make_class(@$path);
-
+            my $nr = @$path;
+            my( @short, @long );
+            push @{/^$Single_Char$/ ? \@short : \@long}, $_ for @$path;
+            if( @short == $nr ) {
+                $out .=  $nr == 1 ? $path->[0] : _make_class(@short);
                 $out .= '?' if exists $in->[$p]{''};
-                # $prev_was_paren = 0;
             }
             else {
                 $out .= "\n" if length $out;
-                # apparently $prev_was_paren can never be true
-                # here, according to Devel::Cover, and assuming
-                # I've covered all the possibilities.
-                # $out .= $pre if $p or $prev_was_paren;
                 $out .= $pre if $p;
                 $out .= "(?:\n$indent";
-                if( $nr_one < 2 ) {
+                if( @short < 2 ) {
                     my $r = 0;
                     $out .= join( "\n$indent|" => map {
                             $r++ and $_ =~ s/^\(\?:/\n$indent(?:/;
@@ -1954,13 +2024,7 @@ sub _re_path_pretty {
                     );
                 }
                 else {
-                    $out .= do {
-                            my( @short, @long );
-                            # push @{length $_ > 1 ? \@long : \@short}, $_ for @$path;
-                            push @{/^$Single_Char$/ ? \@short : \@long}, $_ for @$path;
-                            join( "\n$indent|" => ( sort( _re_sort @long ), _make_class(@short) ));
-                        }
-                    ;
+                    $out .= join( "\n$indent|" => ( sort( _re_sort @long ), _make_class(@short) ));
                 }
                 $out .= "\n$pre)";
                 if( exists $in->[$p]{''} ) {

@@ -7,7 +7,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 122};
+eval qq{use Test::More tests => 134};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -209,6 +209,12 @@ cmp_ok( Regexp::Assemble->new
 
 cmp_ok( Regexp::Assemble->new
     ->insert( '-' )
+    ->insert( '\\.' )
+    ->insert( '0' )
+    ->as_string, 'eq', '[-.0]', '/-/ /./ /0/' );
+
+cmp_ok( Regexp::Assemble->new
+    ->insert( '-' )
     ->insert( '\\+' )
     ->insert( '\\*' )
     ->as_string, 'eq', '[-*+]', '/-/ /\+/ /\*/' );
@@ -222,28 +228,109 @@ cmp_ok( Regexp::Assemble->new
     ->insert( '^' )
     ->insert( 'z' )
     ->insert( '0' )
-    ->as_string, 'eq', '[0z^]', '/^/ /0/ /z/' );
+    ->as_string, 'eq', '(?:[0z]|^)', '/^/ /0/ /z/' );
 
 cmp_ok( Regexp::Assemble->new
     ->insert( '^' )
     ->insert( 'z' )
     ->insert( '-' )
     ->insert( '0' )
-    ->as_string, 'eq', '[-0z^]', '/^/ /-/ /0/ /z/' );
+    ->as_string, 'eq', '(?:[-0z]|^)', '/^/ /-/ /0/ /z/' );
 
 cmp_ok( Regexp::Assemble->new
     ->insert( '^' )
     ->insert( '\w' )
-    ->insert( 'z' )
+    ->insert( 'z' ) # z and 0 absorbed by \w
     ->insert( '-' )
     ->insert( '0' )
-    ->as_string, 'eq', '[-\w^]', '/^/ /-/ /0/ /\w/ /z/' );
+    ->as_string, 'eq', '(?:[-\w]|^)', '/^/ /-/ /0/ /\w/ /z/' );
+
+cmp_ok( Regexp::Assemble->new
+    ->insert( '$' )
+    ->insert( '-' )
+    ->insert( '0' )
+    ->as_string, 'eq', '(?:[-0]|$)', '/$/ /-/ /0/' );
 
 {
     my $re = Regexp::Assemble->new
         ->add( 'de' )
         ->re;
     cmp_ok( $re, 'eq', '(?-xism:de)', 'de' ) or die $re;
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( '^a' )
+        ->add( 'ma' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:(?:^|m)a)', '^a, ma' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( '^a' )
+        ->add( 'ma' )
+        ->add( 'wa' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:(?:[mw]|^)a)', '^a, ma, wa' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( '^a' )
+        ->add( '\\^a' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:(?:^|\\^)a)', '^a, \\^a' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( '^a' )
+        ->add( '0a' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:(?:^|0)a)', '^a, 0a' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( '^a' )
+        ->add( '\\^a' )
+        ->add( 'ma' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:(?:[m^]|^)a)', '^a, \\^a, ma' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( '^a' )
+        ->add( 'maa' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:(?:ma|^)a)', '^a, maa' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( 'b$' )
+        ->add( 'be' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:b(?:$|e))', 'b$, be' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( 'b$' )
+        ->add( 'be' )
+        ->add( 'ba' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:b(?:[ae]|$))', 'b$, be' );
+}
+
+{
+    my $re = Regexp::Assemble->new
+        ->add( 'b$' )
+        ->add( 'b\$' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?-xism:b(?:$|\\$))', 'b$, b\\$' );
 }
 
 {
@@ -540,6 +627,12 @@ cmp_ok( Regexp::Assemble->new(indent => 5)
     ->as_string(indent => 2),
 'eq', 'bed?'
 , 'pretty be bed' );
+
+cmp_ok( Regexp::Assemble->new(indent => 5)
+    ->add( qw/b-d b\.d/ )
+    ->as_string(indent => 2),
+'eq', 'b[-.]d'
+, 'pretty b-d b\.d' );
 
 cmp_ok( Regexp::Assemble->new
     ->add( qw/be bed beg bet / )

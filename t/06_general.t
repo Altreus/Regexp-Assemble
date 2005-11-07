@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 73 };
+eval qq{use Test::More tests => 106 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -276,6 +276,69 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
     ok( 'bare'  !~ /$re/, '{^ab ^are de} /i fails bare' );
     ok( 'death' =~ /$re/, '{^ab ^are de} /i matches death' );
     ok( 'DEEP'  =~ /$re/, '{^ab ^are de} /i matches DEEP' );
+}
+
+{
+    my $re = Regexp::Assemble->new->add( qw/abc def ghi/ );
+    cmp_ok( $re->{stats_add},    '==', 3, "stats add 3x3" );
+    cmp_ok( $re->{stats_raw},    '==', 9, "stats raw 3x3" );
+    cmp_ok( $re->{stats_cooked}, '==', 9, "stats cooked 3x3" );
+    ok( !defined($re->{stats_dup}), "stats dup 3x3" );
+}
+
+{
+    my $re = Regexp::Assemble->new->add( '\\Qabc.def.ghi\\E' );
+    cmp_ok( $re->{stats_add},    '==', 1, "stats add qm" );
+    cmp_ok( $re->{stats_raw},    '==', 15, "stats raw qm" );
+    cmp_ok( $re->{stats_cooked}, '==', 13, "stats cooked qm" );
+    ok( !defined($re->{stats_dup}), "stats dup qm" );
+}
+
+{
+    my $re = Regexp::Assemble->new->add( 'abc\\,def', 'abc\\,def' );
+    cmp_ok( $re->{stats_add},    '==',  1, "stats add unqm dup" );
+    cmp_ok( $re->{stats_raw},    '==', 16, "stats raw unqm dup" );
+    cmp_ok( $re->{stats_cooked}, '==',  7, "stats cooked unqm dup" );
+    cmp_ok( $re->{stats_dup},    '==',  1, "stats dup unqm dup" );
+    cmp_ok( $re->stats_length,   '==',  0, "stats_length unqm dup" );
+
+    my $str = $re->as_string;
+    cmp_ok( $str, 'eq', 'abc,def', "stats str unqm dup" );
+    cmp_ok( $re->stats_length, '==', 7, "stats len unqm dup" );
+}
+
+{
+    my $re = Regexp::Assemble->new->add( '' );
+    cmp_ok( $re->{stats_add},    '==', 1, "stats add empty" );
+    cmp_ok( $re->{stats_raw},    '==', 0, "stats raw empty" );
+    cmp_ok( $re->{stats_cooked}, '==', 0, "stats cooked empty" );
+    ok( !defined($re->{stats_dup}), "stats dup empty" );
+}
+
+{
+    my $re = Regexp::Assemble->new;
+    cmp_ok( $re->stats_add,    '==', 0, "stats_add empty" );
+    cmp_ok( $re->stats_raw,    '==', 0, "stats_raw empty" );
+    cmp_ok( $re->stats_cooked, '==', 0, "stats_cooked empty" );
+    cmp_ok( $re->stats_dup,    '==', 0, "stats_dup empty" );
+    cmp_ok( $re->stats_length, '==',  0, "stats_length empty" );
+
+    my $str = $re->as_string;
+    cmp_ok( $str, 'eq', '^a\\bz', "stats str empty" ); # tricky!
+    cmp_ok( $re->stats_length, '==', 0, "stats len empty" );
+}
+
+{
+    my $re = Regexp::Assemble->new->add( '\\Q.+\\E', '\\Q.+\\E', '\\Q.*\\E' );
+    cmp_ok( $re->stats_add,    '==',  2, "stats_add 2" );
+    cmp_ok( $re->stats_raw,    '==', 18, "stats_raw 2" );
+    cmp_ok( $re->stats_cooked, '==',  8, "stats_cooked 2" );
+    cmp_ok( $re->stats_dup,    '==',  1, "stats_dup 2" );
+    cmp_ok( $re->stats_length, '==',  0, "stats_length 2" );
+
+    my $str = $re->as_string;
+    cmp_ok( $str, 'eq', '\\.[*+]', "stats str 2" );
+    cmp_ok( $re->stats_length, '==', 6, "stats len 2" );
 }
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

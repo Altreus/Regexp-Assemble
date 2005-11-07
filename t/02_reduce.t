@@ -663,7 +663,9 @@ my $context = { debug => 0, depth => 0 };
 }
 
 {
-    my $curr = [ 't', {
+    my $ra = Regexp::Assemble->new;
+    $ra->{path} = [
+        't', {
             'a' => ['a'],
             'i' => ['i'],
         },
@@ -675,7 +677,7 @@ my $context = { debug => 0, depth => 0 };
         },
         's',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
+    my $res = $ra->_insert_path( $ra->{path}, 0, $path );
     is_deeply( $res,
         [
             't',
@@ -689,11 +691,13 @@ my $context = { debug => 0, depth => 0 };
             },
         ],
         '_insert_path sit/sat -> bit/bat',
-    ) or print Dumper($res),"\n";
+    );
 }
 
 {
-    my $curr = [ 't', {
+    my $ra = Regexp::Assemble->new;
+    $ra->{path} = [
+        't', {
             'a' => ['a'],
             'i' => ['i'],
         },
@@ -708,7 +712,7 @@ my $context = { debug => 0, depth => 0 };
         },
         'f',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
+    my $res = $ra->_insert_path( $ra->{path}, 0, $path );
     is_deeply( $res,
         [
             't',
@@ -727,7 +731,9 @@ my $context = { debug => 0, depth => 0 };
 }
 
 {
-    my $curr = [ 't', {
+    my $ra = Regexp::Assemble->new;
+    $ra->{path} = [
+        't', {
             ''  => undef,
             'a' => ['a'],
         },
@@ -739,7 +745,7 @@ my $context = { debug => 0, depth => 0 };
         },
         'e', 's',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
+    my $res = $ra->_insert_path( $ra->{path}, 0, $path );
     is_deeply( $res,
         [
             't',
@@ -758,7 +764,9 @@ my $context = { debug => 0, depth => 0 };
 }
 
 {
-    my $curr = [ 'd', 'i',
+    my $ra = Regexp::Assemble->new;
+    $ra->{path} = [
+        'd', 'i',
         {
             ''  => undef,
             'o' => ['o'],
@@ -772,7 +780,7 @@ my $context = { debug => 0, depth => 0 };
         },
         't', 'a', 'b',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
+    my $res = $ra->_insert_path( $ra->{path}, 0, $path );
     is_deeply( $res,
         [
             'd', 'i',
@@ -791,7 +799,9 @@ my $context = { debug => 0, depth => 0 };
 }
 
 {
-    my $curr = [ 'd', 'i',
+    my $ra = Regexp::Assemble->new;
+    $ra->{path} = [
+        'd', 'i',
         {
             ''  => undef,
             'o' => ['o'],
@@ -809,7 +819,7 @@ my $context = { debug => 0, depth => 0 };
         },
         't', 'm', 'x',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
+    my $res = $ra->_insert_path( $ra->{path}, 0, $path );
     is_deeply( $res,
         [
             'd', 'i',
@@ -829,7 +839,9 @@ my $context = { debug => 0, depth => 0 };
 }
 
 {
-    my $curr = [ 'd', 'i',
+    my $ra = Regexp::Assemble->new;
+    $ra->{path} = [
+        'd', 'i',
         {
             ''  => undef,
             'o' => ['o'],
@@ -847,7 +859,7 @@ my $context = { debug => 0, depth => 0 };
         },
         't', 'a', 'x',
     ];
-    my $res = Regexp::Assemble::_insert_path( $curr, 0, $path );
+    my $res = $ra->_insert_path( $ra->{path}, 0, $path );
     is_deeply( $res,
         [
             'd', 'i',
@@ -1133,7 +1145,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ den dent din dint ten tent tin tint /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path, [
             {
@@ -1174,7 +1187,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ gait git grapefruit grassquit grit guitguit /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         [ 'g',
@@ -1205,7 +1219,8 @@ my $context = { debug => 0, depth => 0 };
     my @list = qw/ gait gambit gaslit giggit git godwit goldtit goodwillit
         gowkit grapefruit grassquit grit guitguit /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         [ 'g',
@@ -1254,7 +1269,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ lit limit lid livid /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         [
@@ -1282,7 +1298,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ theatre metre millimetre /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         [
@@ -1305,7 +1322,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ sad salad spread/;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         [
@@ -1328,7 +1346,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ tough trough though thorough /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         [
@@ -1352,7 +1371,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ tough though trough through thorough /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         ['t',
@@ -1380,7 +1400,8 @@ my $context = { debug => 0, depth => 0 };
 {
     my @list = qw/ tit titanate titania titanite titano tite titi titian titien tittie /;
     my $ra = Regexp::Assemble->new;
-    $ra->insert( split // ) for @list;
+    # $ra->insert( split // ) for @list;
+    for my $l (@list) { $ra->insert( split //, $l ) }
     $ra->_reduce;
     is_deeply( $ra->_path,
         ['t','i','t',

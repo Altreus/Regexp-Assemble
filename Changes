@@ -1,5 +1,19 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.20 2005-11-07 18:03:32 UTC
+    - Fixed long-standing indent bug:
+      $ra->add( 'a\.b' )->add( 'a-b' )->as_string(indent=>2)
+      ... would produce a(?:\.|-b) instead of a[-.]b.
+    - Fixed bug ($ and ^ not treated correctly). See RT ticket
+      #15522. Basically, '^a' and 'ma' produced [m^]a instead
+      of (?:^|m)a
+    - Statistics! See the stats_* methods.
+    - eg/assemble now has an -s switch to display these
+      statistics
+    - Minor tweak to t/02_reduce.t to get it to play nicely
+      with Devel::Cover.
+    - t/02_reduce.t had an unnecessary use Data::Dumper.
+
 0.19 2005-11-02 15:16:16 UTC
     - Change croaking diagnostic concerning Default_Lexer.
       Bug spotted by barbie in ticket #15044.

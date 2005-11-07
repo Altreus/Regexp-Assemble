@@ -25,8 +25,6 @@ to carry along (a hash rather than a couple of scalars).
 
 7. Deal with [:punct:] character classes
 
-8. foo(?:\.|-)bar is not character classed in indented patterns
-
 12. utf-8... hmmmm...
 
 13. Consider the following:
@@ -74,5 +72,6 @@ to carry along (a hash rather than a couple of scalars).
 16. Allow a fast, unsafe tracking mode, that can be used if a(?bc)?
     can't happen. (Possibly carp if it does appear during traversal)?
 
-17. Add stats (number patterns added, dups added, raw length, cooked
-    length (i.e. after \Qa.b.c\E), final length as_string).
+17. given a-\d+-\d+-\d+-\d+-b, produce a(?:-\d+){4}-b. Something along the lines
+    of (.{4))(\1+) would let the regexp engine itself be brought to bear on the
+    matter, which is a rather appealing idea.
