@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.20
+The file is the README for Regexp::Assemble version 0.21
 
 INSTALLATION
 
@@ -15,6 +15,7 @@ This module requires the following modules for thorough testing:
   Test::More
   Test::Pod
   Test::Pod::Coverage
+  Test::Warn
 
 It can also make use of Devel::Cover if available.
 

@@ -27,39 +27,6 @@ to carry along (a hash rather than a couple of scalars).
 
 12. utf-8... hmmmm...
 
-13. Consider the following:
-
-    $ eg/assemble -d2
-    sing
-    singing
-    sting
-    path 0 in [s {i=>[i n g {* i=>[i n g]}] t=>[t i n g]}]
-     node 1 in {i=>[i n g {* i=>[i n g]}] t=>[t i n g]} opt=0
-      | off=-1
-      | path=(g:[n i t])
-      | counts: reduce=1 fail=0
-      | off=3
-       node 3 in {i=>[i n g]} opt=1
-       | fast fail {* i=>[i n g]}
-      | +failed i
-      | counts: reduce=1 fail=1
-     : node scan complete opt=0 reduce={g=>[[g n i t]]} fail=[[i n g {* i=>[i n g]}]]
-     | -simple opt=0 unrev [g n i t]
-      _unrev path fast [g n i t] -> [t i n g]
-     | +fail [i n g {* i=>[i n g]}]
-     node 1 out fail={i=>[i n g {* i=>[i n g]}] t=>[t i n g]}
-    | head=[] tail={i=>[i n g {* i=>[i n g]}] t=>[t i n g]}
-    | unshift s
-    path 0 out head=[] tail=[s {i=>[i n g {* i=>[i n g]}] t=>[t i n g]}]
-    final head=[] tail=[s {i=>[i n g {* i=>[i n g]}] t=>[t i n g]}]
-    final path=[s {i=>[i n g {* i=>[i n g]}] t=>[t i n g]}]
-    /s(?:ing(?:ing)?|ting)/
-
-    In other words, there is scope for a further approach to tail-sliding.
-
-    Remember, there is more than one place in the code that deals with tail
-    sliding. Why is it so?
-
 14. Adding qr//'ed patterns. For example, consider
     $r->add ( qr/^abc/i )
         ->add( qr/^abd/ )
@@ -67,11 +34,32 @@ to carry along (a hash rather than a couple of scalars).
     this should admit abc abC aBc aBC abd abe as matches
 
 15. Methods to specify adding ^, $, \b, \A, \Z to resulting pattern,
-    and/or any arbitrary prefix/suffix
+    and/or any arbitrary prefix/suffix. The method names would be
+    anchor_word => \b
+    anchor_line => ^, $
+    anchor_string => \A, \Z
+    and
+    anchor_(mumble)_begin to get just one.
 
 16. Allow a fast, unsafe tracking mode, that can be used if a(?bc)?
     can't happen. (Possibly carp if it does appear during traversal)?
 
-17. given a-\d+-\d+-\d+-\d+-b, produce a(?:-\d+){4}-b. Something along the lines
-    of (.{4))(\1+) would let the regexp engine itself be brought to bear on the
-    matter, which is a rather appealing idea.
+17. given a-\d+-\d+-\d+-\d+-b, produce a(?:-\d+){4}-b. Something
+    along the lines of (.{4))(\1+) would let the regexp engine
+    itself be brought to bear on the matter, which is a rather
+    appealing idea.
+
+18. The attribute handling in new() and clone() is getting very silly.
+
+19. The reduction code has become unbelievably baroque. Adding code
+    to handle (sting,singing,sing) => s(?:(?:ing)?|t)ing was far
+    too difficult. Adding more stuff just breaks existing behaviour.
+	And fixing the ^abcd$ ... bug broke stuff all over again.
+    Now that the corner cases are more clearly identified, a full
+    rewrite of the reduction code is needed. And would admit the
+    possibility of implementing items 1 and 17.
+
+20. Handle debug unrev with a separate bit
+
+21. Now that lex() has a non-backslash shortcut, lex() could probably
+    be subsumed into lex_stateful. That is, only stateful.

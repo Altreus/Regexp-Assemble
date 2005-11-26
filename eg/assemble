@@ -9,9 +9,9 @@ use Getopt::Std;
 use Regexp::Assemble;
 
 use vars '$VERSION';
-$VERSION = '0.5';
+$VERSION = '0.6';
 
-getopts( 'abcd:i:nprst:vw', \my %opt );
+getopts( 'abcd:i:nprst:uvw', \my %opt );
 
 print "$VERSION\n" and exit if $opt{v};
 
@@ -20,6 +20,7 @@ my $ra = Regexp::Assemble->new(
     debug     => $opt{d} || 0,
     reduce    => exists $opt{r} ? 0 : 1,
     lookahead => exists $opt{a} ? 1 : 0,
+	dup_warn  => exists $opt{u} ? 1 : 0,
 );
 
 if( $opt{b} or $opt{c} ) {
@@ -146,6 +147,9 @@ Each line is read from the file and is matched against the pattern.
 Lines that fail to match are printed. In other words, no output is
 good output. In this mode of operation, error status is 1 in the
 case of a failure, 0 if all lines matched.
+
+=item B<-u>
+Unique. Carp if duplicate patterns are found
 
 =item B<-v>
 

@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 106 };
+eval qq{use Test::More tests => 114 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -215,6 +215,37 @@ SKIP: {
         'eq', 'non(?:schoolk|acido)ids', 'nonschoolkids nonacidoids' );
 }
 
+{
+    cmp_ok( Regexp::Assemble->new
+        ->add( qw( sing singing ))
+        ->as_string, 'eq', 'sing(?:ing)?', 'super slide sing singing' # no sliding done
+    );
+
+    cmp_ok( Regexp::Assemble->new
+        ->add( qw( sing singing sling))
+        ->as_string, 'eq', 's(?:(?:ing)?|l)ing',
+        'super slide sing singing sling'
+    );
+
+    cmp_ok( Regexp::Assemble->new
+        ->add( qw( sing singing sling slinging))
+        ->as_string, 'eq', 'sl?(?:ing)?ing',
+        'super slide sing singing sling slinging'
+    );
+
+    cmp_ok( Regexp::Assemble->new
+        ->add( qw( sing singing sling slinging sting stinging ))
+        ->as_string, 'eq', 's[lt]?(?:ing)?ing',
+        'super slide sing singing sling slinging sting stinging'
+    );
+
+    cmp_ok( Regexp::Assemble->new
+        ->add( qw( sing singing sling slinging sting stinging string stringing swing swinging ))
+        ->as_string, 'eq', 's(?:[lw]|tr?)?(?:ing)?ing',
+        'super slide sing singing sling slinging sting stinging string stringing swing swinging'
+    );
+}
+
 $ra = Regexp::Assemble->new->debug(3);
 
 cmp_ok( $ra->add( qw/ dog darkness doggerel dark / )->as_string,
@@ -284,6 +315,11 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
     cmp_ok( $re->{stats_raw},    '==', 9, "stats raw 3x3" );
     cmp_ok( $re->{stats_cooked}, '==', 9, "stats cooked 3x3" );
     ok( !defined($re->{stats_dup}), "stats dup 3x3" );
+
+    $re->add( 'de' );
+    cmp_ok( $re->{stats_add},    '==',  4, "stats add 3x3 +1" );
+    cmp_ok( $re->{stats_raw},    '==', 11, "stats raw 3x3 +1" );
+    cmp_ok( $re->{stats_cooked}, '==', 11, "stats cooked 3x3 +1" );
 }
 
 {
@@ -309,10 +345,10 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
 
 {
     my $re = Regexp::Assemble->new->add( '' );
-    cmp_ok( $re->{stats_add},    '==', 1, "stats add empty" );
-    cmp_ok( $re->{stats_raw},    '==', 0, "stats raw empty" );
-    cmp_ok( $re->{stats_cooked}, '==', 0, "stats cooked empty" );
-    ok( !defined($re->{stats_dup}), "stats dup empty" );
+    cmp_ok( $re->{stats_add}, '==', 1, "stats add empty" );
+    cmp_ok( $re->{stats_raw}, '==', 0, "stats raw empty" );
+    ok( !defined($re->{stats_cooked}), "stats cooked empty" );
+    ok( !defined($re->{stats_dup}),    "stats dup empty" );
 }
 
 {
@@ -321,7 +357,7 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
     cmp_ok( $re->stats_raw,    '==', 0, "stats_raw empty" );
     cmp_ok( $re->stats_cooked, '==', 0, "stats_cooked empty" );
     cmp_ok( $re->stats_dup,    '==', 0, "stats_dup empty" );
-    cmp_ok( $re->stats_length, '==',  0, "stats_length empty" );
+    cmp_ok( $re->stats_length, '==', 0, "stats_length empty" );
 
     my $str = $re->as_string;
     cmp_ok( $str, 'eq', '^a\\bz', "stats str empty" ); # tricky!
@@ -338,7 +374,7 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
 
     my $str = $re->as_string;
     cmp_ok( $str, 'eq', '\\.[*+]', "stats str 2" );
-    cmp_ok( $re->stats_length, '==', 6, "stats len 2" );
+    cmp_ok( $re->stats_length, '==', 6, "stats len 2 <$str>" );
 }
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

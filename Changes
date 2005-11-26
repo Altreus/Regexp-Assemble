@@ -1,5 +1,52 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.21 2005-11-26 16:16:06 UTC
+    - Fixed a nasty bug after generating a series
+	  of lists of patterns using Data::PowerSet:
+      ^abc$ ^abcd$ ^ac$ ^acd$ ^b$ ^bc$ ^bcd$ ^bd$
+      would produce the incorrect
+      ^b(?:(?:ab?)?c)?d?$ pattern. It should if fact
+	  produce the ^(?:ab?c|bc?)d?$ pattern.
+    - Improve the reduction of, for example, 'sing',
+      'singing', 'sting'.  In prior versions this
+      would produce s(?:ing(?:ing)?|ting), now it
+      produces s(?:(?:ing)?|t)ing. The code is a bit
+      horrendous (especially the part at the end of
+      _reduce_path). And it's still not perfect. See
+      the TODO.
+    - Duplicate pattern detection wasn't quite right.
+      The code was lacking an else clause, which meant
+      'abcdef' followed by 'abc' would have the latter
+      treated as a duplicate.
+    - Now that there's a statistic that keeps track of
+      when a duplicate input pattern was encountered,
+      it becomes possible to let the user know about
+      it. Two possibilities are available: a simple
+      carp(), or a callback for complete control.
+      The first time I tried this out on a real file of
+      3558 patterns, it found 9 dups (or rather, 8
+      dups and a bug in the module).
+    - The above improvement means the test suite now
+      requires Test::Warn. As a result, t/07_pod.t was
+      subsumed into t/00_basic.t and t/07_warning.t was
+      born.
+    - Added an eg/ircwatcher script that demonstrates how
+      to set up a dispatch table on a tracked regular
+      expression. Credit to David Rigaudière for the
+      idea.
+    - Made sure all routines use an explicit return when
+      it makes sense to do so. (I have a tendency to use
+      implicit returns, which is evil).
+    - the Carp module is require'ed on an on-demand basis.
+    - eg/naive updated to bring its idea of $Single_Char
+      in line with Assemble.pm.
+    - Cleaned up typos and PODos in the documentation.
+      Fixed minor typo noted by David Rigaudière.
+    - Reworked as_string() and re() to play nicely with
+      Devel::Cover, but alas, the module no longer runs
+      under D::C at all. Something to do with the
+      overloading of "" for re()?
+
 0.20 2005-11-07 18:03:32 UTC
     - Fixed long-standing indent bug:
       $ra->add( 'a\.b' )->add( 'a-b' )->as_string(indent=>2)

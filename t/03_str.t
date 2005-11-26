@@ -252,10 +252,8 @@ cmp_ok( Regexp::Assemble->new
     ->as_string, 'eq', '(?:[-0]|$)', '/$/ /-/ /0/' );
 
 {
-    my $re = Regexp::Assemble->new
-        ->add( 'de' )
-        ->re;
-    cmp_ok( $re, 'eq', '(?-xism:de)', 'de' ) or die $re;
+    my $re = Regexp::Assemble->new->add( 'de' )->re;
+    cmp_ok( "$re", 'eq', '(?-xism:de)', 'de' );
 }
 
 {
@@ -263,7 +261,7 @@ cmp_ok( Regexp::Assemble->new
         ->add( '^a' )
         ->add( 'ma' )
         ->re;
-    cmp_ok( $re, 'eq', '(?-xism:(?:^|m)a)', '^a, ma' );
+    cmp_ok( "$re", 'eq', '(?-xism:(?:^|m)a)', '^a, ma' );
 }
 
 {
@@ -1239,3 +1237,4 @@ cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
     'lookahead u.*son v.*son' );
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
+

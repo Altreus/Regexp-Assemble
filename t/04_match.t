@@ -7,7 +7,7 @@
 
 use strict;
 eval qq{
-    use Test::More tests => 781 # miscellaneous tests
+    use Test::More tests => 797 # miscellaneous tests
         + (3520 * 4); # count of all args passed to match() * 4 RE variants 
 };
 if( $@ ) {
@@ -118,6 +118,11 @@ match_list( 'a.x', [qw[ abx adx a.x ]] , [qw[ aax abx acx azx a4x a%x a+x a?x ]]
 match_list( 'c.z', [qw[ c^z c-z c5z cmz ]] , [qw[ c^z c-z c5z cmz ]] );
 
 match_list( '\d, \D', [ 'b\\d', 'b\\D' ] , [qw[ b4 bX b% b. b? ]] );
+
+match_list( 'abcd',
+    [qw[ abc abcd ac acd b bc bcd bd]],
+    [qw[ abc abcd ac acd b bc bcd bd]],
+);
 
 match( 'foo', qw[ foo bar rat quux ]);
 
