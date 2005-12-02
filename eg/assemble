@@ -20,7 +20,7 @@ my $ra = Regexp::Assemble->new(
     debug     => $opt{d} || 0,
     reduce    => exists $opt{r} ? 0 : 1,
     lookahead => exists $opt{a} ? 1 : 0,
-	dup_warn  => exists $opt{u} ? 1 : 0,
+    dup_warn  => exists $opt{u} ? 1 : 0,
 );
 
 if( $opt{b} or $opt{c} ) {

@@ -132,7 +132,7 @@ SKIP: {
     # If the Storable module is available, we will have used
     # that above, however, we will not have tested the pure-Perl
     # fallback routines.
-       skip( 'Pure-Perl clone() already tested', 2 )
+       skip( 'Pure-Perl clone() already tested', 5 )
            unless $Regexp::Assemble::have_Storable;
 
     local $Regexp::Assemble::have_Storable = 0;

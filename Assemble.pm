@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.21';
+$VERSION = '0.22';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.20 of Regexp::Assemble,
-released 2005-11-07.
+This document describes version 0.22 of Regexp::Assemble,
+released 2005-12-02.
 
 =head1 SYNOPSIS
 
@@ -2435,10 +2435,6 @@ I'd need a solid argument to convince me to add a C<remove> method.
 If you need to do this you should read the documentation on the
 C<mutable> and C<clone> methods.
 
-Tracking doesn't really work at all with 5.6.0. It works better
-in subsequent 5.6 releases. For maximum reliability, the use of
-a 5.8 release is strongly recommended.
-
 C<Regexp::Assemble> does not (yet)? employ the C<(?E<gt>...)>
 construct.
 
@@ -2446,6 +2442,12 @@ The module does not produce POSIX-style regular expressions. This
 would be quite easy to add, if there was a demand for it.
 
 =head1 BUGS
+
+Tracking doesn't really work at all with 5.6.0. It works better
+in subsequent 5.6 releases. For maximum reliability, the use of
+a 5.8 release is strongly recommended. Tracking barely works with
+5.005_04. Of note, using C<\d>-style meta-characters invariably
+cause panics.
 
 If you feed C<Regexp::Assemble> patterns with nested parentheses,
 there is a chance that the resulting pattern will be uncompilable
@@ -2483,7 +2485,8 @@ create expressions anywhere from 140Kb to 600Kb in size, and it seems to
 be working according to spec. Thus, I don't think there are any serious
 bugs remaining.
 
-If you are feeling brave, extensive debugging traces are available.
+If you are feeling brave, extensive debugging traces are available to
+figure out where assembly goes wrong.
 
 Please report all bugs at
 L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Regexp-Assemble|rt.cpan.org>

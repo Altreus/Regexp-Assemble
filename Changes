@@ -1,12 +1,21 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.22 2005-12-02 11:31:42 UTC
+    - Amended the test suite to ensure that it runs
+      correctly under 5.005_04. (The documentation
+      was updated to reflect the limitations).
+      The SKIP counts in t/06_general.t were out of
+      whack for 5.6 and 5.005 testing. Sébastien
+      Aperghis-Tramoni provided the impetus for this
+      fix. No other changes in functionality.
+
 0.21 2005-11-26 16:16:06 UTC
     - Fixed a nasty bug after generating a series
-	  of lists of patterns using Data::PowerSet:
+      of lists of patterns using Data::PowerSet:
       ^abc$ ^abcd$ ^ac$ ^acd$ ^b$ ^bc$ ^bcd$ ^bd$
       would produce the incorrect
       ^b(?:(?:ab?)?c)?d?$ pattern. It should if fact
-	  produce the ^(?:ab?c|bc?)d?$ pattern.
+      produce the ^(?:ab?c|bc?)d?$ pattern.
     - Improve the reduction of, for example, 'sing',
       'singing', 'sting'.  In prior versions this
       would produce s(?:ing(?:ing)?|ting), now it
