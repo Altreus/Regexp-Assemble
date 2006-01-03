@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.22
+The file is the README for Regexp::Assemble version 0.23
 
 INSTALLATION
 
@@ -369,30 +369,47 @@ more pathological than this, e.g., something like:
 
 (although the above actually *does* work, I tried it)
 
-This is the area that needs to be tested much more extensively.
-Until now I haven't had the time (or motivation) to do so, mainly
-because my real life patterns do not converge at the end very often.
-On the other hand, I can say with a reasonable level of confidence
-is in the case of a bug, the algorithm will splice a part of the
-tree into oblivion. When this happens, part of the pattern will be
-lost, and the resulting pattern will fail to match all that the
-original patterns do. It will in no case ever match more things
-than the original patterns do.
+TESTING STRATEGY USED
 
-If you are truly paranoid, take a look at the hostmatch.t test
-file. The code therein does exactly that: it takes a list of
-patterns and a list of target strings. It assembles the patterns
-and then loops through the target strings, checking to see that
-the assembled pattern and one of the orignal patterns make the
-same decision as to a target string. 
+The code has been heavily tested using an approach based on
+combinatoric lists known as power sets. For instance, the power
+set of (a,b,c,d) is (assuming a join() on the results):
 
-Or to put that more clearly: if the assembled pattern matches,
-then one of the original patterns should also match. If the
-assembled pattern doesn't match, then none of the original
-patterns should match.
+ a ab abc abcd abd ac acd ad b bc bcd bd c cd d
 
-The assemble script, supplied as an example, can help with this
-process.
+(along with the empty set). The power set of N elements contains
+2**N elements. (or 2**N-1 of we exclude the empty set).
+
+The testing approach was then to take the power set of the above
+power set and produce regular expressions from each element.
+
+For instance, at some point, we would encounter the set
+
+  abc ac bcd cd d
+
+From this we generate the pattern (?:(?:b?c)?d|ab?c). Once we have
+this pattern, we go back and check that it does in fact match the
+above 5 elements, and furthermore, that it does *not match* the
+remaining 10 elements of the power set not used in this iteration.
+
+And yes, that shook out a couple of bugs.
+
+As of this time, the following search space has been examined
+
+a b c         - complete
+a b c d       - complete
+a b c d e     - runs of 1-11, 20-31 complete, 12-17 partial
+a b c d e f   - runs of 1-5, 61-63 complete
+a b c d e f g - runs of 1-4, 125-127 complete
+
+The code for this is in the eg/stress-test script. Note: it can use
+months of CPU time if you're not careful. It requires the following
+modules:
+
+  Algorithm::Combinatorics
+  Data::PowerSet
+
+OTHER CONSIDERATIONS
 
 When tracking is in use, no reduction is performed.
 
@@ -418,17 +435,17 @@ the following:
 
   print Dumper($r->_path);
 
-A more compact representation can also be obtained with
+A more compact representation can be obtained with
 
-  print Regexp::Assemble::_dump($r->_path);
+  print $r->dump;
 
 All that said, I'm now reasonably confident that it deals
 correctly with pretty much anything you're likely to throw at it.
-The two most recent bugs were easy to spot in the code, and the
-fix was a couple of lines. Adding lookahead assertion was pretty
-simple to, even if it did result in a certain amount of code
-factoring. So I think that in general the structure of the code
-is a good one.
+
+Two recent bugs were easy to spot in the code, and the fix was a
+couple of lines. Adding lookahead assertion was pretty simple to,
+even if it did result in a certain amount of code factoring. So I
+think that in general the structure of the code is a good one.
 
 The eg/debugging script offers a good strategy for dealing with
 assemblies that give rise to uncompilable patterns.

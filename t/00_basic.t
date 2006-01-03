@@ -6,11 +6,11 @@
 # The fact that many of these tests access object internals directly
 # does not constitute a coding recommendation.
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 
-eval qq{use Test::More tests => 318 };
+eval qq{use Test::More tests => 321 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -858,6 +858,11 @@ is_deeply( Regexp::Assemble::_unrev_node(
     { bc => [qw[bc ab]], gh => [qw[gh fg ef de cd bc]], ij => [qw[ij gh ef]] },
     'node(ab,bc,ef)' );
 
+is_deeply( Regexp::Assemble::_unrev_node(
+    {''=>undef,b=>[[{b=>['b'],'b?'=>[{''=>undef,b=>['b']},'a']}],{''=>undef,c=>['c']}]}, $context),
+    {''=>undef,c=>[{''=>undef,c=>['c']},[{a=>['a',{''=>undef,b=>['b']}],b=>['b']}]]},
+    'node of (?:(?:ab?|b)c?)?' );
+
 is_deeply( Regexp::Assemble::_unrev_path(
     [qw[a b], {c=>[qw[c d e]], f=>[qw[f g h]], i=>[qw[i j], {k => [qw[k l m]], n=>[qw[n o p]]}, 'x' ]}], $context),
     [{e=>[qw[e d c]], h=>[qw[h g f]], x=>['x', {m=>[qw[m l k]], p=>[qw[p o n]]}, qw[j i]]}, qw[b a]],
@@ -959,6 +964,13 @@ is_deeply( Regexp::Assemble::_unrev_path(
 is_deeply( Regexp::Assemble::_unrev_path(
     [qw[ ab cd ef ], {x1 => ['x1', 'y2', 'z\\d'], mx => [qw[mx us ca]] }], $context),
     [{ 'z\\d' => ['z\\d', 'y2', 'x1'], ca => [qw[ca us mx]]}, qw[ef cd ab]], 'path(node)' );
+
+{
+    my $r = Regexp::Assemble->new;
+
+    is_deeply( $r->lexstr( 'ab' ), ['a', 'b'], q{lexstr('ab')} );
+    is_deeply( $r->lexstr( 'a\\,b' ), ['a', ',', 'b'], q{lexstr('a\\,b')} );
+}
 
 eval {
     my $ra = Regexp::Assemble->new;

@@ -16,6 +16,7 @@ eg/hostmatch/source.in
 eg/ircwatcher
 eg/naive
 eg/roman
+eg/stress-test
 eg/tld
 eg/unquotemeta
 t/00_basic.t

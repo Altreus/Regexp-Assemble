@@ -1,12 +1,12 @@
 # Regexp::Assemple.pm
 #
-# Copyright (c) 2004-2005 David Landgren
+# Copyright (c) 2004-2006 David Landgren
 # All rights reserved
 
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.22';
+$VERSION = '0.23';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.22 of Regexp::Assemble,
-released 2005-12-02.
+This document describes version 0.23 of Regexp::Assemble,
+released 2006-01-03.
 
 =head1 SYNOPSIS
 
@@ -101,8 +101,8 @@ to see which way the benefits lie.
 
 B<track>, controls whether you want know which of the initial patterns
 was the one that matched. See the C<matched> method for more details.
-Note that in this mode of operation THERE ARE SECURITY IMPLICATIONS OF
-WHICH YOU YOU SHOULD BE AWARE.
+Note that in this mode of operation YOU SHOULD BE AWARE OF THE SECURITY
+IMPLICATIONS that this entails.
 
 B<indent>, the number of spaces used to indent nested grouping of
 a pattern. Use this to produce a pretty-printed pattern. See the
@@ -119,13 +119,17 @@ the pattern being loaded. This callback is triggered after the
 pattern has been split apart by the lexer.
 
 B<mutable>, controls whether new patterns can be added to the object
-after the RE is generated.
+after the RE is generated. Its main purpose is when you have a
+long-running program, and a set of patterns that builds up over
+time, and when a new pattern is added you want to build a new
+assembly in the shortest possible time.
 
 B<reduce>, controls whether tail reduction occurs or not. If set,
 patterns like C<a(?:bc+d|ec+d)> will be reduced to C<a[be]c+d>.
 That is, the end of the pattern in each part of the b... and d...
 alternations is identical, and hence is hoisted out of the alternation
-and placed after it. 
+and placed after it. On by default. Turn it off if you're really
+pressed for short assembly times.
 
 B<lex>, specifies the pattern used to lex the input lines into
 tokens. You could replace the default pattern by a more sophisticated
@@ -400,10 +404,13 @@ This method is chainable, I<e.g.>:
     ->insert( qw[ a b+ c? d* e ] )
     ->insert( qw[ a c+ d+ e* f ] );
 
-The C<add> method calls C<insert> internally.
+Lexing complex patterns with metacharacters and so on can consume
+a significant proportion of the overall time to build an assembly.
+If you have the information available in a tokenised form, calling
+C<insert> directly can be a big win.
 
-The C<filter> method allows you to accept or reject the
-addition of the entire pattern on a token-by-token basis.
+The C<filter> method allows you to accept or reject the addition of
+the entire pattern on a token-by-token basis.
 
 =cut
 
@@ -429,10 +436,36 @@ sub _insertr {
         else {
             my $pattern = join( '', @{$_[0]} );
             require Carp;
-            Carp::carp( "duplicate pattern added: /$pattern/" );
+            Carp::carp("duplicate pattern added: /$pattern/");
         }
     }
     $self->{str} = $self->{re} = undef;
+}
+
+=item lexstr
+
+Use the C<lexstr> method if you are curious to see how a pattern
+gets tokenised. It takes a scalar on input, representing a pattern,
+and returns a reference to an array, containing the tokenised
+pattern. You can recover the original pattern by performing a
+C<join>:
+
+  my @token = $re->lexstr($pattern);
+  my $new_pattern = join( '', @token );
+
+If the original pattern contains unneccessary backslashes, or 
+C<\x4b> escapes, or quotemeta escapes (C<\Q>...C<\E>) the resulting
+pattern may not be identical.
+
+Call C<lexstr> does not add the pattern to the object, it is merely
+for exploratory purposes. It will, however, update various statistical
+counters.
+
+=cut
+
+sub lexstr {
+	my $self = shift;
+    return $self->_lex(shift);
 }
 
 =item as_string
@@ -804,7 +837,7 @@ Returns the length of the resulting assembled expression.
 Until C<as_string> or C<re> have been called, the length
 will be 0 (since the assembly will have not yet been
 performed). The length includes only the pattern, not the
-addition fluff (C<(?-xism...>) added by the compilation.
+additional (C<(?-xism...>) fluff added by the compilation.
 
 =cut
 
@@ -1006,7 +1039,7 @@ sub pre_filter {
     my $pre_filter = shift;
     if( defined $pre_filter and ref($pre_filter) ne 'CODE' ) {
         require Carp;
-        Carp::croak "pre_filter method not passed a coderef";
+        Carp::croak("pre_filter method not passed a coderef");
     }
     $self->{pre_filter} = $pre_filter;
     return $self;
@@ -1050,7 +1083,7 @@ sub filter {
     my $filter = shift;
     if( defined $filter and ref($filter) ne 'CODE' ) {
         require Carp;
-        Carp::croak "filter method not passed a coderef";
+        Carp::croak("filter method not passed a coderef");
     }
     $self->{filter} = $filter;
     return $self;
@@ -1097,7 +1130,7 @@ Once this occurs, it is no longer possible to add any more
 patterns.
 
 In fact, the internal structures are release to free up memory. If
-you have a programa that adds additional patterns to an object over
+you have a program that adds additional patterns to an object over
 a long period, you can set the mutable attribute. This will stop the
 internal structure from being drained and you can continue to add
 patterns.
@@ -1127,7 +1160,7 @@ sub mutable {
 =item reset
 
 Empties out the patterns that have been C<add>ed or C<insert>-ed
-into the objet.  Does not modify the state of controller attributes
+into the objet. Does not modify the state of controller attributes
 such as C<debug>, C<lex>, C<reduce> and the like.
 
 =cut
@@ -1168,7 +1201,7 @@ sub Default_Lexer {
     if( $_[0] ) {
         if( my $refname = ref($_[0]) ) {
             require Carp;
-            Carp::croak "Cannot pass a $refname to Default_Lexer";
+            Carp::croak("Cannot pass a $refname to Default_Lexer");
         }
         $Default_Lexer = $_[0];
     }
@@ -1262,13 +1295,16 @@ sub _insert_path {
     }
     while( defined( $token = shift @in )) {
         if( ref($token) eq 'HASH' ) {
+            $debug and print "#  p0=", _dump($path), "\n";
             $path = $self->_insert_node( $path, $offset, $token, $debug, @in );
+            $debug and print "#  p1=", _dump($path), "\n";
             last;
         }
         if( ref($path->[$offset]) eq 'HASH' ) {
             $debug and print "#   at (off=$offset len=@{[scalar @$path]}) ", _dump($path->[$offset]), "\n";
             my $node = $path->[$offset];
             if( exists( $node->{$token} )) {
+                $debug and print "#   found the token at this node\n";
                 if( $offset < $#$path and @in ) {
                     my $new = {
                         $token => [$token, @in],
@@ -1286,8 +1322,18 @@ sub _insert_path {
                 }
             }
             else {
-                $debug and print "#   add path ($token:@{[_dump(\@in)]}) into @{[_dump($node)]}\n";
-                $node->{$token} = [ $token, @in ];
+                $debug and print "#   add path ($token:@{[_dump(\@in)]}) into @{[_dump($path)]} at off=$offset to end=@{[scalar $#$path]}\n";
+                if( $offset == $#$path ) {
+                    $node->{$token} = [ $token, @in ];
+                }
+                else {
+                    my $new = {
+                        _node_key($token) => [ $token, @in ],
+                        _node_key($node)  => [@{$path}[$offset..$#{$path}]],
+                    };
+                    splice( @$path, $offset, @$path - $offset, $new );
+                    $debug and print "#   fused node=@{[_dump($new)]} path=@{[_dump($path)]}\n";
+                }
                 last;
             }
         }
@@ -1319,6 +1365,7 @@ sub _insert_path {
                 ,
                 $path->[$offset] => [@{$path}[$offset..$#{$path}]],
             };
+            $debug and print "#   path=@{[_dump($path)]}\n";
             last;
         }
         elsif( not @in ) {
@@ -1382,16 +1429,31 @@ sub _insert_node {
                 }
                 my $new;
                 if( @$new_path ) {
+                    my $token_key = $token;
                     $token = [$token, @_] if @_;
                     if( ref($token) ) {
-                        $debug and print "#  insert @{[_dump([$token])]} into @{[_dump($old_path)]}\n";
-                        $new = $self->_insert_path( $old_path, $debug, $token );
+                        if( @_ ) {
+                            $new = {
+                                _re_path($old_path) => $old_path,
+                                $token_key => $token,
+                            };
+                            $debug and print "#  insert_node(bifurc) n=@{[_dump([$new])]}\n";
+                        }
+                        else {
+                            $debug and print "#  insert_node(path) @{[_dump([$token])]} into @{[_dump($old_path)]}\n";
+                            $new = $self->_insert_path( $old_path, $debug, $token );
+                        }
                     }
                     else {
-                        $debug and print "#  insert $token into @{[_dump($old_path)]}\n";
-                        my @path = ($token);
-                        $new = $self->_insert_path( $old_path, $debug, \@path );
-                        $new = $new->[0] if @$new == 1;
+                        $debug and print "#  insert $token into old path @{[_dump($old_path)]}\n";
+                        if( @$old_path ) {
+                            my @path = ($token);
+                            $new = $self->_insert_path( $old_path, $debug, \@path );
+                            $new = $new->[0] if @$new == 1;
+                        }
+                        else {
+                            $new = { '' => undef, $token => [$token] };
+                        }
                     }
                 }
                 else {
@@ -1428,8 +1490,10 @@ sub _insert_node {
             }
             if( @$path_end ) {
                 $debug and print "#   insert at $offset $token:@{[_dump(\@_)]} into @{[_dump($path_end)]}\n";
-                my $new = $self->_insert_path( $path_end, $debug, [$token, @_] );
-                splice( @$path, $offset, @$path_end+1, @$new );
+                $path_end = $self->_insert_path( $path_end, $debug, [$token, @_] );
+                $debug and print "#   got off=$offset s=@{[scalar @_]} path_add=@{[_dump($path_end)]}\n";
+                splice( @$path, $offset, @$path - $offset, @$path_end );
+                $debug and print "#   got final=@{[_dump($path)]}\n";
             }
             else {
                 $token_key = _node_key($token);
@@ -1450,6 +1514,7 @@ sub _insert_node {
             };
             $debug and print "#   atom->node @{[_dump($new)]}\n";
             splice( @$path, $offset, @$path_end, $new );
+            $debug and print "#   out=@{[_dump($path)]}\n";
         }
         else {
             $debug and print "#   add opt @{[_dump([$token,@_])]} via $token_key\n";
@@ -1662,7 +1727,7 @@ sub _scan_node {
     my $indent = ' ' x $ctx->{depth};
     my $debug  =       $ctx->{debug};
 
-    # For all the paths in the node, reverse them.  If the first token
+    # For all the paths in the node, reverse them. If the first token
     # of the path is a scalar, push it onto an array in a hash keyed by
     # the value of the scalar.
     #
@@ -1703,8 +1768,7 @@ sub _scan_node {
             push @{$reduce{$end}}, [ $end, @path ];
         }
         else {
-            $debug and print "# $indent|_scan_node tail=", _dump($end),
-                ' path=', _dump(\@path), "\n";
+            $debug and print "# $indent|_scan_node head=", _dump(\@path), ' tail=', _dump($end), "\n";
             my $new_path;
             # deal with sing, singing => s(?:ing)?ing
             if( ref($end) eq 'HASH' and keys %$end == 2 and exists $end->{''} ) {
@@ -1839,8 +1903,9 @@ sub _unrev_path {
     }
     $debug and print "# ${indent}unrev path in ", _dump($path), "\n";
     while( defined( my $p = pop @$path )) {
-        push @$new, ref($p) eq 'HASH'
-            ? _unrev_node($p, _descend($ctx) )
+        push @$new,
+              ref($p) eq 'HASH'  ? _unrev_node($p, _descend($ctx) )
+            : ref($p) eq 'ARRAY' ? _unrev_path($p, _descend($ctx) )
             : $p
         ;
     }
@@ -1963,25 +2028,27 @@ sub _combine_new {
 }
 
 sub _re_path {
+    # in shorter assemblies, _re_path() is the second hottest
+    # routine. after insert().
     return join( '', @_ ) unless grep { length ref $_ } @_;
-    my $in  = shift;
-    my $out = '';
-    for my $p ( @$in ) {
-        if( ref($p) eq '' ) {
-            $out .= $p;
+    my $p;
+    return join '', map {
+        ref($_) eq '' ? $_
+        : ref($_) eq 'HASH' ? do {
+            # In the case of a node, see whether there's a '' which
+            # indicates that the whole thing is optional and thus
+            # requires a trailing ?
+            # Unroll the two different paths to avoid the needless
+            # grep when it isn't necessary.
+            $p = $_;
+            exists $_->{''}
+            ?  _combine_new(
+                map { _re_path( $p->{$_} ) } grep { $_ ne '' } keys %$_
+            ) . '?'
+            : _combine_new( map { _re_path( $p->{$_} ) } keys %$_ )
         }
-        elsif( ref($p) eq 'HASH' ) {
-            $out .= _combine_new(
-                map { _re_path( $p->{$_} ) }
-                grep { $_ ne '' }
-                keys %$p
-            ) . (exists $p->{''} ? '?' : '');
-        }
-        else { # ref($p) eq 'ARRAY'
-            $out .= _re_path($p);
-        }
-    }
-    return $out;
+        : _re_path($_) # ref($_) eq 'ARRAY'
+    } @{$_[0]}
 }
 
 sub _lookahead {
@@ -2263,17 +2330,24 @@ sub _dump_node {
 
 =head1 DIAGNOSTICS
 
-"Cannot pass a C<refname> to Default_Lexer"
+  "Cannot pass a C<refname> to Default_Lexer"
 
 You tried to replace the default lexer pattern with an object
 instead of a scalar. Solution: You probably tried to call
 C<< $obj->Default_Lexer >>. Call the qualified class method instead
 C<Regexp::Assemble::Default_Lexer>.
 
-"filter method not passed a coderef"
+  "filter method not passed a coderef"
+
+  "pre_filter method not passed a coderef"
 
 A reference to a subroutine (anonymous or otherwise) was expected.
 Solution: read the documentation for the C<filter> method.
+
+  "duplicate pattern added: /.../"
+
+The C<dup_warn> attribute is active, and a duplicate pattern was
+added (well duh!). Solution: clean your data.
 
 =head1 NOTES
 
@@ -2282,6 +2356,11 @@ of perl, from 5.005_03 to 5.9.2. Use of 5.6.0 is not recommended.
 
 The expressions produced by this module can be used with the PCRE
 library.
+
+Remember to "double up" your backslashes if the patterns are
+hard-coded as constants in your program. That is, you should
+literally C<add('a\\d+b')> rather than C<add('a\d+b')>. It
+usually will work either way, but it's good practice to do so.
 
 Where possible, supply the simplest tokens possible. Don't add
 C<X(?-\d+){2})Y> when C<X-\d+-\d+Y> will do. The reason is that
@@ -2301,8 +2380,8 @@ occurs in the second pattern: as soon as the engine encounters the
 
 C<Regexp::Assemble> does, however, know how to build character
 classes. Given C<a-b>, C<axb> and C<a\db>, it will assemble these
-into C<a[-\dx]b>.  When C<-> (dash) appears as a candidate for a
-character class it will be the first character in the class.  When
+into C<a[-\dx]b>. When C<-> (dash) appears as a candidate for a
+character class it will be the first character in the class. When
 C<^> (circumflex) appears as a candidate for a character class it
 will be the last character in the class.
 
@@ -2326,34 +2405,34 @@ C<quotemeta> is applied to the section. The resulting quoted text
 is then used in place of the original unquoted text, and the C<\Q>
 and C<\E> metacharacters are thrown awa. Similar processing occurs
 with the C<\U...\E> and C<\L...\E> sequences. This may have surprising
-effects when using a dispatch table. In this case, you will need to
-know exactly what the module makes of your input. The following snippet
-will do the trick:
+effects when using a dispatch table. In this case, you will need
+to know exactly what the module makes of your input. Use the C<lexstr>
+method to find out what's going on:
 
-  $pattern = Regexp::Assemble->new->add->as_string($pattern);
+  $pattern = join( '', @{$re->lexstr($pattern)} );
 
-C<Regexp::Assemble> will also replace all the digits 0..9 appearing
-in a character class by C<\d>. I'd do it for letters as well, but
+If all the digits 0..9 appear in a character class, C<Regexp::Assemble>
+will replace them by C<\d>. I'd do it for letters as well, but
 thinking about accented characters and other glyphs hurts my head.
 
 In an alternation, the longest paths are chosen first (for example,
-C<horse|bird|dog>). When two paths have the same length,
-the path with the most subpaths will appear first. This aims to
-put the "busiest" paths to the front of the alternation. For example,
-the list C<bad>, C<bit>, C<few>, C<fig> and C<fun> will produce
-the pattern C<(?:f(?:ew|ig|un)|b(?:ad|it))>. See F<eg/tld> for a
+C<horse|bird|dog>). When two paths have the same length, the path
+with the most subpaths will appear first. This aims to put the
+"busiest" paths to the front of the alternation. For example, the
+list C<bad>, C<bit>, C<few>, C<fig> and C<fun> will produce the
+pattern C<(?:f(?:ew|ig|un)|b(?:ad|it))>. See F<eg/tld> for a
 real-world example of how alternations are sorted. Once you have
 looked at that, everything should be crystal clear.
 
 When tracking is in use, no reduction is performed. Furthermore,
 no character classes are formed. The reason is that it becomes just
-too difficult to determine the original pattern.  Consider the the
+too difficult to determine the original pattern. Consider the the
 two patterns C<pale> and C<palm>. These should be reduced to
 C<pal[em]>. The final character matches one of two possibilities.
 To resolve whether it matched an C<'e'> or C<'m'> would require
 keeping track of the fact that the pattern finished up in a character
 class, which would the require a whole lot more work to figure out
-which character of the class matched.  Without character classes
+which character of the class matched. Without character classes
 it becomes much easier. Instead, C<pal(?:e|m)> is produced, which
 lets us find out more simply where we ended up.
 
@@ -2369,8 +2448,8 @@ There is an open bug on this issue:
 
 L<http://rt.perl.org/rt3/Ticket/Display.html?id=32840>
 
-If this bug is ever resolved, tracking would become much easier
-to deal with (none of the C<match> hassle would be required - you could
+If this bug is ever resolved, tracking would become much easier to
+deal with (none of the C<match> hassle would be required - you could
 just match like a regular RE and it would Just Work).
 
 =head1 SEE ALSO
@@ -2429,7 +2508,7 @@ a similar line of reasoning, it will not determine that C<Z> and
 C<Z\d+> is equivalent to C<Z\d*> (It will produce C<Z(?:\d+)?>
 instead).
 
-You can't remove a pattern that has been added to an object. You'll
+You cannot remove a pattern that has been added to an object. You'll
 just have to start over again. Adding a pattern is difficult enough,
 I'd need a solid argument to convince me to add a C<remove> method.
 If you need to do this you should read the documentation on the
@@ -2447,7 +2526,7 @@ Tracking doesn't really work at all with 5.6.0. It works better
 in subsequent 5.6 releases. For maximum reliability, the use of
 a 5.8 release is strongly recommended. Tracking barely works with
 5.005_04. Of note, using C<\d>-style meta-characters invariably
-cause panics.
+causes panics.
 
 If you feed C<Regexp::Assemble> patterns with nested parentheses,
 there is a chance that the resulting pattern will be uncompilable
@@ -2504,7 +2583,7 @@ L<http://www.mongueurs.net/mailman/Regexp::Assemble>.
 
 This module grew out of work I did building access maps for Postfix,
 a modern SMTP mail transfer agent. See L<http://www.postfix.org/>
-for more information.  I used Perl to build large regular expressions
+for more information. I used Perl to build large regular expressions
 for blocking dynamic/residential IP addresses to cut down on spam
 and viruses. Once I had the code running for this, it was easy to
 start adding stuff to block really blatant spam subject lines, bogus
@@ -2531,7 +2610,7 @@ undertaking the endeavour in C. I'd rather gouge my eyes out with
 a blunt pencil.
 
 Paul Johnson settled the question as to whether this module should
-live in the Regex:: namespace, or Regexp:: namespace.  If you're
+live in the Regex:: namespace, or Regexp:: namespace. If you're
 not convinced, try running the following one-liner:
 
   perl -le 'print ref qr//'
@@ -2540,7 +2619,7 @@ not convinced, try running the following one-liner:
 
 David Landgren
 
-Copyright (C) 2004-2005.
+Copyright (C) 2004-2006.
 All rights reserved.
 
 http://www.landgren.net/perl/

@@ -7,7 +7,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 134};
+eval qq{use Test::More tests => 162};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -1236,5 +1236,144 @@ cmp_ok( Regexp::Assemble->new(lookahead => 1)->add( qw/
     '(?=[uv])(?:u(?=[nr])(?:n(?=[iprs])(?:(?=[ip])(?:(?:p[or]|impr))?i|(?:sea)?|rea)|r)|v(?=[ei])(?:en(?=[it])(?:trime|i)|i))son',
     'lookahead u.*son v.*son' );
 
-cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
+cmp_ok( Regexp::Assemble->new->add( qw(abcd abd bcd bd d) )->as_string,
+    'eq', '(?:a?bc?)?d',
+    'abcd abd bcd bd d'
+);
 
+cmp_ok( Regexp::Assemble->new->add( qw(abcd abd bcd bd cd) )->as_string,
+    'eq', '(?:a?bc?|c)d',
+    'abcd abd bcd bd cd'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(abcd abd bcd bd c d) )->as_string,
+    'eq', '(?:(?:a?bc?)?d|c)',
+    'abcd abd bcd bd c d'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(abcd abd bcd bd c cd d) )->as_string,
+    'eq', '(?:(?:a?bc?)?d|cd?)',
+    'abcd abd bcd bd c cd d'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(abcd abd acd ad bcd bd d) )->as_string,
+    'eq', '(?:(?:ab?|b)c?)?d',
+    'abcd abd acd ad bcd bd d'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(abcd abd acd ad bcd bd c d) )->as_string,
+    'eq', '(?:(?:(?:ab?|b)c?)?d|c)',
+    'abcd abd acd ad bcd bd c d'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(abcd abd acd ad bcd bd c cd d) )->as_string,
+    'eq', '(?:(?:(?:ab?|b)c?)?d|cd?)',
+    'abcd abd acd ad bcd bd c cd d'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(abcde abce cde ce e) )->as_string,
+    'eq', '(?:(?:ab)?cd?)?e',
+    'abcde abce cde ce e'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^ab$ ^bc$ ^bcd$ ^c$ ^cd$) )->as_string,
+    'eq', '^(?:b?cd?|ab)$',
+    '^ab$ ^bc$ ^bcd$ ^c$ ^cd$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abc$ ^abce$ ^ac$ ^ace$ ^c$ ^cd$ ^cde$ ^ce$ ^e$) )->as_string,
+    'eq', '^(?:(?:ab?c|cd?)e?|e)$',
+    '^abc$ ^abce$ ^ac$ ^ace$ ^c$ ^cd$ ^cde$ ^ce$ ^e$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abc$ ^abce$ ^bcd$ ^bcde$) )->as_string,
+    'eq', '^(?:abc|bcd)e?$',
+    '^abc$ ^abce$ ^bcd$ ^bcde$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abc$ ^abce$ ^bcd$ ^bcde$) )->as_string,
+    'eq', '^(?:abc|bcd)e?$',
+    '^abc$ ^abce$ ^bcd$ ^bcde$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abcdef$ ^abcdefh$ ^bcdefg$ ^bcdefgh$) )->as_string,
+    'eq', '^(?:abcdef|bcdefg)h?$',
+    '^abcdef$ ^abcdefh$ ^bcdefg$ ^bcdefgh$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abcd$ ^abcdh$ ^bcdefg$ ^bcdefgh$) )->as_string,
+    'eq', '^(?:bcdefg|abcd)h?$',
+    '^abcd$ ^abcdh$ ^bcdefg$ ^bcdefgh$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abcdef$ ^abcdefh$ ^bcd$ ^bcdh$) )->as_string,
+    'eq', '^(?:abcdef|bcd)h?$',
+    '^abcdef$ ^abcdefh$ ^bcd$ ^bcdh$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ab$ ^abc$ ^abd$ ^bdef$ ^bdf$ ^bef$ ^bf$) )->as_string,
+    'eq', '^(?:a(?:b[cd]?)?|bd?e?f)$',
+    '^a$ ^ab$ ^abc$ ^abd$ ^bdef$ ^bdf$ ^bef$ ^bf$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ab$ ^abc$ ^add$ ^bdef$ ^bdf$ ^bef$ ^bf$) )->as_string,
+    'eq', '^(?:a(?:bc?|dd)?|bd?e?f)$',
+    '^a$ ^ab$ ^abc$ ^add$ ^bdef$ ^bdf$ ^bef$ ^bf$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ab$ ^abc$ ^ade$ ^bcdf$ ^bcf$ ^bdf$ ^bf$) )->as_string,
+    'eq', '^(?:a(?:bc?|de)?|bc?d?f)$',
+    '^a$ ^ab$ ^abc$ ^ade$ ^bcdf$ ^bcf$ ^bdf$ ^bf$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ab$ ^abc$ ^ade$ ^cdef$ ^cdf$ ^cef$ ^cf$) )->as_string,
+    'eq', '^(?:a(?:bc?|de)?|cd?e?f)$',
+    '^a$ ^ab$ ^abc$ ^ade$ ^cdef$ ^cdf$ ^cef$ ^cf$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ab$ ^abc$ ^ae$ ^bcdef$ ^bcdf$ ^bdef$ ^bdf$) )->as_string,
+    'eq', '^(?:a(?:bc?|e)?|bc?de?f)$',
+    '^a$ ^ab$ ^abc$ ^ae$ ^bcdef$ ^bcdf$ ^bdef$ ^bdf$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ab$ ^abc$ ^ae$ ^bcdef$ ^bcdf$ ^bef$ ^bf$) )->as_string,
+    'eq', '^(?:a(?:bc?|e)?|b(?:cd)?e?f)$',
+    '^a$ ^ab$ ^abc$ ^ae$ ^bcdef$ ^bcdf$ ^bef$ ^bf$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ab$ ^abc$ ^ae$ ^bcdef$ ^bcdf$ ^bdef$ ^bef$) )->as_string,
+    'eq', '^(?:b(?:cde?|d?e)f|a(?:bc?|e)?)$',
+    '^a$ ^ab$ ^abc$ ^ae$ ^bcdef$ ^bcdf$ ^bdef$ ^bef$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abcd$ ^abcde$ ^ac$ ^acd$ ^acde$ ^ace$ ^e$) )->as_string,
+    'eq', '^(?:a(?:bcd|cd?)e?|e)$',
+    '^abcd$ ^abcde$ ^ac$ ^acd$ ^acde$ ^ace$ ^e$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^bcd$ ^bcde$ ^c$ ^cd$ ^cde$ ^ce$) )->as_string,
+    'eq', '^(?:bcd|cd?)e?$',
+    '^bcd$ ^bcde$ ^c$ ^cd$ ^cde$ ^ce$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abc$ ^abcde$ ^b$ ^bc$ ^bcde$ ^bde$) )->as_string,
+    'eq', '^(?:abc|bc?)(?:de)?$',
+    '^abc$ ^abcde$ ^b$ ^bc$ ^bcde$ ^bde$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abd$ ^abde$ ^b$ ^bcd$ ^bcde$ ^be$) )->as_string,
+    'eq', '^(?:b(?:cd)?|abd)e?$',
+    '^abd$ ^abde$ ^b$ ^bcd$ ^bcde$ ^be$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^a$ ^ad$ ^ade$ ^ae$ ^bcd$ ^bcde$) )->as_string,
+    'eq', '^(?:ad?|bcd)e?$',
+    '^a$ ^ad$ ^ade$ ^ae$ ^bcd$ ^bcde$'
+);
+
+cmp_ok( Regexp::Assemble->new->add( qw(^abcd$ ^abcde$ ^ac$ ^acd$ ^acde$ ^ace$ ^de$) )->as_string,
+    'eq', '^(?:a(?:bcd|cd?)e?|de)$',
+    '^abcd$ ^abcde$ ^ac$ ^acd$ ^acde$ ^ace$ ^de$'
+);
+
+cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

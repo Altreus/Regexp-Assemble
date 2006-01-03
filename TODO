@@ -23,7 +23,7 @@ to carry along (a hash rather than a couple of scalars).
 
 6. Store callbacks per tracked pattern.
 
-7. Deal with [:punct:] character classes
+7. Deal with [:punct:] et al character classes
 
 12. utf-8... hmmmm...
 
@@ -40,6 +40,8 @@ to carry along (a hash rather than a couple of scalars).
     anchor_string => \A, \Z
     and
     anchor_(mumble)_begin to get just one.
+
+    Subquestion: how to deal with \Z or \z
 
 16. Allow a fast, unsafe tracking mode, that can be used if a(?bc)?
     can't happen. (Possibly carp if it does appear during traversal)?
@@ -63,3 +65,6 @@ to carry along (a hash rather than a couple of scalars).
 
 21. Now that lex() has a non-backslash shortcut, lex() could probably
     be subsumed into lex_stateful. That is, only stateful.
+
+22. Add a file() method or something similar, to do file-slurping
+    of patterns to add (to cut down on make-work code in client code.

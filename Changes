@@ -1,13 +1,29 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.23
+    - More bugs in the reduction code shaken out by
+      examining powersets. Exhaustive testing (iterating
+      through the powerset of a, b, c, d, e) makes me
+      think that the pathological cases are taken
+      care of. The code is horrible, though, a
+      rewrite is next on the agenda.
+    - Guard against earlier buggy versions of
+      Test::More (0.47) in t/06_general.t
+    - Carp::croak rewritten as Carp::croak() to fix
+      failures noted on blead.
+    - Rewrote _re_path() for speed.
+    - added lexstr() routine.
+    - added eg/stress-test program.
+
 0.22 2005-12-02 11:31:42 UTC
     - Amended the test suite to ensure that it runs
       correctly under 5.005_04. (The documentation
       was updated to reflect the limitations).
-      The SKIP counts in t/06_general.t were out of
-      whack for 5.6 and 5.005 testing. Sébastien
-      Aperghis-Tramoni provided the impetus for this
-      fix. No other changes in functionality.
+      Sébastien Aperghis-Tramoni provided the
+      impetus for this fix. No other changes in
+      functionality.
+    - The SKIP counts in t/06_general.t were out of
+      whack for 5.6 and 5.005 testing. 
 
 0.21 2005-11-26 16:16:06 UTC
     - Fixed a nasty bug after generating a series
