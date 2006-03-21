@@ -8,6 +8,9 @@ TODO
 eg/assemble
 eg/debugging
 eg/fee
+eg/file.1
+eg/file.2
+eg/file.3
 eg/hostmatch/bad.canonical
 eg/hostmatch/error.canonical
 eg/hostmatch/good.canonical

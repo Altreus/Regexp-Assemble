@@ -3,11 +3,11 @@
 # Test suite for Regexp::Assemble
 # Ensure the the generated patterns seem reasonable.
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 
-eval qq{use Test::More tests => 162};
+eval qq{use Test::More tests => 180};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -250,6 +250,90 @@ cmp_ok( Regexp::Assemble->new
     ->insert( '-' )
     ->insert( '0' )
     ->as_string, 'eq', '(?:[-0]|$)', '/$/ /-/ /0/' );
+
+cmp_ok( Regexp::Assemble->new( anchor_word => 1 )
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '\\b(?:c[de]|ab)\\b', 'implicit anchor word via new' );
+
+cmp_ok( Regexp::Assemble->new( anchor_word_begin => 1 )
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '\\b(?:c[de]|ab)', 'implicit anchor word begin via new' );
+
+cmp_ok( Regexp::Assemble->new->anchor_word
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '\\b(?:c[de]|ab)\\b', 'implicit anchor word via method' );
+
+cmp_ok( Regexp::Assemble->new->anchor_word_end
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '(?:c[de]|ab)\\b', 'implicit anchor word end via method' );
+
+cmp_ok( Regexp::Assemble->new->anchor_word(0)
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '(?:c[de]|ab)', 'no implicit anchor word' );
+
+cmp_ok( Regexp::Assemble->new( anchor_word => 1 )->anchor_word_end(0)
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '\\b(?:c[de]|ab)', 'implicit anchor word, no anchor word end' );
+
+cmp_ok( Regexp::Assemble->new->anchor_word_begin(1)
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '\\b(?:c[de]|ab)', 'implicit anchor word begin' );
+
+cmp_ok( Regexp::Assemble->new( anchor_line => 1 )
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '^(?:c[de]|ab)$', 'implicit anchor line' );
+
+cmp_ok( Regexp::Assemble->new( anchor_line => 0 )
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '(?:c[de]|ab)', 'no implicit anchor line' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add(qw(ab cd ce))
+    ->anchor_line
+    ->as_string, 'eq', '^(?:c[de]|ab)$', 'implicit anchor line via new' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add(qw(ab cd ce))
+    ->anchor_line_begin
+    ->as_string, 'eq', '^(?:c[de]|ab)', 'implicit anchor line via method' );
+
+cmp_ok( Regexp::Assemble->new->anchor_line_begin->anchor_line(0)
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '(?:c[de]|ab)', 'no implicit anchor line via method' );
+
+cmp_ok( Regexp::Assemble->new(anchor_line_end => 1)
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '(?:c[de]|ab)$', 'implicit anchor line end' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add(qw(ab cd ce))
+    ->anchor_string
+    ->as_string, 'eq', '\A(?:c[de]|ab)\Z', 'implicit anchor string via new' );
+
+cmp_ok( Regexp::Assemble->new(anchor_string => 1)
+    ->add(qw(ab cd ce))
+    ->as_string, 'eq', '\A(?:c[de]|ab)\Z', 'implicit anchor string via method' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add(qw(ab cd ce))
+    ->anchor_string_absolute
+    ->as_string, 'eq', '\A(?:c[de]|ab)\z', 'implicit anchor string absolute via method' );
+
+cmp_ok( Regexp::Assemble->new
+    ->add(qw(ab cd ce))
+    ->anchor_word_begin
+    ->anchor_string_end_absolute
+    ->as_string, 'eq', '\b(?:c[de]|ab)\z',
+        'implicit anchor word begin/string absolute end  via method'
+);
+
+cmp_ok( Regexp::Assemble->new
+    ->add(qw(ab cd ce))
+    ->anchor_word_begin
+    ->anchor_string_begin
+    ->as_string, 'eq', '\b(?:c[de]|ab)',
+        'implicit anchor word beats string'
+);
 
 {
     my $re = Regexp::Assemble->new->add( 'de' )->re;

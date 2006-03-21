@@ -4,7 +4,7 @@
 #
 # Test the various tail reductions, e.g. /dab/ /cab/ => /[cd]ab/
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 use Regexp::Assemble;

@@ -12,14 +12,14 @@
 # built up from repeated add() calls produce a structure that the
 # subsequent coalescing and reduction routines can operate upon correctly.
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 use Regexp::Assemble;
 
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
-eval qq{use Test::More tests => 58 + permute_testcount};
+eval qq{use Test::More tests => 60 + permute_testcount};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -33,8 +33,8 @@ $_ = $fixed;
     my $ra = Regexp::Assemble->new;
     $ra->insert( '' );
     my $r = ($ra->_path)->[0];
-    ok( ref($r) eq 'HASH',  q{insert('') => first element is a HASH} );
-    ok( keys %$r == 1,      q{...and contains one key} );
+    cmp_ok( ref($r), 'eq', 'HASH',  q{insert('') => first element is a HASH} );
+    cmp_ok( scalar(keys %$r), '==', 1,      q{...and contains one key} );
     ok( exists $r->{''},    q{...which is an empty string} );
     ok( !defined($r->{''}), q{...and points to undef} );
 }
@@ -43,8 +43,8 @@ $_ = $fixed;
     my $ra = Regexp::Assemble->new;
     $ra->insert( 'a' );
     my $r = $ra->_path;
-    ok( scalar @$r == 1,  q{'a' => path of length 1} );
-    ok( $r->[0] eq 'a',   q{'a' => ...and is an 'a'} );
+    cmp_ok( scalar @$r, '==', 1,  q{'a' => path of length 1} );
+    cmp_ok( $r->[0], 'eq', 'a',   q{'a' => ...and is an 'a'} );
 }
 
 {
@@ -58,8 +58,8 @@ $_ = $fixed;
     my $ra = Regexp::Assemble->new;
     $ra->insert( 'a', 'b' );
     my $r = $ra->_path;
-    ok( scalar @$r == 2,  q{'ab' => path of length 2} );
-    ok( join( '' => @$r ) eq 'ab', q{'ab' => ...and is 'a', 'b'} );
+    cmp_ok( scalar @$r, '==', 2,  q{'ab' => path of length 2} );
+    cmp_ok( join( '' => @$r ), 'eq', 'ab', q{'ab' => ...and is 'a', 'b'} );
     cmp_ok( $ra->dump, 'eq', '[a b]', 'dump([a b])' );
 }
 
@@ -69,17 +69,17 @@ $_ = $fixed;
     $ra->insert( 'a', 'c' );
     cmp_ok( $ra->dump, 'eq', '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
     my $r = $ra->_path;
-    ok( scalar @$r == 2,        q{'ab,ac' => path of length 2} );
-    ok( $r->[0] eq 'a',         q{'ab,ac' => ...and first atom is 'a'} );
-    ok( ref($r->[1]) eq 'HASH', q{'ab,ac' => ...and second is a node} );
+    cmp_ok( scalar @$r, '==', 2,        q{'ab,ac' => path of length 2} );
+    cmp_ok( $r->[0], 'eq', 'a',         q{'ab,ac' => ...and first atom is 'a'} );
+    cmp_ok( ref($r->[1]), 'eq', 'HASH', q{'ab,ac' => ...and second is a node} );
     $r = $r->[1];
-    ok( keys %$r == 2,          q{'ab,ac' => ...node has two keys} );
-    ok( join( '' => sort keys %$r ) eq 'bc',
+    cmp_ok( scalar(keys %$r), '==', 2,  q{'ab,ac' => ...node has two keys} );
+    cmp_ok( join( '' => sort keys %$r ), 'eq', 'bc',
         q{'ab,ac' => ...keys are 'b','c'} );
-    ok( (exists $r->{b} and ref($r->{b}) eq 'ARRAY'),
-        q{'ab,ac' => ... key 'b' exists and points to a path} );
-    ok( (exists $r->{c} and ref($r->{c}) eq 'ARRAY'),
-        q{'ab,ac' => ... key 'c' exists and points to a path} );
+    ok( exists $r->{b}, q{'ab,ac' => ... key 'b' exists} );
+    cmp_ok( ref($r->{b}), 'eq', 'ARRAY', q{'ab,ac' => ... and points to a path} );
+    ok( exists $r->{c}, q{'ab,ac' => ... key 'c' exists} );
+    cmp_ok( ref($r->{c}), 'eq', 'ARRAY', q{'ab,ac' => ... and points to a path} );
 }
 
 {

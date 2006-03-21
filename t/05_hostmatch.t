@@ -3,14 +3,14 @@
 # Test suite for Regexp::Assemble
 # Test a mini-application that you can build with Regexp::Assemble
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 use Regexp::Assemble;
 
 use constant file_testcount => 3; # tests requiring Test::File::Contents
 
-eval qq{use Test::More tests => 10 + file_testcount};
+eval qq{use Test::More tests => 14 + file_testcount};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -37,7 +37,7 @@ my @re = <DATA>;
 # insert them all into an R::A object, chomping the lines
 my $ra = Regexp::Assemble->new->chomp(1)->add( @re );
 
-ok( ref($ra) eq 'Regexp::Assemble', 'have a Regexp::Assemble object' );
+cmp_ok( ref($ra), 'eq', 'Regexp::Assemble', 'have a Regexp::Assemble object' );
 
 # now map each RE into its compiled form
 @re = map { chomp; qr/$_/ } @re;
@@ -94,10 +94,10 @@ close GOOD;
 close BAD;
 close ERROR;
 
-ok( NR_GOOD == $good,   NR_GOOD.  ' good records not matched' );
-ok( NR_BAD  == $bad,    NR_BAD.   ' bad records matched' );
-ok( NR_ERROR == $error, NR_ERROR. ' records in error' );
-ok( NR_GOOD+NR_BAD+NR_ERROR == $., "$. total records" );
+cmp_ok( NR_GOOD, '==', $good,   NR_GOOD.  ' good records not matched' );
+cmp_ok( NR_BAD, '==', $bad,    NR_BAD.   ' bad records matched' );
+cmp_ok( NR_ERROR, '==', $error, NR_ERROR. ' records in error' );
+cmp_ok( NR_GOOD+NR_BAD+NR_ERROR, '==', $., "$. total records" );
 
 SKIP: {
     skip( 'Test::File::Contents not installed on this system', file_testcount )
@@ -107,6 +107,44 @@ SKIP: {
         file_contents_identical( "t/$file.out", "eg/hostmatch/$file.canonical", "saw expected $file output" );
     }
 } # SKIP
+
+{
+    my $r = Regexp::Assemble->new;
+    $r->add_file('eg/file.1')->add_file('eg/file.2');
+    cmp_ok( $r->as_string, 'eq', '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
+        q{add_file('file.1'), add_file('file.2')},
+        'add_file() 2 calls'
+    );
+
+    cmp_ok(
+        Regexp::Assemble->new->chomp->add_file( qw[eg/file.1 eg/file.2] )
+        ->as_string,
+        'eq', '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
+        'add_file() multiple files'
+    );
+
+    cmp_ok(
+        Regexp::Assemble->new->chomp->add_file({
+            file => [qw[eg/file.1 eg/file.2]]
+        })
+        ->as_string,
+        'eq', '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
+        'add_file() alternate interface'
+    );
+
+    SKIP: {
+        skip( 'ignore DOS line-ending tests on Win32', 1 ) if $^O =~ /^MSWin32/;
+        cmp_ok(
+            Regexp::Assemble->new->chomp->add_file({
+                file => [qw[eg/file.3]],
+                rs   => "\r\n",
+            })
+            ->as_string,
+            'eq', '(?:e[ns]|i[ls])',
+            'add_file() with DOS line endings'
+        );
+    }
+}
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
 

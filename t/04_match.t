@@ -3,7 +3,7 @@
 # Test suite for Regexp::Assemble
 # Tests to see than an assembled regexp matches all that it is supposed to
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 eval qq{
@@ -21,6 +21,38 @@ use Regexp::Assemble;
 my $fixed = 'The scalar remains the same';
 $_ = $fixed;
 
+{
+    for my $outer ( 0 .. 15 ) {
+        my $re = Regexp::Assemble->new->anchor_string->chomp(0);
+        for my $inner ( 0 .. 15 ) {
+            $re->add( quotemeta( chr( $outer*16 + $inner )));
+        }
+        for my $inner ( 0 .. 15 ) {
+            my $ch = chr($outer*16 + $inner);
+            like( $ch, qr/$re/,
+                "run $ch ($outer:$inner) $re"
+            );
+        }
+    }
+}
+
+for( 0 .. 255 ) {
+    my $ch = chr($_);
+    my $qm = Regexp::Assemble->new(chomp=>0)->anchor_string->add(quotemeta($ch));
+    like( $ch, qr/$qm/, "quotemeta(chr($_))" );
+}
+
+for( 0 .. 127 ) {
+    my $lo = chr($_);
+    my $hi = chr($_+128);
+    my $qm = Regexp::Assemble->new(chomp => 0, anchor_string => 1)->add(
+        quotemeta($lo),
+        quotemeta($hi),
+    );
+    like( $lo, qr/$qm/, "$_: quotemeta($lo) lo" );
+    like( $hi, qr/$qm/, "$_: quotemeta($hi) hi" );
+}
+
 sub match {
     my $re   = Regexp::Assemble->new;
     my $rela = Regexp::Assemble->new->lookahead(1);
@@ -32,10 +64,10 @@ sub match {
     my $rered = $re->clone->reduce(0);
     my $str;
     for $str (@_) {
-        ok( $str =~ /^$re$/,     "-- $tag: $str" ) or diag( " fail $str\n# match by $re\n" );
-        ok( $str =~ /^$rela$/,   "LA $tag: $str" ) or diag( " fail $str\n# match by lookahead $rela\n" );
-        ok( $str =~ /^$reind$/x, "IN $tag: $str" ) or diag( " fail $str\n# match by indented $reind\n" );
-        ok( $str =~ /^$rered$/,  "RD $tag: $str" ) or diag( " fail $str\n# match by non-reduced $rered\n" );
+        like( $str, qr/^$re$/,     "-- $tag: $str" ) or diag( " fail $str\n# match by $re\n" );
+        like( $str, qr/^$rela$/,   "LA $tag: $str" ) or diag( " fail $str\n# match by lookahead $rela\n" );
+        like( $str, qr/^$reind$/x, "IN $tag: $str" ) or diag( " fail $str\n# match by indented $reind\n" );
+        like( $str, qr/^$rered$/,  "RD $tag: $str" ) or diag( " fail $str\n# match by non-reduced $rered\n" );
     }
 }
 
@@ -47,19 +79,20 @@ sub match_list {
     my $rela = Regexp::Assemble->new->lookahead(1)->add(@$patt);
     my $str;
     for $str (@$test) {
-        ok( $str =~ /^$re$/, "$tag: $str" ) or diag( " fail $str\n# in $re\n" );
-        ok( $str =~ /^$re$/, "$tag: $str" ) or diag( " fail $str\n# in $re\n" );
+        ok( $str =~ /^$re$/, "re $tag: $str" ) or diag( "fail re $str\n# in $re\n" );
+        ok( $str =~ /^$rela$/, "rela $tag: $str" ) or diag( "fail rela $str\n# in $rela\n" );
     }
 }
+
 {
     my $re = Regexp::Assemble->new( flags => 'i' )
         ->add( '^fg' )
         ->re;
-    ok( 'fgx' =~ /$re/, 'fgx/i' );
-    ok( 'Fgx' =~ /$re/, 'Fgx/i' );
-    ok( 'FGx' =~ /$re/, 'FGx/i' );
-    ok( 'fGx' =~ /$re/, 'fGx/i' );
-    ok( 'F'   !~ /$re/, 'F/i' );
+    like( 'fgx', qr/$re/, 'fgx/i' );
+    like( 'Fgx', qr/$re/, 'Fgx/i' );
+    like( 'FGx', qr/$re/, 'FGx/i' );
+    like( 'fGx', qr/$re/, 'fGx/i' );
+    unlike( 'F', qr/$re/, 'F/i' );
 }
 
 {
@@ -69,43 +102,11 @@ sub match_list {
         ->add( '^fetish' )
         ->add( '^foolish' )
         ->re( indent => 2 );
-    ok( 'fish'    =~ /$re/, 'fish/x' );
-    ok( 'flash'   =~ /$re/, 'flash/x' );
-    ok( 'fetish'  =~ /$re/, 'fetish/x' );
-    ok( 'foolish' =~ /$re/, 'foolish/x' );
-    ok( 'fetch'   !~ /$re/, 'fetch/x' );
-}
-
-{
-    for my $outer ( 0 .. 15 ) {
-        my $re = Regexp::Assemble->new;
-        for my $inner ( 0 .. 15 ) {
-            $re->add( quotemeta( chr( $outer*16 + $inner )));
-        }
-        for my $inner ( 0 .. 15 ) {
-            my $ch = chr($outer*16 + $inner);
-            ok( $ch =~ /^$re$/,
-                "run $ch ($outer:$inner) $re"
-            );
-        }
-    }
-}
-
-for( 0 .. 255 ) {
-    my $ch = chr($_);
-    my $qm = Regexp::Assemble->new->add(quotemeta($ch));
-    ok( $ch =~ /^$qm$/, "$_: quotemeta($ch)" );
-}
-
-for( 0 .. 127 ) {
-    my $lo = chr($_);
-    my $hi = chr($_+128);
-    my $qm = Regexp::Assemble->new->add(
-        quotemeta($lo),
-        quotemeta($hi),
-    );
-    ok( $lo =~ /^$qm$/, "$_: quotemeta($lo) lo" );
-    ok( $hi =~ /^$qm$/, "$_: quotemeta($hi) hi" );
+    like( 'fish', qr/$re/, 'fish/x' );
+    like( 'flash', qr/$re/, 'flash/x' );
+    like( 'fetish', qr/$re/, 'fetish/x' );
+    like( 'foolish', qr/$re/, 'foolish/x' );
+    unlike( 'fetch', qr/$re/, 'fetch/x' );
 }
 
 match_list( 'lookahead car.*',

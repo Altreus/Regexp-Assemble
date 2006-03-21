@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.23';
+$VERSION = '0.24';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.23 of Regexp::Assemble,
-released 2006-01-03.
+This document describes version 0.24 of Regexp::Assemble,
+released 2006-03-21.
 
 =head1 SYNOPSIS
 
@@ -67,7 +67,7 @@ use constant DEBUG_TAIL => 2;
 use constant DEBUG_LEX  => 4;
 
 # The following patterns were generated with eg/naive
-$Default_Lexer = qr/(?![[(\\]).(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\\(?:[bABCEGLQUXZ]|[lu].|(?:[^\w]|[aefnrtdDwWsS]|c.|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|N\{\w+\}|[Pp](?:\{\w+\}|.))(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?)|\[.*?(?<!\\)\](?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\(.*?(?<!\\)\)(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?/;
+$Default_Lexer = qr/(?![[(\\]).(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\\(?:[bABCEGLQUXZ]|[lu].|(?:[^\w]|[aefnrtdDwWsS]|c.|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|N\{\w+\}|[Pp](?:\{\w+\}|.))(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?)|\[.*?(?<!\\)\](?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\(.*?(?<!\\)\)(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?/; # ]) restore equilibrium
 
 $Single_Char   = qr/^(?:\\(?:[aefnrtdDwWsS]|c.|[^\w\/{|}-]|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}}))|[^\$^])$/;
 
@@ -79,30 +79,53 @@ $Single_Char   = qr/^(?:\\(?:[aefnrtdDwWsS]|c.|[^\w\/{|}-]|0\d{2}|x(?:[\da-fA-F]
 
 Creates a new C<Regexp::Assemble> object. The following optional
 key/value parameters may be employed. All keys have a corresponding
-method that can be used to change the behaviour later on.
+method that can be used to change the behaviour later on. As a
+general rule, especially if you're just starting out, you don't
+have to bother with any of these.
 
-B<flags>, sets the C<imsx> flags to use when the assembly is compiled
-as a regular expression. Warning: no error checking is done, you should
-ensure that the flags you pass are understood by the version of
-Perl you are using.
+B<anchor_*>, a family of optional attributes that allow anchors
+(C<^>, C<\b>, C<\Z>...) to be added to the resulting pattern.
+
+B<flags>, sets the C<imsx> flags to add to the assembled regular
+expression.  Warning: no error checking is done, you should ensure
+that the flags you pass are understood by the version of Perl you
+are using.
 
 B<chomp>, controls whether the pattern should be chomped before being
-lexed. Handy if you are reading patterns from a file. By default, no
-chomping is performed. See the C<$/> variable in L<perlvar>.
+lexed. Handy if you are reading patterns from a file. By default, 
+C<chomp>ing is performed (this behaviour changed as of version 0.24,
+prior versions did not chomp automatically).
+See also the C<file> attribute and the C<add_file> method.
+
+B<file>, slurp the contents of the specified file and add them
+to the assembly. Multiple files may be processed by using a list.
+
+  my $r = Regexp::Assemble->new(file => 're.list');
+
+  my $r = Regexp::Assemble->new(file => ['re.1', 're.2']);
+
+If you really don't want chomping to occur, you will have to set
+the C<chomp> attribute to 0 (zero). You may also want to look at
+the C<input_record_separator> attribute, as well.
+
+B<input_record_separator>, contols what constitutes a record
+separator when using the C<file> attribute or the C<add_file>
+method. May be abbreviated to B<rs>. See the C<$/> variable in
+L<perlvar>.
 
 B<lookahead>, controls whether the pattern should contain zero-width
-lookahead assertions (For instance: (?=[abc])(?:bob|alice|charles). This is
-not activated by default, because in many circumstances the cost of
-processing the assertion itself outweighs the benefit of its faculty
-for short-circuiting a match that will fail. This is sensitive to
-the probability of a match succeding, so if you're worried about
-performance you'll have to benchmark a sample population of targets
-to see which way the benefits lie.
+lookahead assertions (For instance: (?=[abc])(?:bob|alice|charles).
+This is not activated by default, because in many circumstances the
+cost of processing the assertion itself outweighs the benefit of
+its faculty for short-circuiting a match that will fail. This is
+sensitive to the probability of a match succeeding, so if you're
+worried about performance you'll have to benchmark a sample population
+of targets to see which way the benefits lie.
 
-B<track>, controls whether you want know which of the initial patterns
-was the one that matched. See the C<matched> method for more details.
-Note that in this mode of operation YOU SHOULD BE AWARE OF THE SECURITY
-IMPLICATIONS that this entails.
+B<track>, controls whether you want know which of the initial
+patterns was the one that matched. See the C<matched> method for
+more details.  Note that in this mode of operation YOU SHOULD BE
+AWARE OF THE SECURITY IMPLICATIONS that this entails.
 
 B<indent>, the number of spaces used to indent nested grouping of
 a pattern. Use this to produce a pretty-printed pattern. See the
@@ -147,25 +170,52 @@ A more detailed explanation of these attributes follows.
 
 sub new {
     my $class = shift;
-    my %args = @_;
-    return bless {
-        re         => undef,
-        str        => undef,
-        lex        => exists $args{lex}       ? qr/$args{lex}/   : qr/$Default_Lexer/,
-        flags      => exists $args{flags}     ? $args{flags}     : '',
-        chomp      => exists $args{chomp}     ? $args{chomp}     : 0,
-        indent     => exists $args{indent}    ? $args{indent}    : 0,
-        lookahead  => exists $args{lookahead} ? $args{lookahead} : 0,
-        track      => exists $args{track}     ? $args{track}     : 0,
-        reduce     => exists $args{reduce}    ? $args{reduce}    : 1,
-        mutable    => exists $args{mutable}   ? $args{mutable}   : 0,
-        dup_warn   => exists $args{dup_warn}  ? $args{dup_warn}  : 0,
-        debug      => exists $args{debug}     ? $args{debug}     : 0,
-        filter     => $args{filter}, # don't care if it's not there
-        pre_filter => $args{pre_filter},
-        path    => [],
-    },
-    $class;
+    my %args  = @_;
+
+    my $anc;
+    for $anc (qw(word line string)) {
+        if (exists $args{"anchor_$anc"}) {
+            my $val = delete $args{"anchor_$anc"};
+            exists $args{$_} or $args{$_} = $val
+                for ("anchor_${anc}_begin", "anchor_${anc}_end");
+        }
+    }
+
+    if (exists $args{anchor_string_absolute}) {
+        my $val = delete $args{anchor_string_absolute};
+        exists $args{$_} or $args{$_} = $val
+            for qw(anchor_string_begin anchor_string_absolute_end);
+    }
+
+    exists $args{$_} or $args{$_} = 0 for qw(
+        anchor_word_begin
+        anchor_word_end
+        anchor_line_begin
+        anchor_line_end
+        anchor_string_begin
+        anchor_string_end
+        anchor_string_absolute_end
+        debug
+        dup_warn
+        indent
+        lookahead
+        mutable
+        track
+    );
+
+    exists $args{$_} or $args{$_} = 1 for qw(
+        reduce
+        chomp
+    );
+
+    @args{qw(re str path)} = (undef, undef, []);
+
+    $args{flags}  = ''             unless exists $args{flags};
+    $args{lex}    = $Default_Lexer unless $args{lex};
+
+    my $self = bless \%args, $class;
+    exists $self->{file} and $self->add_file($self->{file});
+    return $self;
 }
 
 =item clone
@@ -182,24 +232,11 @@ otherwise the cloning will be performed using a pure perl approach.
 
 sub clone {
     my $self = shift;
-    my $clone = {
-        re         => $self->{re},
-        str        => $self->{str},
-        lex        => $self->{lex},
-        chomp      => $self->{chomp},
-        indent     => $self->{indent},
-        flags      => $self->{flags},
-        lookahead  => $self->{lookahead},
-        track      => $self->{track},
-        reduce     => $self->{reduce},
-        mutable    => $self->{mutable},
-        dup_warn   => $self->{dup_warn},
-        debug      => $self->{debug},
-        filter     => $self->{filter},
-        pre_filter => $self->{pre_filter},
-        path       => _path_clone($self->_path),
-    };
-    return bless $clone, ref($self);
+    my $clone;
+    my @attr = grep {$_ ne 'path'} keys %$self;
+    @{$clone}{@attr} = @{$self}{@attr};
+    $clone->{path}   = _path_clone($self->_path);
+    bless $clone, ref($self);
 }
 
 =item add(LIST)
@@ -216,7 +253,7 @@ long string.
 On the one hand, this may indicate that the patterns you are
 trying to feed the C<R::A> object are too complex. Simpler
 patterns might allow the algorithm to work more effectively and
-spot reductions in the resulting pattern.
+perform more reductions in the resulting pattern.
 
 On the other hand, you can supply your own pattern to perform the
 lexing if you need. The test suite contains an example of a lexer
@@ -234,64 +271,23 @@ handle of a file opened for reading:
     $re->add( '\d+-\d+-\d+-\d+\.example\.com' );
     $re->add( <IN> );
 
-You probably need to set the C<chomp> attribute on the object to
-get files to work correctly:
-
-    my $re = Regexp::Assemble->new( chomp=>1 )->add( <IN> );
-    # or
-    my $re = Regexp::Assemble->new;
-    $re->chomp(1)->add( <IN> );
-
 If the file is very large, it may be more efficient to use a
 C<while> loop, to read the file line-by-line:
 
-    $re->->add($_) while <IN>;
+    $re->add($_) while <IN>;
 
-The pre_filter method provides allows you to filter input on a
-line-by-line basis.
+The C<add> method will chomp the lines automatically. If you
+do not want this to occur (you want to keep the record
+separator), then disable C<chomp>ing.
+
+    $re->chomp(0);
+    $re->add($_) while <IN>;
 
 This method is chainable.
 
 =cut
 
 sub _lex {
-    my $self   = shift;
-    my $debug  = $self->{debug} & DEBUG_LEX;
-    my $record = shift;
-    $debug and print "# lex in <$record>\n";
-    return [ split //, $record ] unless $record =~ /[\\[(?+*{\/]/;
-    return $self->_lex_stateful( $record ) if $record =~ /\\[LQUlu]/;
-    my $len    = 0;
-    my @path   = ();
-    my ($diff, $token_len);
-    while( $record =~ /($self->{lex})/g ) {
-        my $token = $1;
-        $token_len = length($token);
-        $debug and print "# lexed <$token> len=$token_len\n";
-        if( pos($record) - $len > $token_len ) {
-            push @path,  substr( $record, $len, $diff = pos($record) - $len - $token_len );
-            $debug and print "#  recover ", substr( $record, $len, $diff = pos($record) - $len - $token_len ), "\n";
-            $len += $diff;
-        }
-        if( substr( $token, 0, 1 ) eq '\\' ) {
-            $token = quotemeta(chr(hex($1))) if $token =~ /^\\x([\da-fA-F]{2})$/;
-            $debug and print "#  leading backslash\n";
-            $token =~ s/^\\([^\w$()*+.?@\[\\\]^|{\/])$/$1/;
-            $debug and print "#   add backslash <$token>\n";
-            push @path, $token unless $token eq '\\E';
-        }
-        else {
-            $token = '\\/' if $token eq '/';
-            $debug and print "#   add <$token>\n";
-            push @path, $token;
-        }
-        $len += $token_len;
-    }
-    push @path, substr($record,$len) if $len < length($record);
-    return \@path;
-}
-
-sub _lex_stateful {
     my $self   = shift;
     my $record = shift;
     my $len    = 0;
@@ -300,7 +296,7 @@ sub _lex_stateful {
     my $qm     = '';
     my $re     = $self->{lex};
     my $debug  = $self->{debug} & DEBUG_LEX;
-    $debug and print "# stateful lex of <$record>\n";
+    $debug and print "# _lex <$record>\n";
     my ($token, $next_token, $diff, $token_len);
     while( $record =~ /($re)/g ) {
         $token = $1;
@@ -338,7 +334,13 @@ sub _lex_stateful {
                 }
                 elsif( $token =~ /^\\x([\da-fA-F]{2})$/ ) {
                     $token = quotemeta(chr(hex($1)));
-                    $token =~ s/^\\([^\w$()*+.?@\[\\\]^|{}\/])$/$1/;
+                    $debug and print "#  cooked <$token>\n";
+                    $token =~ s/^\\([^\w$()*+.?@\[\\\]^|{\/])$/$1/; # } balance
+                    $debug and print "#   giving <$token>\n";
+                }
+                else {
+                    $token =~ s/^\\([^\w$()*+.?@\[\\\]^|{\/])$/$1/; # } balance
+                    $debug and print "#  backslashed <$token>\n";
                 }
             }
             else {
@@ -371,7 +373,7 @@ sub _lex_stateful {
         $debug and print "#   add remaining <$remain> case=<$case> qm=<$qm>\n";
         push @path, $remain;
     }
-    $debug and print "# stateful out <@path>\n";
+    $debug and print "# _lex out <@path>\n";
     return \@path;
 }
 
@@ -380,13 +382,94 @@ sub add {
     my $record;
     my $debug  = $self->{debug} & DEBUG_LEX;
     while( defined( $record = shift @_ )) {
-        chomp($record) if $self->{chomp};
+        CORE::chomp($record) if $self->{chomp};
         next if $self->{pre_filter} and not $self->{pre_filter}->($record);
         $debug and print "# add <$record>\n";
         $self->{stats_raw} += length $record;
-        my $list = $self->_lex($record);
+        my $list = $record =~ /[+*?(\\\[{]/ # }]) restore equilibrium
+            ? $self->_lex($record)
+            : [split //, $record]
+        ;
         next if $self->{filter} and not $self->{filter}->(@$list);
         $self->_insertr( $list );
+    }
+    return $self;
+}
+
+=item add_file(FILENAME [...])
+
+Takes a list of file names. Each file is opened and read
+line by line. Each line is added to the assembly.
+
+  $r->add_file( 'file.1', 'file.2' );
+
+If a file cannot be opened, the method will croak. If you cannot
+afford to let this happen then you should wrap the call in a C<eval>
+block.
+
+Chomping happens automatically unless you the C<chomp(0)> method
+to disable it. By default, input lines are read according to the
+value of the C<input_record_separator> attribute (if defined), and
+will otherwise fall back to the current setting of the system C<$/>
+variable. The record separator may also be specified on each
+call to C<add_file>. Internally, the routine C<local>ises the
+value of C<$/> to whatever is required, for the duration of the
+call.
+
+An alternate calling mechanism using a hash reference is
+available.  The recognised keys are:
+
+=over 4
+
+=item file
+
+Reference to a list of file names
+
+=item input_record_separator
+
+If present, indicates what constitutes a line
+
+=item rs
+
+An alias for input_record_separator (mnemonic: same as the
+English variable names).
+
+=back
+
+  $r->add_file( {
+    file => [ 'pattern.txt', 'more.txt' ],
+    input_record_separator  => "\r\n",
+  });
+
+=cut
+
+sub add_file {
+    my $self = shift;
+    my $rs;
+    my @file;
+    if (ref($_[0]) eq 'HASH') {
+        my $arg = shift;
+        $rs = $arg->{rs}
+            || $arg->{input_record_separator}
+            || $self->{input_record_separator}
+            || $/;
+        @file = @{$arg->{file}};
+    }
+    else {
+        $rs   = $self->{input_record_separator} || $/;
+        @file = @_;
+    }
+    local $/ = $rs;
+    my $file;
+    for $file (@file) {
+        open my $fh, '<', $file or do {
+            require Carp;
+            Carp::croak("cannot open $file for input: $!");
+        };
+        while (defined (my $rec = <$fh>)) {
+            $self->add($rec);
+        }
+        close $fh;
     }
     return $self;
 }
@@ -408,9 +491,6 @@ Lexing complex patterns with metacharacters and so on can consume
 a significant proportion of the overall time to build an assembly.
 If you have the information available in a tokenised form, calling
 C<insert> directly can be a big win.
-
-The C<filter> method allows you to accept or reject the addition of
-the entire pattern on a token-by-token basis.
 
 =cut
 
@@ -453,9 +533,9 @@ C<join>:
   my @token = $re->lexstr($pattern);
   my $new_pattern = join( '', @token );
 
-If the original pattern contains unneccessary backslashes, or 
-C<\x4b> escapes, or quotemeta escapes (C<\Q>...C<\E>) the resulting
-pattern may not be identical.
+If the original pattern contains unnecessary backslashes, or C<\x4b>
+escapes, or quotemeta escapes (C<\Q>...C<\E>) the resulting pattern
+may not be identical.
 
 Call C<lexstr> does not add the pattern to the object, it is merely
 for exploratory purposes. It will, however, update various statistical
@@ -464,8 +544,86 @@ counters.
 =cut
 
 sub lexstr {
-	my $self = shift;
-    return $self->_lex(shift);
+    return shift->_lex(shift);
+}
+
+=item pre_filter(CODE)
+
+Allows you to install a callback to check that the pattern being
+loaded contains valid input. It receives the pattern as a whole to
+be added, before it been tokenised by the lexer. It may to return
+0 or C<undef> to indicate that the pattern should not be added, any
+true value indicates that the contents are fine.
+
+A filter to strip out trailing comments (marked by #):
+
+  $re->pre_filter( sub { $_[0] =~ s/\s*#.*$//; 1 } );
+
+A filter to ignore blank lines:
+
+  $re->pre_filter( sub { length(shift) } );
+
+If you want to remove the filter, pass C<undef> as a parameter.
+
+  $ra->pre_filter(undef);
+
+This method is chainable.
+
+=cut
+
+sub pre_filter {
+    my $self   = shift;
+    my $pre_filter = shift;
+    if( defined $pre_filter and ref($pre_filter) ne 'CODE' ) {
+        require Carp;
+        Carp::croak("pre_filter method not passed a coderef");
+    }
+    $self->{pre_filter} = $pre_filter;
+    return $self;
+}
+
+
+=item filter(CODE)
+
+Allows you to install a callback to check that the pattern being
+loaded contains valid input. It receives a list on input, after it
+has been tokenised by the lexer. It may to return 0 or undef to
+indicate that the pattern should not be added, any true value
+indicates that the contents are fine.
+
+If you know that all patterns you expect to assemble contain
+a restricted set of of tokens (e.g. no spaces), you could do
+the following:
+
+  $ra->filter(sub { not grep { / / } @_ });
+
+or
+
+  sub only_spaces_and_digits {
+    not grep { ![\d ] } @_
+  }
+  $ra->filter( \&only_spaces_and_digits );
+
+These two examples will silently ignore faulty patterns, If you
+want the user to be made aware of the problem you should raise an
+error (via C<warn> or C<die>), log an error message, whatever is
+best. If you want to remove a filter, pass C<undef> as a parameter.
+
+  $ra->filter(undef);
+
+This method is chainable.
+
+=cut
+
+sub filter {
+    my $self   = shift;
+    my $filter = shift;
+    if( defined $filter and ref($filter) ne 'CODE' ) {
+        require Carp;
+        Carp::croak("filter method not passed a coderef");
+    }
+    $self->{filter} = $filter;
+    return $self;
 }
 
 =item as_string
@@ -528,8 +686,26 @@ sub as_string {
                 $self->{str}  = _re_path($self->_path);
             }
         }
-        # explicitly match nothing if no pattern was generated
-        $self->{str} = '^a\bz' unless length $self->{str};
+        if (not length $self->{str}) {
+            # explicitly match nothing if no pattern was generated
+            $self->{str} = '^a\bz';
+        }
+        else {
+            my $begin = 
+                  $self->{anchor_word_begin}   ? '\\b'
+                : $self->{anchor_line_begin}   ? '^'
+                : $self->{anchor_string_begin} ? '\A'
+                : ''
+            ;
+            my $end = 
+                  $self->{anchor_word_end}            ? '\\b'
+                : $self->{anchor_line_end}            ? '$'
+                : $self->{anchor_string_end}          ? '\Z'
+                : $self->{anchor_string_end_absolute} ? '\z'
+                : ''
+            ;
+            $self->{str} = "$begin$self->{str}$end";
+        }
         $self->{path} = [] unless $self->{mutable};
     }
     return $self->{str};
@@ -564,7 +740,7 @@ directly:
   )
 
 The C<re> method is called when the object is used in string context
-(hence, withing an C<m//> operator), so by and large you do not even
+(hence, within an C<m//> operator), so by and large you do not even
 need to save the RE in a separate variable. The following will work
 as expected:
 
@@ -594,18 +770,21 @@ use overload '""' => sub {
 };
 
 sub _build_re {
-    my $self = shift;
-    my $str  = shift;
+    my $self  = shift;
+    my $str   = shift;
     if( $self->{track} ) {
         use re 'eval';
         $self->{re} = length $self->{flags}
             ? qr/(?$self->{flags}:$str)/
-            : qr/$str/;
+            : qr/$str/
+        ;
     }
     else {
+        # how could I not repeat myself?
         $self->{re} = length $self->{flags}
             ? qr/(?$self->{flags}:$str)/
-            : qr/$str/;
+            : qr/$str/
+        ;
     }
 }
 
@@ -643,7 +822,7 @@ details.
        print "  $_ matched by $match\n";
    }
 
-In the case of a successul match, the original matched pattern
+In the case of a successful match, the original matched pattern
 is returned directly. The matched pattern will also be available
 through the C<matched> method.
 
@@ -772,6 +951,12 @@ sub matched {
     return defined $self->{m} ? $self->{mlist}[$self->{m}] : undef;
 }
 
+=back
+
+=head2 Statistics/Reporting routines
+
+=over 8
+
 =item stats_add
 
 Returns the number of patterns added to the assembly (whether
@@ -877,6 +1062,248 @@ sub dup_warn {
     return $self;
 }
 
+=back
+
+=head2 Anchor routines
+
+Suppose you wish to assemble a series of patterns that all begin
+with C<^>  and end with C<$> (anchor pattern to the beginning and
+end of line). Rather than add the anchors to each and every pattern
+(and possibly forget to do so when a new entry is added), you may
+specify the anchors in the object, and they will appear in the
+resulting pattern, and you no longer need to (or should) put them
+in your source patterns. For example, the two following snippets
+will produce identical patterns:
+
+  $r->add(qw(^this ^that ^them))->as_string;
+
+  $r->add(qw(this that them))->anchor_line_begin->as_string;
+
+  # both techniques will produce ^th(?:at|em|is)
+
+All anchors are possible word (C<\b> boundaries, line
+boundaries (C<^> and C<$>) and string boundaries (C<\A>
+and C<\Z> (or C<\z> if you absolutely need it).
+
+The shortcut C<anchor_I<mumble>> method meaning both
+C<anchor_I<mumble>_begin> C<anchor_I<mumble>_end> 
+can also be used. If different anchors are specified
+the most specific anchor wins. For instance, if both
+C<anchor_word_begin> and C<anchor_line_begin> are
+specified, C<anchor_word_begin> will be kept.
+
+All the anchor methods are chainable.
+
+=over 8
+
+=item anchor_word_begin
+
+The resulting pattern will be prefixed with a C<\b>
+word boundary assertion when the value is true. Set
+to 0 to disable.
+
+  $r->add('pre')->anchor_word_begin->as_string;
+  # produces '\bpre'
+
+=cut
+
+sub anchor_word_begin {
+    my $self = shift;
+    $self->{anchor_word_begin} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
+=item anchor_word_end
+
+The resulting pattern will be suffixed with a C<\b>
+word boundary assertion when the value is true. Set
+to 0 to disable.
+
+  $r->add(qw(ing tion))
+    ->anchor_word_end
+    ->as_string; # produces '(?:tion|ing)\b'
+
+=cut
+
+sub anchor_word_end {
+    my $self = shift;
+    $self->{anchor_word_end} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
+=item anchor_word
+
+The resulting pattern will be have C<\b>
+word boundary assertions at the beginning and end
+of the pattern when the value is true. Set
+to 0 to disable.
+
+  $r->add(qw(cat carrot)
+    ->anchor_word(1)
+    ->as_string; # produces '\bca(?:rro)t\b'
+
+=cut
+
+sub anchor_word {
+    my $self  = shift;
+    my $state = shift;
+    $self->anchor_word_begin($state)->anchor_word_end($state);
+    return $self;
+}
+
+=item anchor_line_begin
+
+The resulting pattern will be prefixed with a C<^>
+line boundary assertion when the value is true. Set
+to 0 to disable.
+
+  $r->anchor_line_begin;
+  # or
+  $r->anchor_line_begin(1);
+
+=cut
+
+sub anchor_line_begin {
+    my $self = shift;
+    $self->{anchor_line_begin} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
+=item anchor_line_end
+
+The resulting pattern will be suffixed with a C<$>
+line boundary assertion when the value is true. Set
+to 0 to disable.
+
+  # turn it off
+  $r->anchor_line_end(0);
+
+=cut
+
+sub anchor_line_end {
+    my $self = shift;
+    $self->{anchor_line_end} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
+=item anchor_line
+
+The resulting pattern will be have the C<^> and C<$>
+line boundary assertions at the beginning and end
+of the pattern, respectively, when the value is true. Set
+to 0 to disable.
+
+  $r->add(qw(cat carrot)
+    ->anchor_line
+    ->as_string; # produces '^ca(?:rro)t$'
+
+=cut
+
+sub anchor_line {
+    my $self  = shift;
+    my $state = shift;
+    $self->anchor_line_begin($state)->anchor_line_end($state);
+    return $self;
+}
+
+=item anchor_string_begin
+
+The resulting pattern will be prefixed with a C<\A>
+string boundary assertion when the value is true. Set
+to 0 to disable.
+
+  $r->anchor_string_begin(1);
+
+=cut
+
+sub anchor_string_begin {
+    my $self = shift;
+    $self->{anchor_string_begin} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
+=item anchor_string_end
+
+The resulting pattern will be suffixed with a C<\Z>
+string boundary assertion when the value is true. Set
+to 0 to disable.
+
+  # disable the string boundary end anchor
+  $r->anchor_string_end(0);
+
+=cut
+
+sub anchor_string_end {
+    my $self = shift;
+    $self->{anchor_string_end} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
+=item anchor_string_end_absolute
+
+The resulting pattern will be suffixed with a C<\z>
+string boundary assertion when the value is true. Set
+to 0 to disable.
+
+  # disable the string boundary absolute end anchor
+  $r->anchor_string_end_absolute(0);
+
+If you don't understand the difference between
+C<\Z> and C<\z>, the former will probably do what
+you want.
+
+=cut
+
+sub anchor_string_end_absolute {
+    my $self = shift;
+    $self->{anchor_string_end_absolute} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
+=item anchor_string
+
+The resulting pattern will be have the C<\A> and C<\Z>
+string boundary assertions at the beginning and end
+of the pattern, respectively, when the value is true. Set
+to 0 to disable.
+
+  $r->add(qw(cat carrot)
+    ->anchor_string
+    ->as_string; # produces '\Aca(?:rro)t\Z'
+
+=cut
+
+sub anchor_string {
+    my $self  = shift;
+    my $state = shift;
+    $self->anchor_string_begin($state)->anchor_string_end($state);
+    return $self;
+}
+
+=item anchor_string_absolute
+
+The resulting pattern will be have the C<\A> and C<\z>
+string boundary assertions at the beginning and end
+of the pattern, respectively, when the value is true. Set
+to 0 to disable.
+
+  $r->add(qw(cat carrot)
+    ->anchor_string_absolute
+    ->as_string; # produces '\Aca(?:rro)t\z'
+
+=cut
+
+sub anchor_string_absolute {
+    my $self  = shift;
+    my $state = shift;
+    $self->anchor_string_begin($state)->anchor_string_end_absolute($state);
+    return $self;
+}
+
+=back
+
+=over 8
+
 =item debug(NUMBER)
 
 Turns debugging on or off. Statements are printed
@@ -920,13 +1347,20 @@ sub dump {
 
 =item chomp(0|1)
 
-Turns chomping on or off. When loading an object from a
-file the lines will contain their line separator token. This
-may produce undesired results. In this case, call chomp with
-a value of 1 to enable autochomping. Chomping is off by default.
+Turns chomping on or off. 
 
-  $re->chomp( 1 );
-  $re->add( <DATA> );
+IMPORTANT: As of version 0.24, chomping is now on by default as it
+makes C<add_file> Just Work. The only time you may run into trouble
+is with C<add("\\$/")>. So don't do that, or else explicitly turn
+off chomping.
+
+To avoid incorporating (spurious)
+record separators (such as "\n" on Unix) when reading from a file, 
+C<add()> C<chomp>s its input. If you don't want this to happen,
+call C<chomp> with a false value.
+
+  $re->chomp(0); # really want the record separators
+  $re->add(<DATA>);
 
 =cut
 
@@ -1010,85 +1444,6 @@ sub track {
     return $self;
 }
 
-=item pre_filter(CODE)
-
-Allows you to install a callback to check that the pattern being
-loaded contains valid input. It receives the pattern as a whole to
-be added, before it been tokenised by the lexer. It may to return
-0 or C<undef> to indicate that the pattern should not be added, any
-true value indicates that the contents are fine.
-
-A filter to strip out trailing comments (marked by #):
-
-  $re->pre_filter( sub { $_[0] =~ s/\s*#.*$//; 1 } );
-
-A filter to ignore blank lines:
-
-  $re->pre_filter( sub { length(shift) } );
-
-If you want to remove the filter, pass C<undef> as a parameter.
-
-  $ra->pre_filter(undef);
-
-This method is chainable.
-
-=cut
-
-sub pre_filter {
-    my $self   = shift;
-    my $pre_filter = shift;
-    if( defined $pre_filter and ref($pre_filter) ne 'CODE' ) {
-        require Carp;
-        Carp::croak("pre_filter method not passed a coderef");
-    }
-    $self->{pre_filter} = $pre_filter;
-    return $self;
-}
-
-
-=item filter(CODE)
-
-Allows you to install a callback to check that the pattern being
-loaded contains valid input. It receives a list on input, after it
-has been tokenised by the lexer. It may to return 0 or undef to
-indicate that the pattern should not be added, any true value
-indicates that the contents are fine.
-
-If you know that all patterns you expect to assemble contain
-a restricted set of of tokens (e.g. no spaces), you could do
-the following:
-
-  $ra->filter(sub { not grep { / / } @_ });
-
-or
-
-  sub only_spaces_and_digits {
-    not grep { ![\d ] } @_
-  }
-  $ra->filter( \&only_spaces_and_digits );
-
-These two examples will silently ignore faulty patterns, If you
-want the user to be made aware of the problem you should raise an
-error (via C<warn> or C<die>), log an error message, whatever is
-best. If you want to remove a filter, pass C<undef> as a parameter.
-
-  $ra->filter(undef);
-
-This method is chainable.
-
-=cut
-
-sub filter {
-    my $self   = shift;
-    my $filter = shift;
-    if( defined $filter and ref($filter) ne 'CODE' ) {
-        require Carp;
-        Carp::croak("filter method not passed a coderef");
-    }
-    $self->{filter} = $filter;
-    return $self;
-}
-
 =item lex(SCALAR)
 
 Change the pattern used to break a string apart into tokens.
@@ -1111,7 +1466,7 @@ pattern will be very similar to those produced by
 C<Regexp::Optimizer>. Reduction is on by default. Turning
 it off speeds assembly (but assembly is pretty fast -- it's
 the breaking up of the initial patterns in the lexing stage
-that can consume a non-negligeable amount of time).
+that can consume a non-negligible amount of time).
 
 =cut
 
@@ -1124,9 +1479,9 @@ sub reduce {
 =item mutable(0|1)
 
 When the C<re> or C<as_string> methods are called the reduction
-algoritm kicks in and takes the current data structure and fold the
-common portions of the patterns that have been stored in the object.
-Once this occurs, it is no longer possible to add any more
+algorithm kicks in and takes the current data structure and fold
+the common portions of the patterns that have been stored in the
+object. Once this occurs, it is no longer possible to add any more
 patterns.
 
 In fact, the internal structures are release to free up memory. If
@@ -1160,7 +1515,7 @@ sub mutable {
 =item reset
 
 Empties out the patterns that have been C<add>ed or C<insert>-ed
-into the objet. Does not modify the state of controller attributes
+into the object. Does not modify the state of controller attributes
 such as C<debug>, C<lex>, C<reduce> and the like.
 
 =cut
@@ -1823,7 +2178,7 @@ sub _do_reduce {
     my ($path, $ctx) = @_;
     my $indent = ' ' x $ctx->{depth};
     my $debug  =       $ctx->{debug};
-    my $ra = Regexp::Assemble->new;
+    my $ra = Regexp::Assemble->new(chomp=>0);
     $ra->debug($debug);
     $debug and print "# $indent| do @{[_dump($path)]}\n";
     $ra->_insertr( $_ ) for
@@ -1956,6 +2311,8 @@ sub _descend {
 
 sub _make_class {
     my %set = map { ($_,1) } @_;
+    delete $set{'\\d'} if exists $set{'\\w'};
+    delete $set{'\\D'} if exists $set{'\\W'};
     return '.' if exists $set{'.'}
         or (exists $set{'\\d'} and exists $set{'\\D'})
         or (exists $set{'\\s'} and exists $set{'\\S'})
@@ -2280,6 +2637,10 @@ sub _node_eq {
     }
 }
 
+sub _pretty_dump {
+	return sprintf "\\x%02x", ord(shift);
+}
+
 sub _dump {
     my $path = shift;
     return _dump_node($path) if ref($path) eq 'HASH';
@@ -2297,10 +2658,11 @@ sub _dump {
         elsif( defined $d ) {
             # D::C indicates the second test is redundant
             # $dump .= ( $d =~ /\s/ or not length $d )
-            $dump .= ( $d =~ /\s/ )
-                ? qq{'$d'}
-                :     $d
-            ;
+            $dump .= (
+				$d =~ /\s/            ? qq{'$d'}         :
+				$d =~ /^[\x00-\x1f]$/ ? _pretty_dump($d) :
+                $d
+            );
         }
         else {
             $dump .= '*';
@@ -2320,7 +2682,8 @@ sub _dump_node {
         # $dump .= ( $n eq '' and not defined $node->{$n} )
         $dump .= $n eq ''
             ? '*'
-            : "$n=>" . _dump($node->{$n})
+            : ($n =~ /^[\x00-\x1f]$/ ? _pretty_dump($n) : $n)
+				. "=>" . _dump($node->{$n})
         ;
     }
     return $dump . '}';
@@ -2349,10 +2712,16 @@ Solution: read the documentation for the C<filter> method.
 The C<dup_warn> attribute is active, and a duplicate pattern was
 added (well duh!). Solution: clean your data.
 
+  "cannot open [file] for input: [reason]"
+
+The C<add_file> method was unable to open the specified file for
+whatever reason. Solution: make sure the file exists and the script
+has the required privileges to read it.
+
 =head1 NOTES
 
 This module has been tested successfully with a range of versions
-of perl, from 5.005_03 to 5.9.2. Use of 5.6.0 is not recommended.
+of perl, from 5.005_03 to 5.9.3. Use of 5.6.0 is not recommended.
 
 The expressions produced by this module can be used with the PCRE
 library.
@@ -2386,11 +2755,12 @@ C<^> (circumflex) appears as a candidate for a character class it
 will be the last character in the class.
 
 It also knows about meta-characters than can "absorb" regular
-characters. For instance, given C<X\d> and C<X5>, it knows that C<5>
-can be represented by C<\d> and so the assembly is just C<X\d>. The
-"absorbent" meta-characters it deals with are C<.>, C<\d>, C<\s>
-and C<\W> and their complements. It also knows that C<\d> and C<\D>
-(and similar pairs) can be replaced by C<.> (dot).
+characters. For instance, given C<X\d> and C<X5>, it knows that
+C<5> can be represented by C<\d> and so the assembly is just C<X\d>.
+The "absorbent" meta-characters it deals with are C<.>, C<\d>, C<\s>
+and C<\W> and their complements. It will replace C<\d>/C<\D>,
+C<\s>/C<\S> and C<\w>/C<\W> by C<.> (dot), and it will drop C<\d>
+if C<\w> is also present (as will C<\D> in the presence of C<\W>).
 
 C<Regexp::Assemble> deals correctly with C<quotemeta>'s propensity
 to backslash many characters that have no need to be. Backslashes on
@@ -2477,6 +2847,10 @@ C<Regexp::Optimizer> produces regular expressions that are similar to
 those produced by R::A with reductions switched off. It's biggest
 drawback is that it is exponentially slower than Regexp::Assemble on
 very large sets of patterns.
+
+=item Regexp::Parser
+
+Fine grained analysis of regular expressions.
 
 =item Text::Trie
 

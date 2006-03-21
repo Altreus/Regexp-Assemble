@@ -1,4 +1,4 @@
-The file is the README for Regexp::Assemble version 0.23
+The file is the README for Regexp::Assemble version 0.24
 
 INSTALLATION
 
@@ -471,7 +471,7 @@ reverse DNS changed to something else.
 
 COPYRIGHT
 
-This module is copyright (C) David Landgren 2004-2005.
+This module is copyright (C) David Landgren 2004-2006.
 All rights reserved.
 
 LICENSE

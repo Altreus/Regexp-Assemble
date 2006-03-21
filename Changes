@@ -1,76 +1,87 @@
 Revision history for Perl extension Regexp::Assemble.
 
-0.23
-    - More bugs in the reduction code shaken out by
-      examining powersets. Exhaustive testing (iterating
-      through the powerset of a, b, c, d, e) makes me
-      think that the pathological cases are taken
-      care of. The code is horrible, though, a
-      rewrite is next on the agenda.
-    - Guard against earlier buggy versions of
-      Test::More (0.47) in t/06_general.t
-    - Carp::croak rewritten as Carp::croak() to fix
-      failures noted on blead.
+0.24 2006-03-21 08:50:42
+    - Added an add_file() method that allows a file of patterns to
+      be slurped into an object. Makes for less make-work code in
+      the client code (and thus one less thing to go wrong there).
+    - Added anchor methods that tack on \b, ^, $ and the like to an
+      assembled pattern.
+    - Rewrote new() and clone(). The latter is now no longer needs
+      to know the attribute names.
+    - _lex_stateful() subsumed into _lex()
+    - \d and \w assemble to \w instead of [\w\d] (and similarly for
+      \D and \W).
+    - The Test::More workaround stated in the 0.23 changes didn't
+      actually make it into t/06_general.t
+    - Rewrote tests in 06_general.t to use like()/unlike() instead
+      of ok(), and some more ok()'s replaced by cmp_ok()
+      elsewhere.
+    - Diagnostics for t/00_basic.t:xcmp was incorrect (displayed
+      first param instead of second).
+    - Guard against broken Sub::Uplevel in t/07_warning.t for
+      perl 5.8.8.
+    - Pretty-print characters [\x00-\x1f] in _dump() routines.
+    - Spell-checked the POD!
+
+0.23 2006-01-03 17:03:35
+    - More bugs in the reduction code shaken out by examining
+      powersets. Exhaustive testing (iterating through the
+      powerset of a, b, c, d, e) makes me think that the
+      pathological cases are taken care of. The code is horrible,
+      though, a rewrite is next on the agenda.
+    - Guard against earlier buggy versions of Test::More (0.47)
+       in t/06_general.t
+    - Carp::croak rewritten as Carp::croak() to fix failures
+      noted on blead.
     - Rewrote _re_path() for speed.
     - added lexstr() routine.
     - added eg/stress-test program.
 
 0.22 2005-12-02 11:31:42 UTC
-    - Amended the test suite to ensure that it runs
-      correctly under 5.005_04. (The documentation
-      was updated to reflect the limitations).
-      Sébastien Aperghis-Tramoni provided the
-      impetus for this fix. No other changes in
-      functionality.
-    - The SKIP counts in t/06_general.t were out of
-      whack for 5.6 and 5.005 testing. 
+    - Amended the test suite to ensure that it runsh0orrectly under
+      5.005_04. (The documentation was updated to reflect the
+      limitations). Sbastien Aperghis-Tramoni provided the impetus
+      for this fix. No other changes in functionality.
+    - The SKIP counts in t/06_general.t were out of whack for 5.6
+      and 5.005 testing. 
 
 0.21 2005-11-26 16:16:06 UTC
-    - Fixed a nasty bug after generating a series
-      of lists of patterns using Data::PowerSet:
-      ^abc$ ^abcd$ ^ac$ ^acd$ ^b$ ^bc$ ^bcd$ ^bd$
-      would produce the incorrect
-      ^b(?:(?:ab?)?c)?d?$ pattern. It should if fact
-      produce the ^(?:ab?c|bc?)d?$ pattern.
-    - Improve the reduction of, for example, 'sing',
-      'singing', 'sting'.  In prior versions this
-      would produce s(?:ing(?:ing)?|ting), now it
-      produces s(?:(?:ing)?|t)ing. The code is a bit
-      horrendous (especially the part at the end of
-      _reduce_path). And it's still not perfect. See
-      the TODO.
-    - Duplicate pattern detection wasn't quite right.
-      The code was lacking an else clause, which meant
-      'abcdef' followed by 'abc' would have the latter
-      treated as a duplicate.
-    - Now that there's a statistic that keeps track of
-      when a duplicate input pattern was encountered,
-      it becomes possible to let the user know about
-      it. Two possibilities are available: a simple
-      carp(), or a callback for complete control.
-      The first time I tried this out on a real file of
-      3558 patterns, it found 9 dups (or rather, 8
-      dups and a bug in the module).
-    - The above improvement means the test suite now
-      requires Test::Warn. As a result, t/07_pod.t was
-      subsumed into t/00_basic.t and t/07_warning.t was
-      born.
-    - Added an eg/ircwatcher script that demonstrates how
-      to set up a dispatch table on a tracked regular
-      expression. Credit to David Rigaudière for the
-      idea.
-    - Made sure all routines use an explicit return when
-      it makes sense to do so. (I have a tendency to use
-      implicit returns, which is evil).
+    - Fixed a nasty bug after generating a series of lists of
+      patterns using Data::PowerSet: ^abc$ ^abcd$ ^ac$ ^acd$ ^b$
+      ^bc$ ^bcd$ ^bd$ would produce the incorrect
+      ^b(?:(?:ab?)?c)?d?$ pattern. It should if fact produce the
+      ^(?:ab?c|bc?)d?$ pattern.
+    - Improve the reduction of, for example, 'sing', 'singing',
+      'sting'. In prior versions this would produce
+      s(?:ing(?:ing)?|ting), now it produces s(?:(?:ing)?|t)ing.
+      The code is a bit horrendous (especially the part at the end
+      of _reduce_path). And it's still not perfect. See the TODO.
+    - Duplicate pattern detection wasn't quite right.  The code
+      was lacking an else clause, which meant 'abcdef' followed by
+      'abc' would have the latter treated as a duplicate.
+    - Now that there's a statistic that keeps track of when a
+      duplicate input pattern was encountered, it becomes possible
+      to let the user know about it. Two possibilities are available:
+      a simple carp(), or a callback for complete control.  The first
+      time I tried this out on a real file of 3558 patterns, it found
+      9 dups (or rather, 8 dups and a bug in the module).
+    - The above improvement means the test suite now requires
+      Test::Warn. As a result, t/07_pod.t was subsumed into
+      t/00_basic.t and t/07_warning.t was born.
+    - Added an eg/ircwatcher script that demonstrates how to set up a
+      dispatch table on a tracked regular expression. Credit to David
+      Rigaudière for the idea.
+    - Made sure all routines use an explicit return when it makes
+      sense to do so. (I have a tendency to use implicit returns,
+      which is evil).
     - the Carp module is require'ed on an on-demand basis.
-    - eg/naive updated to bring its idea of $Single_Char
-      in line with Assemble.pm.
-    - Cleaned up typos and PODos in the documentation.
-      Fixed minor typo noted by David Rigaudière.
-    - Reworked as_string() and re() to play nicely with
-      Devel::Cover, but alas, the module no longer runs
-      under D::C at all. Something to do with the
-      overloading of "" for re()?
+    - eg/naive updated to bring its idea of $Single_Char in line with
+      Assemble.pm.
+    - Cleaned up typos and PODos in the documentation.  Fixed minor
+      typo noted by David Rigaudière.
+    - Reworked as_string() and re() to play nicely with Devel::Cover,
+      but alas, the module no longer runs under D::C at all. Something
+      to do with the overloading of "" for re()?
 
 0.20 2005-11-07 18:03:32 UTC
     - Fixed long-standing indent bug:

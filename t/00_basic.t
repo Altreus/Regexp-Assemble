@@ -10,7 +10,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 321 };
+eval qq{use Test::More tests => 324 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -309,6 +309,18 @@ cmp_ok( Regexp::Assemble::_make_class( '\\w', '\\W' ),
     'eq', '.', '_make_class \\w \\W'
 );
 
+cmp_ok( Regexp::Assemble::_make_class( '\\w', '\\d' ),
+    'eq', '\\w', '_make_class \\w \\d'
+);
+
+cmp_ok( Regexp::Assemble::_make_class( '\\W', '\\D' ),
+    'eq', '\\W', '_make_class \\W \\D'
+);
+
+cmp_ok( Regexp::Assemble::_make_class( '\\W', '\\d' ),
+    'eq', '[\\W\\d]', '_make_class \\W \\d'
+);
+
 cmp_ok( Regexp::Assemble::_make_class( '\\d', qw/5 a / ),
     'eq', '[\\da]', '_make_class \\d 5 a'
 );
@@ -334,7 +346,7 @@ sub xcmp {
     my $r = Regexp::Assemble->new;
     is_deeply(
         $r->_lex( $_[0] ), [ $_[1] ],
-        sprintf( '_lex \\x%02x', ord( $_[0] ))
+        sprintf( '_lex \\x%02x', ord( $_[1] ))
     );
 }
 

@@ -3,7 +3,7 @@
 # Test suite for Regexp::Assemble
 # Tests to see that tracked patterns behave themselves
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 use constant TESTS => 71;

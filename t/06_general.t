@@ -3,12 +3,12 @@
 # Test suite for Regexp::Assemble
 # Check out the general functionality, now that all the subsystems have been exercised
 #
-# copyright (C) 2004-2005 David Landgren
+# copyright (C) 2004-2006 David Landgren
 
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 114 };
+eval qq{use Test::More tests => 119 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -26,66 +26,66 @@ my $target;
 my $ra = Regexp::Assemble->new->add( qw/foo bar rat/ );
 
 for $target( qw/unfooled disembark vibration/ ) {
-    ok( $target =~  /$ra/, "match ok $target" )
+    like( $target, qr/$ra/, "match ok $target" )
 }
 
 for $target( qw/unfooled disembark vibration/ ) {
-    ok( $target !~ /^$ra/, "anchored match not ok $target" )
+    unlike( $target, qr/^$ra/, "anchored match not ok $target" )
 }
 
 $ra->reset;
 
 for $target( qw/unfooled disembark vibration/ ) {
-    ok( $target !~  /$ra/, "fail after reset $target" )
+    unlike( $target, qr/$ra/, "fail after reset $target" )
 }
 
 $ra->add( qw/who what where why when/ );
 
 for $target( qw/unfooled disembark vibration/ ) {
-    ok( $target !~  /$ra/, "fail ok $target" )
+    unlike( $target, qr/$ra/, "fail ok $target" )
 }
 
 for $target( qw/snowhouse somewhat nowhereness whyever nowhence/ ) {
-    ok( $target =~  /$ra/, "new match ok $target" )
+    like( $target, qr/$ra/, "new match ok $target" )
 }
 
 $ra->reset->mutable(1);
 
-ok( 'nothing' !~ /$ra/, "match nothing after reset" );
+unlike( 'nothing', qr/$ra/, "match nothing after reset" );
 
 $ra->add( '^foo\\d+' );
 
-ok( 'foo12'  =~ /$ra/, "match 1 ok foo12" );
-ok( 'nfoo12' !~ /$ra/, "match 1 nok nfoo12" );
-ok( 'bar6'   !~ /$ra/, "match 1 nok bar6" );
+like( 'foo12', qr/$ra/, "match 1 ok foo12" );
+unlike( 'nfoo12', qr/$ra/, "match 1 nok nfoo12" );
+unlike( 'bar6', qr/$ra/, "match 1 nok bar6" );
 
 ok( !defined($ra->mvar()), 'mvar() undefined' );
 
 $ra->add( 'bar\\d+' );
 
-ok( 'foo12'  =~ /$ra/, "match 2 ok foo12" );
-ok( 'nfoo12' !~ /$ra/, "match 2 nok nfoo12" );
-ok( 'bar6'   =~ /$ra/, "match 2 ok bar6" );
+like( 'foo12', qr/$ra/, "match 2 ok foo12" );
+unlike( 'nfoo12', qr/$ra/, "match 2 nok nfoo12" );
+like( 'bar6', qr/$ra/, "match 2 ok bar6" );
 
 $ra->reset->filter( sub { not grep { $_ !~ /[\d ]/ } @_ } );
 
 $ra->add( '1 2 4' );
 $ra->insert( '1', '2', '8*' );
 
-ok( '3 4 1 2' !~ /$ra/, 'filter nok 3 4 1 2' );
-ok( '3 1 2 4' =~ /$ra/, 'filter ok 3 1 2 4' );
-ok( '5 2 3 4' !~ /$ra/, 'filter ok 5 2 3 4' );
+unlike( '3 4 1 2', qr/$ra/, 'filter nok 3 4 1 2' );
+like( '3 1 2 4', qr/$ra/, 'filter ok 3 1 2 4' );
+unlike( '5 2 3 4', qr/$ra/, 'filter ok 5 2 3 4' );
 
 $ra->add( '2 3 a+' );
 $ra->insert( '2', ' ', '3', ' ', 'a+' );
 
-ok( '5 2 3 4' !~ /$ra/, 'filter ok 5 2 3 4 (2)' );
-ok( '5 2 3 aaa' !~ /$ra/, 'filter nok 5 2 3 a+' );
+unlike( '5 2 3 4', qr/$ra/, 'filter ok 5 2 3 4 (2)' );
+unlike( '5 2 3 aaa', qr/$ra/, 'filter nok 5 2 3 a+' );
 
 $ra->reset->filter( undef );
 
 $ra->add( '1 2 a+' );
-ok( '5 1 2 aaaa' =~ /$ra/, 'filter now ok 5 1 2 a+' );
+like( '5 1 2 aaaa', qr/$ra/, 'filter now ok 5 1 2 a+' );
 
 $ra->reset->pre_filter( sub { $_[0] !~ /^#/ } );
 $ra->add( '#de' );
@@ -93,6 +93,45 @@ $ra->add( 'abc' );
 
 unlike( '#de', qr/^$ra$/, '#de not matched by comment-filtered assembly' );
 like(   'abc', qr/^$ra$/, 'abc matched by comment-filtered assembly' );
+
+SKIP: {
+    skip( "is_deeply is broken in this version of Test::More (v$Test::More::VERSION)", 5 )
+        unless $Test::More::VERSION > 0.47;
+
+    {
+        my $orig = Regexp::Assemble->new;
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone empty' );
+    }
+
+    {
+        my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone path' );
+    }
+
+    {
+        my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
+        my $clone = $orig->clone;
+        $orig->add( 'digger' );
+        $clone->add( 'digger' );
+        is_deeply( $orig, $clone, 'clone then add' );
+    }
+
+    {
+        my $orig = Regexp::Assemble->new
+            ->add( qw/ bird cat dog elephant fox/ );
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone node' );
+    }
+
+    {
+        my $orig = Regexp::Assemble->new
+            ->add( qw/ after alter amber cheer steer / );
+        my $clone = $orig->clone;
+        is_deeply( $orig, $clone, 'clone more' );
+    }
+}
 
 {
     my $orig = Regexp::Assemble->new;
@@ -302,11 +341,11 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
 
 {
     my $re = Regexp::Assemble->new( flags => 'i' )->add( qw/ ^ab ^are de / );
-    ok( 'able'  =~ /$re/, '{^ab ^are de} /i matches able' );
-    ok( 'About' =~ /$re/, '{^ab ^are de} /i matches About' );
-    ok( 'bare'  !~ /$re/, '{^ab ^are de} /i fails bare' );
-    ok( 'death' =~ /$re/, '{^ab ^are de} /i matches death' );
-    ok( 'DEEP'  =~ /$re/, '{^ab ^are de} /i matches DEEP' );
+    like( 'able', qr/$re/, '{^ab ^are de} /i matches able' );
+    like( 'About', qr/$re/, '{^ab ^are de} /i matches About' );
+    unlike( 'bare', qr/$re/, '{^ab ^are de} /i fails bare' );
+    like( 'death', qr/$re/, '{^ab ^are de} /i matches death' );
+    like( 'DEEP', qr/$re/, '{^ab ^are de} /i matches DEEP' );
 }
 
 {

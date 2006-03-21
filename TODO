@@ -33,16 +33,6 @@ to carry along (a hash rather than a couple of scalars).
         ->add( qr/^ab e/x );
     this should admit abc abC aBc aBC abd abe as matches
 
-15. Methods to specify adding ^, $, \b, \A, \Z to resulting pattern,
-    and/or any arbitrary prefix/suffix. The method names would be
-    anchor_word => \b
-    anchor_line => ^, $
-    anchor_string => \A, \Z
-    and
-    anchor_(mumble)_begin to get just one.
-
-    Subquestion: how to deal with \Z or \z
-
 16. Allow a fast, unsafe tracking mode, that can be used if a(?bc)?
     can't happen. (Possibly carp if it does appear during traversal)?
 
@@ -50,8 +40,6 @@ to carry along (a hash rather than a couple of scalars).
     along the lines of (.{4))(\1+) would let the regexp engine
     itself be brought to bear on the matter, which is a rather
     appealing idea.
-
-18. The attribute handling in new() and clone() is getting very silly.
 
 19. The reduction code has become unbelievably baroque. Adding code
     to handle (sting,singing,sing) => s(?:(?:ing)?|t)ing was far
@@ -63,8 +51,13 @@ to carry along (a hash rather than a couple of scalars).
 
 20. Handle debug unrev with a separate bit
 
-21. Now that lex() has a non-backslash shortcut, lex() could probably
-    be subsumed into lex_stateful. That is, only stateful.
+23. Japhy's http://www.perlmonks.org/index.pl?node_id=90876 list2range
+    regexp
 
-22. Add a file() method or something similar, to do file-slurping
-    of patterns to add (to cut down on make-work code in client code.
+24. Lookahead assertions contain serious bug (as shown by
+    assembling powersets. Need to save more context during reduction,
+    which in turn will simplify the preparation of the lookahead
+    classes. See also 19.
+
+25. Regexp::List uses a different attribute for flags, allow it as
+    an alias.
