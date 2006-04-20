@@ -17,6 +17,12 @@ the overall generation time might drop, even though the context
 baggage required to delve through the tree will be more expensive
 to carry along (a hash rather than a couple of scalars).
 
+Actually, a simpler approach is to take on a secret sentinel
+atom at the end of every pattern, which gives the reduction
+algorithm sufficient traction to create a perfect trie.
+
+I'm rewriting the reduction code using this technique.
+
 2. Investigate how (?>foo) works. Can it be applied?
 
 5. How can a tracked pattern be serialised? (Add freeze and thaw methods).
@@ -54,10 +60,12 @@ to carry along (a hash rather than a couple of scalars).
 23. Japhy's http://www.perlmonks.org/index.pl?node_id=90876 list2range
     regexp
 
-24. Lookahead assertions contain serious bug (as shown by
+24. Lookahead assertions contain serious bugs (as shown by
     assembling powersets. Need to save more context during reduction,
     which in turn will simplify the preparation of the lookahead
     classes. See also 19.
 
-25. Regexp::List uses a different attribute for flags, allow it as
-    an alias.
+26. _lex() swamps the overall run-time. It stems from the decision
+    to use a single regexp to pull apart any pattern. A suite of
+    simpler regexp to pick of parens, char classes, quantifiers
+    and bare tokens may be faster.

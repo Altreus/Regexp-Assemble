@@ -7,7 +7,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 180};
+eval qq{use Test::More tests => 181};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -19,7 +19,7 @@ use Regexp::Assemble;
 my $fixed = 'The scalar remains the same';
 $_ = $fixed;
 
-cmp_ok( Regexp::Assemble->new->as_string, 'eq', '^a\bz', 'empty' );
+cmp_ok( Regexp::Assemble->new->as_string, 'eq', $Regexp::Assemble::Always_Fail, 'empty' );
 
 cmp_ok( Regexp::Assemble->new
     ->insert( '' )
@@ -430,7 +430,16 @@ cmp_ok( Regexp::Assemble->new
         ->add( '^ac' )
         ->add( 'de' )
         ->re;
-    cmp_ok( $re, 'eq', '(?-xism:(?i:(?:^a[bc]|de)))', 'ab, ac, de /i' );
+    cmp_ok( $re, 'eq', '(?i-xsm:(?:^a[bc]|de))', 'ab, ac, de /i' );
+}
+
+{
+    my $re = Regexp::Assemble->new( flags => 'im' )
+        ->add( '^ab' )
+        ->add( '^ac' )
+        ->add( 'de' )
+        ->re;
+    cmp_ok( $re, 'eq', '(?mi-xs:(?:^a[bc]|de))', 'ab, ac, de /i' );
 }
 
 cmp_ok( Regexp::Assemble->new

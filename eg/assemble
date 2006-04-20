@@ -8,10 +8,12 @@ use strict;
 use Getopt::Std;
 use Regexp::Assemble;
 
-use vars '$VERSION';
-$VERSION = '0.6';
+use Time::HiRes 'time';
 
-getopts( 'abcd:i:nprst:uvw', \my %opt );
+use vars '$VERSION';
+$VERSION = '0.7';
+
+getopts( 'abcd:i:nprsSt:uvw', \my %opt );
 
 print "$VERSION\n" and exit if $opt{v};
 
@@ -44,12 +46,15 @@ if( $opt{b} or $opt{c} ) {
 
 $ra->add( <> );
 
-if( $opt{i} or $opt{p} or not $opt{t} ) {
+# need to tickle reduction explicitly in the event of -S and -d8
+$ra->_reduce() if $opt{S} and $opt{d} and ($opt{d} & 8);
+
+if( $opt{i} or $opt{p} or not ($opt{t} or $opt{S}) ) {
     print $ra->as_string( indent => $opt{i} || 0 );
     print "\n" unless $opt{n};
 }
 
-if( $opt{s} ) {
+if( $opt{s} or $opt{S} ) {
     warn qq{# nr=@{[$ra->stats_add]} dup=@{[$ra->stats_dup]} raw=@{[$ra->stats_raw]} cooked=@{[$ra->stats_cooked]} len=@{[$ra->stats_length]}\n};
 }
 
@@ -140,6 +145,11 @@ Statistics. Print some statistics about the assembled pattern. The
 output is sent to STDERR (in order to allow the generated pattern
 to be redirected elsewhere).
 
+=item B<-S>
+
+Statistics only. Like B<-s>, except that the pattern itself is not
+output. Useful with B<-d 8> to see the time taken.
+
 =item B<-t>
 
 Test. Test the assembled expression against the contents of a file.
@@ -149,7 +159,8 @@ good output. In this mode of operation, error status is 1 in the
 case of a failure, 0 if all lines matched.
 
 =item B<-u>
-Unique. Carp if duplicate patterns are found
+
+Unique. Carp if duplicate patterns are found.
 
 =item B<-v>
 

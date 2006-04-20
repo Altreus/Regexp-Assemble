@@ -399,7 +399,7 @@ cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
     cmp_ok( $re->stats_length, '==', 0, "stats_length empty" );
 
     my $str = $re->as_string;
-    cmp_ok( $str, 'eq', '^a\\bz', "stats str empty" ); # tricky!
+    cmp_ok( $str, 'eq', $Regexp::Assemble::Always_Fail, "stats str empty" ); # tricky!
     cmp_ok( $re->stats_length, '==', 0, "stats len empty" );
 }
 

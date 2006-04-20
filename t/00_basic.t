@@ -10,7 +10,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 324 };
+eval qq{use Test::More tests => 329 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -105,6 +105,19 @@ cmp_ok( scalar @{$rt->_path}, '==', 0, '_path() is empty' );
     is( $r->{flags}, '0', 'flags(0)' );
     $r->flags();
     is( $r->{flags}, '', q{flags()} );
+}
+
+{
+    my $r = Regexp::Assemble->new( modifiers => 'i' );
+    is( $r->{flags}, 'i', 'modifiers flags new(i)' );
+    $r->modifiers( 'sx' );
+    is( $r->{flags}, 'sx', 'modifiers flags(sx)' );
+    $r->modifiers( '' );
+    is( $r->{flags}, '', q{modifiers flags('')} );
+    $r->modifiers( 0 );
+    is( $r->{flags}, '0', 'modifiers flags(0)' );
+    $r->modifiers();
+    is( $r->{flags}, '', q{modifiers flags()} );
 }
 
 {

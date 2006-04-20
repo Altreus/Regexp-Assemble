@@ -5,8 +5,8 @@
 
 package Regexp::Assemble;
 
-use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char /;
-$VERSION = '0.24';
+use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char $Always_Fail/;
+$VERSION = '0.25';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.24 of Regexp::Assemble,
-released 2006-03-21.
+This document describes version 0.25 of Regexp::Assemble,
+released 2006-xx-xx.
 
 =head1 SYNOPSIS
 
@@ -65,11 +65,15 @@ use strict;
 use constant DEBUG_ADD  => 1;
 use constant DEBUG_TAIL => 2;
 use constant DEBUG_LEX  => 4;
+use constant DEBUG_TIME => 8;
 
 # The following patterns were generated with eg/naive
 $Default_Lexer = qr/(?![[(\\]).(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\\(?:[bABCEGLQUXZ]|[lu].|(?:[^\w]|[aefnrtdDwWsS]|c.|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}})|N\{\w+\}|[Pp](?:\{\w+\}|.))(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?)|\[.*?(?<!\\)\](?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\(.*?(?<!\\)\)(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?/; # ]) restore equilibrium
 
 $Single_Char   = qr/^(?:\\(?:[aefnrtdDwWsS]|c.|[^\w\/{|}-]|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}}))|[^\$^])$/;
+
+# the pattern to return when nothing has been added (and thus not match anything)
+$Always_Fail = "^\0\\b";
 
 =head1 METHODS
 
@@ -89,7 +93,8 @@ B<anchor_*>, a family of optional attributes that allow anchors
 B<flags>, sets the C<imsx> flags to add to the assembled regular
 expression.  Warning: no error checking is done, you should ensure
 that the flags you pass are understood by the version of Perl you
-are using.
+are using. B<modifiers> exists as an alias, for users familiar
+with L<Regexp::List>.
 
 B<chomp>, controls whether the pattern should be chomped before being
 lexed. Handy if you are reading patterns from a file. By default, 
@@ -210,12 +215,31 @@ sub new {
 
     @args{qw(re str path)} = (undef, undef, []);
 
-    $args{flags}  = ''             unless exists $args{flags};
-    $args{lex}    = $Default_Lexer unless $args{lex};
+    $args{flags} ||= delete $args{modifiers} || '';
+    $args{lex}     = $Default_Lexer unless $args{lex};
 
     my $self = bless \%args, $class;
+
+    if ($self->_debug(DEBUG_TIME)) {
+        $self->_init_time_func();
+        $self->{_begin_time} = $self->{_time_func}->();
+    }
     exists $self->{file} and $self->add_file($self->{file});
+
     return $self;
+}
+
+sub _init_time_func {
+    my $self = shift;
+    return if exists $self->{_time_func};
+
+    # attempt to improve accuracy
+    eval {require Time::HiRes};
+    $self->{_use_time_hires} = $@;
+    $self->{_time_func} = $@
+        ? sub { time }
+        : \&Time::HiRes::time
+    ;
 }
 
 =item clone
@@ -687,8 +711,8 @@ sub as_string {
             }
         }
         if (not length $self->{str}) {
-            # explicitly match nothing if no pattern was generated
-            $self->{str} = '^a\bz';
+            # explicitly fail to match anything if no pattern was generated
+            $self->{str} = $Always_Fail;
         }
         else {
             my $begin = 
@@ -782,7 +806,7 @@ sub _build_re {
     else {
         # how could I not repeat myself?
         $self->{re} = length $self->{flags}
-            ? qr/(?$self->{flags}:$str)/
+            ? eval "qr/$str/$self->{flags}"
             : qr/$str/
         ;
     }
@@ -1028,7 +1052,7 @@ additional (C<(?-xism...>) fluff added by the compilation.
 
 sub stats_length {
     my $self = shift;
-    return (defined $self->{str} and $self->{str} ne '^a\\bz') ? length $self->{str} : 0;
+    return (defined $self->{str} and $self->{str} ne $Always_Fail) ? length $self->{str} : 0;
 }
 
 =item dup_warn(NUMBER|CODEREF)
@@ -1081,16 +1105,16 @@ will produce identical patterns:
 
   # both techniques will produce ^th(?:at|em|is)
 
-All anchors are possible word (C<\b> boundaries, line
+All anchors are possible word (C<\b>) boundaries, line
 boundaries (C<^> and C<$>) and string boundaries (C<\A>
-and C<\Z> (or C<\z> if you absolutely need it).
+and C<\Z> (or C<\z> if you absolutely need it)).
 
-The shortcut C<anchor_I<mumble>> method meaning both
+The shortcut C<anchor_I<mumble>> implies both
 C<anchor_I<mumble>_begin> C<anchor_I<mumble>_end> 
-can also be used. If different anchors are specified
+is also available. If different anchors are specified
 the most specific anchor wins. For instance, if both
 C<anchor_word_begin> and C<anchor_line_begin> are
-specified, C<anchor_word_begin> will be kept.
+specified, C<anchor_word_begin> takes precedence.
 
 All the anchor methods are chainable.
 
@@ -1314,21 +1338,65 @@ choosing, before call the C<add>, C<as_string> or C<re>)
 functions, otherwise it will scribble all over your
 carefully formatted output.
 
-0 turns debugging off, 1 emits debug traces dealing with
-adding new patterns to the object, 2 emits debug traces
-dealing with the reduction of the assembled pattern. 4 emits
-debug traces dealing with the lexing of the input pattern.
-Calling with no arguments also turns debugging off.
+=over 8
+
+=item 0
+
+Off. Turns off all debugging output.
+
+=item 1
+
+Add. Trace the addition of patterns.
+
+=item 2
+
+Reduce. Trace the process of reduction and assembly.
+
+=item 4
+
+Lex. Trace the lexing of the input patterns into its consitituent
+tokens.
+
+=item 8
+
+Time. Print to STDOUT the time taken to load all the patterns. This is
+nothing more than the difference between the time the object was
+instantiated and the time reduction was initiated.
+
+  # load=<num>
+
+Any lengthy computation performed in the client code will be reflected
+in this value. Another line will be printed after reduction is
+complete.
+
+  # reduce=<num>
+
+The above ouput lines will be changed to C<load-epoch> and
+C<reduce-epoch> if the internal state of the object is corrupted
+and the initial timestamp is lost.
+
+The code attempts to load L<Time::HiRes> in order to report fractional
+seconds. If this is not successful, the elapsed time is displayed
+in whole seconds.
+
+=back
 
 Values can be added (or or'ed together) to trace everything
 
   $r->debug(1)->add( '\\d+abc' );
+
+Calling with no arguments also turns debugging off.
 
 =cut
 
 sub debug {
     my $self = shift;
     $self->{debug} = defined($_[0]) ? $_[0] : 0;
+    if ($self->_debug(DEBUG_TIME)) {
+        # hmm, debugging time was switched on after instantiation
+        $self->_init_time_func;
+        $self->{_begin_time} = $self->{_time_func}->();
+    }
     return $self;
 }
 
@@ -1408,12 +1476,23 @@ Sets the flags that govern how the pattern behaves (for
 versions of Perl up to 5.9 or so, these are C<imsx>). By
 default no flags are enabled.
 
+
+=item modifiers(STRING)
+
+An alias of the C<flags> method, for users familiar with
+C<Regexp::List>.
+
 =cut
 
 sub flags {
     my $self = shift;
     $self->{flags} = defined($_[0]) ? $_[0] : '';
     return $self;
+}
+
+sub modifiers {
+    my $self = shift;
+    return $self->flags(@_);
 }
 
 =item track(0|1)
@@ -1885,6 +1964,19 @@ sub _insert_node {
 sub _reduce {
     my $self    = shift;
     my $context = { debug => $self->_debug(DEBUG_TAIL), depth => 0 };
+
+    if ($self->_debug(DEBUG_TIME)) {
+        $self->_init_time_func;
+        my $now = $self->{_time_func}->();
+        if (exists $self->{_begin_time}) {
+            printf "# load=%0.6f\n", $now - $self->{_begin_time};
+        }
+        else {
+            printf "# load-epoch=%0.6f\n", $now;
+        }
+        $self->{_begin_time} = $self->{_time_func}->();
+    }
+
     my ($head, $tail) = _reduce_path( $self->_path, $context );
     $context->{debug} and print "# final head=", _dump($head), ' tail=', _dump($tail), "\n";
     if( !@$head ) {
@@ -1896,6 +1988,18 @@ sub _reduce {
             @{_unrev_path( $head, $context )},
         ];
     }
+
+    if ($self->_debug(DEBUG_TIME)) {
+        my $now = $self->{_time_func}->();
+        if (exists $self->{_begin_time}) {
+            printf "# reduce=%0.6f\n", $now - $self->{_begin_time};
+        }
+        else {
+            printf "# reduce-epoch=%0.6f\n", $now;
+        }
+        $self->{_begin_time} = $self->{_time_func}->();
+    }
+
     $context->{debug} and print "# final path=", _dump($self->{path}), "\n";
     return $self;
 }
@@ -2638,7 +2742,7 @@ sub _node_eq {
 }
 
 sub _pretty_dump {
-	return sprintf "\\x%02x", ord(shift);
+    return sprintf "\\x%02x", ord(shift);
 }
 
 sub _dump {
@@ -2659,8 +2763,8 @@ sub _dump {
             # D::C indicates the second test is redundant
             # $dump .= ( $d =~ /\s/ or not length $d )
             $dump .= (
-				$d =~ /\s/            ? qq{'$d'}         :
-				$d =~ /^[\x00-\x1f]$/ ? _pretty_dump($d) :
+                $d =~ /\s/            ? qq{'$d'}         :
+                $d =~ /^[\x00-\x1f]$/ ? _pretty_dump($d) :
                 $d
             );
         }
@@ -2683,7 +2787,7 @@ sub _dump_node {
         $dump .= $n eq ''
             ? '*'
             : ($n =~ /^[\x00-\x1f]$/ ? _pretty_dump($n) : $n)
-				. "=>" . _dump($node->{$n})
+                . "=>" . _dump($node->{$n})
         ;
     }
     return $dump . '}';
@@ -2739,7 +2843,7 @@ C<X-\d+(?:-\d+Y|Z)>. Since R::A doesn't perform enough analysis,
 it won't "unroll" the C<{2}> quantifier, and will fail to notice
 the divergence after the first C<-d\d+>.
 
-What is more, when the string 'X-123000P' is matched against the
+Furthemore, when the string 'X-123000P' is matched against the
 first assembly, the regexp engine will have to backtrack over each
 alternation (the one that ends in Y B<and> the one that ends in Z)
 before determining that there is no match. No such backtracking
@@ -2773,7 +2877,7 @@ At the same time, it will also process C<\Q...\E> sequences. When
 such a sequence is encountered, the inner section is extracted and
 C<quotemeta> is applied to the section. The resulting quoted text
 is then used in place of the original unquoted text, and the C<\Q>
-and C<\E> metacharacters are thrown awa. Similar processing occurs
+and C<\E> metacharacters are thrown away. Similar processing occurs
 with the C<\U...\E> and C<\L...\E> sequences. This may have surprising
 effects when using a dispatch table. In this case, you will need
 to know exactly what the module makes of your input. Use the C<lexstr>

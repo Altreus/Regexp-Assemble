@@ -1,5 +1,16 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.25 2006-04-20 18:04:49
+    - Added a debug switch to elapsed pattern insertion and
+      pattern reduction times. Upgraded eg/assemble to make
+      use of it.
+    - Tweaked the resulting pattern when it uses 'imsx'
+      flags, giving (?i-xsm:(?:^a[bc]|de)) instead of
+      (?-xism:(?i:(?:^a[bc]|de))) .
+    - Changed the "match nothing" pattern to something slightly
+      less unsurprising to those who peek behind the scene. Bug
+      #18266 reported by Philippe Bruhat.
+
 0.24 2006-03-21 08:50:42
     - Added an add_file() method that allows a file of patterns to
       be slurped into an object. Makes for less make-work code in
