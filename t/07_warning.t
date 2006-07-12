@@ -32,8 +32,8 @@ SKIP: {
          ->add( qw( abc def ghi ));
 
     SKIP: {
-        skip( 'Sub::Uplevel broken on 5.8.8', 1 )
-            if $] == 5.008008;
+        skip( "Sub::Uplevel version $Sub::Uplevel::VERSION broken on 5.8.8, 0.13 or better required", 1 )
+            if $] == 5.008008 and $Sub::Uplevel::VERSION < 0.13;
 
         warning_like { $ra->add('def') } qr(duplicate pattern added: /def/ at \S+ line \d+\s*),
             "carp duplicate pattern";

@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 119 };
+eval qq{use Test::More tests => 114 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -133,46 +133,15 @@ SKIP: {
     }
 }
 
-{
-    my $orig = Regexp::Assemble->new;
-    my $clone = $orig->clone;
-    is_deeply( $orig, $clone, 'clone empty' );
-}
-
-{
-    my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
-    my $clone = $orig->clone;
-    is_deeply( $orig, $clone, 'clone path' );
-}
-
-{
-    my $orig = Regexp::Assemble->new->add( qw/ dig dug dog / );
-    my $clone = $orig->clone;
-    $orig->add( 'digger' );
-    $clone->add( 'digger' );
-    is_deeply( $orig, $clone, 'clone then add' );
-}
-
-{
-    my $orig = Regexp::Assemble->new
-        ->add( qw/ bird cat dog elephant fox/ );
-    my $clone = $orig->clone;
-    is_deeply( $orig, $clone, 'clone node' );
-}
-
-{
-    my $orig = Regexp::Assemble->new
-        ->add( qw/ after alter amber cheer steer / );
-    my $clone = $orig->clone;
-    is_deeply( $orig, $clone, 'clone more' );
-}
-
 SKIP: {
     # If the Storable module is available, we will have used
     # that above, however, we will not have tested the pure-Perl
     # fallback routines.
-       skip( 'Pure-Perl clone() already tested', 5 )
-           unless $Regexp::Assemble::have_Storable;
+    skip( 'Pure-Perl clone() already tested', 5 )
+        unless $Regexp::Assemble::have_Storable;
+
+    skip( "is_deeply is broken in this version of Test::More (v$Test::More::VERSION)", 5 )
+        unless $Test::More::VERSION > 0.47;
 
     local $Regexp::Assemble::have_Storable = 0;
     {

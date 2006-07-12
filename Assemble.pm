@@ -1,12 +1,11 @@
 # Regexp::Assemple.pm
-#
 # Copyright (c) 2004-2006 David Landgren
 # All rights reserved
 
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.25';
+$VERSION = '0.26';
 
 =head1 NAME
 
@@ -14,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.25 of Regexp::Assemble,
-released 2006-xx-xx.
+This document describes version 0.26 of Regexp::Assemble,
+released 2006-07-12.
 
 =head1 SYNOPSIS
 
@@ -56,7 +55,7 @@ Some more examples of usage appear in the accompanying README. If
 that file isn't easy to access locally, you can find it on a web
 repository such as
 L<http://search.cpan.org/dist/Regexp-Assemble/README> or
-L<http://kobesearch.cpan.org/>.
+L<http://cpan.uwinnipeg.ca/htdocs/Regexp-Assemble/README.html>.
 
 =cut
 
@@ -73,7 +72,7 @@ $Default_Lexer = qr/(?![[(\\]).(?:[*+?]\??|\{\d+(?:,\d*)?\}\??)?|\\(?:[bABCEGLQU
 $Single_Char   = qr/^(?:\\(?:[aefnrtdDwWsS]|c.|[^\w\/{|}-]|0\d{2}|x(?:[\da-fA-F]{2}|{[\da-fA-F]{4}}))|[^\$^])$/;
 
 # the pattern to return when nothing has been added (and thus not match anything)
-$Always_Fail = "^\0\\b";
+$Always_Fail = "^\\b\0";
 
 =head1 METHODS
 
@@ -113,7 +112,7 @@ If you really don't want chomping to occur, you will have to set
 the C<chomp> attribute to 0 (zero). You may also want to look at
 the C<input_record_separator> attribute, as well.
 
-B<input_record_separator>, contols what constitutes a record
+B<input_record_separator>, controls what constitutes a record
 separator when using the C<file> attribute or the C<add_file>
 method. May be abbreviated to B<rs>. See the C<$/> variable in
 L<perlvar>.
@@ -1354,7 +1353,7 @@ Reduce. Trace the process of reduction and assembly.
 
 =item 4
 
-Lex. Trace the lexing of the input patterns into its consitituent
+Lex. Trace the lexing of the input patterns into its constituent
 tokens.
 
 =item 8
@@ -1371,7 +1370,7 @@ complete.
 
   # reduce=<num>
 
-The above ouput lines will be changed to C<load-epoch> and
+The above output lines will be changed to C<load-epoch> and
 C<reduce-epoch> if the internal state of the object is corrupted
 and the initial timestamp is lost.
 
@@ -1383,9 +1382,9 @@ in whole seconds.
 
 Values can be added (or or'ed together) to trace everything
 
-  $r->debug(1)->add( '\\d+abc' );
+  $r->debug(7)->add( '\\d+abc' );
 
-Calling with no arguments also turns debugging off.
+Calling C<debug> with no arguments turns debugging off.
 
 =cut
 
@@ -2843,7 +2842,7 @@ C<X-\d+(?:-\d+Y|Z)>. Since R::A doesn't perform enough analysis,
 it won't "unroll" the C<{2}> quantifier, and will fail to notice
 the divergence after the first C<-d\d+>.
 
-Furthemore, when the string 'X-123000P' is matched against the
+Furthermore, when the string 'X-123000P' is matched against the
 first assembly, the regexp engine will have to backtrack over each
 alternation (the one that ends in Y B<and> the one that ends in Z)
 before determining that there is no match. No such backtracking
@@ -2898,9 +2897,9 @@ pattern C<(?:f(?:ew|ig|un)|b(?:ad|it))>. See F<eg/tld> for a
 real-world example of how alternations are sorted. Once you have
 looked at that, everything should be crystal clear.
 
-When tracking is in use, no reduction is performed. Furthermore,
-no character classes are formed. The reason is that it becomes just
-too difficult to determine the original pattern. Consider the the
+When tracking is in use, no reduction is performed. nor are 
+character classes formed. The reason is that it is
+too difficult to determine the original pattern afterwards. Consider the
 two patterns C<pale> and C<palm>. These should be reduced to
 C<pal[em]>. The final character matches one of two possibilities.
 To resolve whether it matched an C<'e'> or C<'m'> would require

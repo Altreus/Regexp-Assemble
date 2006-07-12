@@ -1,5 +1,15 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.26 2006-07-12 09:27:51 UTC
+    - Incorporated a patch to the test suite from barbie, to work
+      around a problem encountered on Win32 (bug #17507).
+    - The "match nothing" pattern was incorrect (but so obscure
+      as to be reasonably safe).
+    - Removed the unguarded tests in t/06_general.t that the
+      Test::More workaround in 0.24 skips.
+    - Newer versions of Sub::Uplevel no longer need to be guarded
+      against in t/07_warning.t.
+
 0.25 2006-04-20 18:04:49
     - Added a debug switch to elapsed pattern insertion and
       pattern reduction times. Upgraded eg/assemble to make
@@ -8,8 +18,9 @@ Revision history for Perl extension Regexp::Assemble.
       flags, giving (?i-xsm:(?:^a[bc]|de)) instead of
       (?-xism:(?i:(?:^a[bc]|de))) .
     - Changed the "match nothing" pattern to something slightly
-      less unsurprising to those who peek behind the scene. Bug
-      #18266 reported by Philippe Bruhat.
+      less unsurprising to those who peek behind the curtain.
+      Reported by Philippe Bruhat (bug #18266).
+    - Tweaked the dump() output for chars \x00 .. \x1f
 
 0.24 2006-03-21 08:50:42
     - Added an add_file() method that allows a file of patterns to
@@ -41,7 +52,7 @@ Revision history for Perl extension Regexp::Assemble.
       pathological cases are taken care of. The code is horrible,
       though, a rewrite is next on the agenda.
     - Guard against earlier buggy versions of Test::More (0.47)
-       in t/06_general.t
+      in t/06_general.t
     - Carp::croak rewritten as Carp::croak() to fix failures
       noted on blead.
     - Rewrote _re_path() for speed.

@@ -21,28 +21,50 @@ use Regexp::Assemble;
 my $fixed = 'The scalar remains the same';
 $_ = $fixed;
 
+# Bug #17507 as noted by barbie
+#
+# There appears to be a problem with the substitute key on Windows, for
+# at least Perl 5.6.1, which causes this test script to terminate
+# immediately on encountering the character.
+my $subchr    = 0x1a;
+my $win32_56x = ($^O eq 'MSWin32' && $] < 5.008) ? 1 : 0;
+diag("enabling defensive workaround for $] on $^O") if $win32_56x;
+
 {
     for my $outer ( 0 .. 15 ) {
         my $re = Regexp::Assemble->new->anchor_string->chomp(0);
         for my $inner ( 0 .. 15 ) {
+            next if $win32_56x and $subchr == ($outer*16 + $inner);
             $re->add( quotemeta( chr( $outer*16 + $inner )));
         }
         for my $inner ( 0 .. 15 ) {
-            my $ch = chr($outer*16 + $inner);
-            like( $ch, qr/$re/,
-                "run $ch ($outer:$inner) $re"
-            );
+            if( $win32_56x and $subchr == ($outer*16 + $inner)) {
+                 ok( 1, "faking $subchr for 5.6 on Win32" );
+            }
+            else {
+                my $ch = chr($outer*16 + $inner);
+                like( $ch, qr/$re/, "run $ch ($outer:$inner) $re" );
+            }
         }
     }
 }
 
 for( 0 .. 255 ) {
+    if( $win32_56x and $subchr == $_) {
+        ok(1, "Fake a single for 5.6 on Win32");
+        next;
+    }
     my $ch = chr($_);
     my $qm = Regexp::Assemble->new(chomp=>0)->anchor_string->add(quotemeta($ch));
     like( $ch, qr/$qm/, "quotemeta(chr($_))" );
 }
 
 for( 0 .. 127 ) {
+    if( $win32_56x and $subchr == $_) {
+        ok(1, "Fake a hi for 5.6 on Win32");
+        ok(1, "Fake a lo for 5.6 on Win32");
+        next;
+    }
     my $lo = chr($_);
     my $hi = chr($_+128);
     my $qm = Regexp::Assemble->new(chomp => 0, anchor_string => 1)->add(
