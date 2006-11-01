@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 114 };
+eval qq{use Test::More tests => 99 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -253,61 +253,6 @@ SKIP: {
         'super slide sing singing sling slinging sting stinging string stringing swing swinging'
     );
 }
-
-$ra = Regexp::Assemble->new->debug(3);
-
-cmp_ok( $ra->add( qw/ dog darkness doggerel dark / )->as_string,
-    'eq',
-    'd(?:ark(?:ness)?|og(?:gerel)?)' );
-
-cmp_ok( $ra->add( qw/ limit lit / )->as_string,
-    'eq',
-    'l(?:im)?it' );
-
-cmp_ok( $ra->add( qw/ seafood seahorse sea / )->as_string,
-    'eq',
-    'sea(?:horse|food)?' );
-
-cmp_ok( $ra->add( qw/ bird cat dog elephant fox / )->as_string,
-    'eq',
-    '(?:(?:elephan|ca)t|bird|dog|fox)' );
-
-cmp_ok( $ra->add( qw/ bit bat sit sat fit fat / )->as_string,
-    'eq',
-    '[bfs][ai]t' );
-
-cmp_ok( $ra->add( qw/ split splat slit slat flat flit / )->as_string,
-    'eq',
-    '(?:sp?|f)l[ai]t' );
-
-cmp_ok( $ra->add( qw/bcktx bckx bdix bdktx bdkx/ )
-    ->as_string, 'eq', 'b(?:d(?:kt?|i)|ckt?)x',
-    'bcktx bckx bdix bdktx bdkx' );
-
-cmp_ok( $ra->add( qw/gait grit wait writ /)->as_string,
-    'eq', '[gw][ar]it' );
-
-cmp_ok( $ra->add( qw/gait grit lit limit /)->as_string,
-    'eq', '(?:l(?:im)?|g[ar])it' );
-
-cmp_ok( $ra->add( qw/bait brit frit gait grit tait wait writ /)->as_string,
-    'eq', '(?:[bgw][ar]|fr|ta)it' );
-
-cmp_ok( $ra->add( qw/schoolkids acids acidoids/ )->as_string,
-    'eq', '(?:ac(?:ido)?|schoolk)ids' );
-
-cmp_ok( $ra->add( qw/schoolkids acidoids/ )->as_string,
-    'eq', '(?:schoolk|acido)ids' );
-
-cmp_ok( $ra->add( qw/nonschoolkids nonacidoids/ )->as_string,
-    'eq', 'non(?:schoolk|acido)ids' );
-
-cmp_ok( $ra->add( qw/schoolkids skids acids acidoids/ )->as_string,
-    'eq', '(?:s(?:chool)?k|ac(?:ido)?)ids' );
-
-cmp_ok( $ra->add( qw/kids schoolkids skids acids acidoids/ )->as_string,
-    'eq', '(?:(?:s(?:chool)?)?k|ac(?:ido)?)ids' );
-
 {
     my $re = Regexp::Assemble->new( flags => 'i' )->add( qw/ ^ab ^are de / );
     like( 'able', qr/$re/, '{^ab ^are de} /i matches able' );

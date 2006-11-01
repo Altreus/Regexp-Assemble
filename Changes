@@ -1,5 +1,26 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.27 2006-11-01 23:43:35 UTC
+    - rewrote the lexing of patterns in _fastlex(). Unfortunately
+      this doesn't speed things up as much as I had hoped.
+    - eg/assemble now recognises -T to dump timing statistics.
+    - file parameter in add_file() may accept a single scalar
+      (or a list, as before).
+    - rs parameter in new() was not recognised as an alias
+      for input_record_separator,
+    - anchor_string_absolute as a parameter to new() would not
+      have worked correctly.
+    - a couple of anchor_<mumble>() methods would not have
+      worked correctly.
+    - Added MANIFEST.SKIP, now that the module is under
+      version control.
+    - Broke out the debug tests into a separate file
+      (t/09_debug.t).
+    - cmp_ok() tests that tested equality were replaced by is().
+    - tests in t/03_str.t transformed to a data-driven approach,
+      in order to slim down the size of the distribution tarball.
+    - Typo spotted in the documentation by Stephan (bug #20425).
+
 0.26 2006-07-12 09:27:51 UTC
     - Incorporated a patch to the test suite from barbie, to work
       around a problem encountered on Win32 (bug #17507).

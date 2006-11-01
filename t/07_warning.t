@@ -5,7 +5,7 @@
 #
 # copyright (C) 2005-2006 David Landgren
 
-use constant WARN_TESTS => 4;
+use constant WARN_TESTS => 6;
 
 eval qq{use Test::More tests => WARN_TESTS};
 if( $@ ) {
@@ -31,17 +31,28 @@ SKIP: {
      my $ra = Regexp::Assemble->new( dup_warn => 1 )
          ->add( qw( abc def ghi ));
 
+     my $rax = Regexp::Assemble->new( dup_warn => 0 )
+         ->add( qw( abc def ghi ));
+
+     my $ram = Regexp::Assemble->new->dup_warn
+         ->add( qw( abc def ghi ));
+
+    warning_is { $rax->add( 'def' ) } { carped => "" }, "do not carp explicit";
+
     SKIP: {
-        skip( "Sub::Uplevel version $Sub::Uplevel::VERSION broken on 5.8.8, 0.13 or better required", 1 )
+        skip( "Sub::Uplevel version $Sub::Uplevel::VERSION broken on 5.8.8, 0.13 or better required", 2 )
             if $] == 5.008008 and $Sub::Uplevel::VERSION < 0.13;
 
         warning_like { $ra->add('def') } qr(duplicate pattern added: /def/ at \S+ line \d+\s*),
-            "carp duplicate pattern";
+            "carp duplicate pattern, warn from new";
+
+        warning_like { $ram->add('abc') } qr(duplicate pattern added: /abc/ at \S+ line \d+\s*),
+            "carp duplicate pattern, warn from method";
     }
 
     $ra->dup_warn(0);
-    warning_is { $ra->add( 'ghi' ) } { carped => "" },
-        "do not carp";
+    warning_is { $ra->add( 'ghi' ) } { carped => "" }, "do not carp";
+    $ra->dup_warn(1);
 
     my $dup_count = 0;
     $ra->dup_warn( sub { ++$dup_count } );

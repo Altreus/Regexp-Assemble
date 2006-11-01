@@ -1471,4 +1471,4 @@ my $context = { debug => 0, depth => 0 };
     ) or diag ($ra->_path);
 }
 
-cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
+is( $_, $fixed, '$_ has not been altered' );

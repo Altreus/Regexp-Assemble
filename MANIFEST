@@ -1,6 +1,7 @@
 Assemble.pm
 Changes
 MANIFEST
+MANIFEST.SKIP
 Makefile.PL
 META.yml                                 Module meta-data (added by MakeMaker)
 README
@@ -11,6 +12,7 @@ eg/fee
 eg/file.1
 eg/file.2
 eg/file.3
+eg/file.4
 eg/hostmatch/bad.canonical
 eg/hostmatch/error.canonical
 eg/hostmatch/good.canonical
@@ -19,7 +21,7 @@ eg/hostmatch/source.in
 eg/ircwatcher
 eg/naive
 eg/roman
-eg/stress-test
+eg/stress-test.pl
 eg/tld
 eg/unquotemeta
 t/00_basic.t
@@ -31,3 +33,4 @@ t/05_hostmatch.t
 t/06_general.t
 t/07_warning.t
 t/08_track.t
+t/09_debug.t

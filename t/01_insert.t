@@ -19,7 +19,7 @@ use Regexp::Assemble;
 
 use constant permute_testcount => 120 * 5; # permute() has 120 (5!) variants
 
-eval qq{use Test::More tests => 60 + permute_testcount};
+eval qq{use Test::More tests => 50 + permute_testcount};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -33,8 +33,8 @@ $_ = $fixed;
     my $ra = Regexp::Assemble->new;
     $ra->insert( '' );
     my $r = ($ra->_path)->[0];
-    cmp_ok( ref($r), 'eq', 'HASH',  q{insert('') => first element is a HASH} );
-    cmp_ok( scalar(keys %$r), '==', 1,      q{...and contains one key} );
+    is( ref($r), 'HASH',  q{insert('') => first element is a HASH} );
+    is( scalar(keys %$r), 1,      q{...and contains one key} );
     ok( exists $r->{''},    q{...which is an empty string} );
     ok( !defined($r->{''}), q{...and points to undef} );
 }
@@ -43,8 +43,8 @@ $_ = $fixed;
     my $ra = Regexp::Assemble->new;
     $ra->insert( 'a' );
     my $r = $ra->_path;
-    cmp_ok( scalar @$r, '==', 1,  q{'a' => path of length 1} );
-    cmp_ok( $r->[0], 'eq', 'a',   q{'a' => ...and is an 'a'} );
+    is( scalar @$r, 1,  q{'a' => path of length 1} );
+    is( $r->[0], 'a',   q{'a' => ...and is an 'a'} );
 }
 
 {
@@ -58,38 +58,32 @@ $_ = $fixed;
     my $ra = Regexp::Assemble->new;
     $ra->insert( 'a', 'b' );
     my $r = $ra->_path;
-    cmp_ok( scalar @$r, '==', 2,  q{'ab' => path of length 2} );
-    cmp_ok( join( '' => @$r ), 'eq', 'ab', q{'ab' => ...and is 'a', 'b'} );
-    cmp_ok( $ra->dump, 'eq', '[a b]', 'dump([a b])' );
+    is( scalar @$r, 2,  q{'ab' => path of length 2} );
+    is( join( '' => @$r ), 'ab', q{'ab' => ...and is 'a', 'b'} );
+    is( $ra->dump, '[a b]', 'dump([a b])' );
 }
 
 {
     my $ra = Regexp::Assemble->new;
     $ra->insert( 'a', 'b' );
     $ra->insert( 'a', 'c' );
-    cmp_ok( $ra->dump, 'eq', '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
+    is( $ra->dump, '[a {b=>[b] c=>[c]}]', 'dump([a {b c}])' );
     my $r = $ra->_path;
-    cmp_ok( scalar @$r, '==', 2,        q{'ab,ac' => path of length 2} );
-    cmp_ok( $r->[0], 'eq', 'a',         q{'ab,ac' => ...and first atom is 'a'} );
-    cmp_ok( ref($r->[1]), 'eq', 'HASH', q{'ab,ac' => ...and second is a node} );
+    is( scalar @$r, 2,        q{'ab,ac' => path of length 2} );
+    is( $r->[0], 'a',         q{'ab,ac' => ...and first atom is 'a'} );
+    is( ref($r->[1]), 'HASH', q{'ab,ac' => ...and second is a node} );
     $r = $r->[1];
-    cmp_ok( scalar(keys %$r), '==', 2,  q{'ab,ac' => ...node has two keys} );
-    cmp_ok( join( '' => sort keys %$r ), 'eq', 'bc',
+    is( scalar(keys %$r), 2,  q{'ab,ac' => ...node has two keys} );
+    is( join( '' => sort keys %$r ), 'bc',
         q{'ab,ac' => ...keys are 'b','c'} );
     ok( exists $r->{b}, q{'ab,ac' => ... key 'b' exists} );
-    cmp_ok( ref($r->{b}), 'eq', 'ARRAY', q{'ab,ac' => ... and points to a path} );
+    is( ref($r->{b}), 'ARRAY', q{'ab,ac' => ... and points to a path} );
     ok( exists $r->{c}, q{'ab,ac' => ... key 'c' exists} );
-    cmp_ok( ref($r->{c}), 'eq', 'ARRAY', q{'ab,ac' => ... and points to a path} );
+    is( ref($r->{c}), 'ARRAY', q{'ab,ac' => ... and points to a path} );
 }
 
 {
     my $ra = Regexp::Assemble->new;
-    $ra->insert( undef );
-    is_deeply( $ra->_path, [{'' => undef}], 'insert(undef)' );
-}
-
-{
-    my $ra = Regexp::Assemble->new(debug => 1);
     $ra->insert( undef );
     is_deeply( $ra->_path, [{'' => undef}], 'insert(undef)' );
 }
@@ -160,77 +154,9 @@ $_ = $fixed;
 
 {
     my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->debug(4)->add( '67abc123def+' )->_path,
-        [ '6', '7', 'abc', '1', '2', '3', 'def+' ],
-        '67abc123def+ with \\d lexer',
-    );
-    is_deeply( $r->reset->debug(0)->add( '67ab12de+' )->_path,
-        [ '6', '7', 'ab', '1', '2', 'de+' ],
-        '67ab12de+ with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->debug(4)->add( '67\\Q1a*\\E12jk' )->_path,
-        [ '6', '7', '1', 'a', '\\*', '1', '2', 'jk' ],
-        '67\\Q1a*\\E12jk with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->debug(4)->add( '67\\Q1a*45k+' )->_path,
-        [ '6', '7', '1', 'a', '\\*', '4', '5', 'k', '\\+' ],
-        '67\\Q1a*45k+ with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->debug(4)->add( '7\U6a' )->_path,
-        [ '7', '6', 'A' ],
-        '7\\U6a with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->debug(4)->add( '8\L9C' )->_path,
-        [ '8', '9', 'c' ],
-        '8\\L9C with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
     is_deeply( $r->add( '0\Q0C,+' )->_path,
         [ '0', '0', 'C', ',', '\\+' ],
         '0\\Q0C,+ with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->debug(4)->add( '57\\Q2a+23d+' )->_path,
-        [ '5', '7', '2', 'a', '\\+', '2', '3', 'd', '\\+' ],
-        '57\\Q2a+23d+ with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->debug(4)->add( '67\\Uabc\\E123def' )->_path,
-        [ '6', '7', '\\Uabc\\E', '1', '2', '3', 'def' ],
-        '67\Uabc\\E123def with \\d lexer',
-    );
-}
-
-{
-    my $r = Regexp::Assemble->new(lex => '\\d');
-    is_deeply( $r->add( '67\\Q(?:a)?\\E123def' )->_path,
-        [ '6', '7', '\\Q(?:a)?\\E', '1', '2', '3', 'def' ],
-        '67\Uabc\\E123def with \\d lexer',
     );
 }
 
@@ -647,7 +573,7 @@ Regexp::Assemble::Default_Lexer( '\([^(]*(?:\([^)]*\))?[^)]*\)|.' );
     is_deeply( $r->_path,
         [ 'a', 'b', '(cd)', 'e', 'f' ],
         'ab(cd)ef (with Default parenthetical lexer)'
-    );
+    ) or diag("lex = $r->{lex}");
 
     $r->reset->add( 'ab((ef)gh)ij' );
     is_deeply( $r->_path,
@@ -668,4 +594,4 @@ Regexp::Assemble::Default_Lexer( '\([^(]*(?:\([^)]*\))?[^)]*\)|.' );
     ok( $@, 'die on non-CODE pre_filter' );
 }
 
-cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
+is( $_, $fixed, '$_ has not been altered' );

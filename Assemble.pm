@@ -4,8 +4,8 @@
 
 package Regexp::Assemble;
 
-use vars qw/$VERSION $have_Storable $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.26';
+use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
+$VERSION = '0.27';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.26 of Regexp::Assemble,
-released 2006-07-12.
+This document describes version 0.27 of Regexp::Assemble,
+released 2006-11-01.
 
 =head1 SYNOPSIS
 
@@ -180,15 +180,18 @@ sub new {
     for $anc (qw(word line string)) {
         if (exists $args{"anchor_$anc"}) {
             my $val = delete $args{"anchor_$anc"};
-            exists $args{$_} or $args{$_} = $val
-                for ("anchor_${anc}_begin", "anchor_${anc}_end");
+            for my $anchor ("anchor_${anc}_begin", "anchor_${anc}_end") {
+                $args{$anchor} = $val unless exists $args{$anchor};
+            }
         }
     }
 
+    # anchor_string_absolute sets anchor_string_begin and anchor_string_end_absolute
     if (exists $args{anchor_string_absolute}) {
         my $val = delete $args{anchor_string_absolute};
-        exists $args{$_} or $args{$_} = $val
-            for qw(anchor_string_begin anchor_string_absolute_end);
+        for my $anchor (qw(anchor_string_begin anchor_string_end_absolute)) {
+            $args{$anchor} = $val unless exists $args{$anchor};
+        }
     }
 
     exists $args{$_} or $args{$_} = 0 for qw(
@@ -198,7 +201,7 @@ sub new {
         anchor_line_end
         anchor_string_begin
         anchor_string_end
-        anchor_string_absolute_end
+        anchor_string_end_absolute
         debug
         dup_warn
         indent
@@ -215,7 +218,7 @@ sub new {
     @args{qw(re str path)} = (undef, undef, []);
 
     $args{flags} ||= delete $args{modifiers} || '';
-    $args{lex}     = $Default_Lexer unless $args{lex};
+    $args{lex}     = $Current_Lexer if defined $Current_Lexer;
 
     my $self = bless \%args, $class;
 
@@ -223,6 +226,8 @@ sub new {
         $self->_init_time_func();
         $self->{_begin_time} = $self->{_time_func}->();
     }
+    $self->{input_record_separator} = delete $self->{rs}
+        if exists $self->{rs};
     exists $self->{file} and $self->add_file($self->{file});
 
     return $self;
@@ -233,9 +238,11 @@ sub _init_time_func {
     return if exists $self->{_time_func};
 
     # attempt to improve accuracy
-    eval {require Time::HiRes};
-    $self->{_use_time_hires} = $@;
-    $self->{_time_func} = $@
+    if (!defined($self->{_use_time_hires})) {
+        eval {require Time::HiRes};
+        $self->{_use_time_hires} = $@;
+    }
+    $self->{_time_func} = length($self->{_use_time_hires}) > 0
         ? sub { time }
         : \&Time::HiRes::time
     ;
@@ -310,6 +317,138 @@ This method is chainable.
 
 =cut
 
+sub _fastlex {
+    my $self   = shift;
+    my $record = shift;
+    my $len    = 0;
+    my @path   = ();
+    my $case   = '';
+    my $qm     = '';
+    my $debug  = $self->{debug} & DEBUG_LEX;
+    my $token;
+    my $qualifier;
+    $debug and print "# _lex <$record>\n";
+    my $modifier        = q{(?:[*+?]\\??|\\{(?:\\d+(?:,\d*)?|,\d+)\\}\\??)?};
+    my $class_matcher   = qr/\[.*?(?<!\\)\]$modifier/;
+    my $paren_matcher   = qr/\(.*?(?<!\\)\)$modifier/;
+    my $misc_matcher    = qr/(?:(c)(.)|(0)(\d{2}))($modifier)/;
+    my $regular_matcher = qr/([^\\[(])($modifier)/;
+    my $qm_matcher      = qr/(\\?.)/;
+
+    my $matcher = $regular_matcher;
+    {
+        if ($record =~ /\G$matcher/gc) {
+            # neither a \\ nor [ nor ( followed by a modifer
+            if ($1 eq '\\E') {
+                $debug and print "#   E\n";
+                $case = $qm = '';
+                $matcher = $regular_matcher;
+                redo;
+            }
+            elsif ($qm and ($1 eq '\\L' or $1 eq '\\U')) {
+                $debug and print "#  ignore \\L, \\U\n";
+                redo;
+            }
+            $token = $1;
+            $qualifier = defined $2 ? $2 : '';
+            $debug and print "#  token <$token> <$qualifier>\n";
+            if ($qm) {
+                $token = quotemeta($token);
+                $token =~ s/^\\([^\w$()*+.?@\[\\\]^|{}\/])$/$1/;
+            }
+            else {
+                $token =~ s{\A([][{}*+.?@|\\/])\Z}{\\$1};
+            }
+            $debug and print " clean <$token>\n";
+            push @path,
+                  $case eq 'L' ? lc($token).$qualifier
+                : $case eq 'U' ? uc($token).$qualifier
+                :                   $token.$qualifier
+                ;
+            redo;
+        }
+
+        elsif ($record =~ /\G\\/gc) {
+            $debug and print "#  backslash\n";
+            # backslash
+            if ($record =~ /\G([sdwSDW]$modifier)/gc) {
+                $debug and print "#   meta $1\n";
+                push @path, "\\$1";
+            }
+            elsif ($record =~ /\Gx([\da-fA-F]{2})($modifier)/gc) {
+                $debug and print "#   x $1\n";
+                $token = quotemeta(chr(hex($1)));
+                $qualifier = $2;
+                $debug and print "#  cooked <$token>\n";
+                $token =~ s/^\\([^\w$()*+.?\[\\\]^|{\/])$/$1/; # } balance
+                $debug and print "#   giving <$token>\n";
+                push @path, "$token$qualifier";
+            }
+            elsif ($record =~ /\GQ/gc) {
+                $debug and print "#   Q\n";
+                $qm = 1;
+                $matcher = $qm_matcher;
+            }
+            elsif ($record =~ /\G([LU])/gc) {
+                $debug and print "#   case $1\n";
+                $case = $1;
+            }
+            elsif ($record =~ /\GE/gc) {
+                $debug and print "#   E\n";
+                $case = $qm = '';
+                $matcher = $regular_matcher;
+            }
+            elsif ($record =~ /\G([lu])(.)/gc) {
+                $debug and print "#   case $1 to <$2>\n";
+                push @path, $1 eq 'l' ? lc($2) : uc($2);
+            }
+            elsif (my @arg = grep {defined} $record =~ /\G$misc_matcher/gc) {
+                my $directive = shift @arg;
+                if ($directive eq 'c') {
+                    $debug and print "#  ctrl <@arg>\n";
+                    push @path, "\\c" . uc(shift @arg);
+                }
+                else { # elsif ($directive eq '0') {
+                    $debug and print "#  octal <@arg>\n";
+                    my $ascii = oct(shift @arg);
+                    push @path, ($ascii < 32)
+                        ? "\\c" . chr($ascii+64)
+                        : chr($ascii)
+                    ;
+                }
+                $path[-1] .= join( '', @arg ) if @arg;
+                redo;
+            }
+            elsif ($record =~ /\G(.)/gc) {
+                $token = $1;
+                $token =~ s{[AZabefnrtz\[\]{}()\\\$*+.?@|/^]}{\\$token};
+                $debug and print "#   meta <$token>\n";
+                push @path, $token;
+            }
+            else {
+                $debug and print "#   ignore char at ", pos($record), " of <$record>\n";
+            }
+            redo;
+        }
+
+        elsif ($record =~ /\G($class_matcher)/gc) {
+            # [class] followed by a modifer
+            $debug and print "#  class <$1>\n";
+            push @path, $1;
+            redo;
+        }
+
+        elsif ($record =~ /\G($paren_matcher)/gc) {
+            $debug and print "#  paren <$1>\n";
+            # (paren) followed by a modifer
+            push @path, $1;
+            redo;
+        }
+
+    }
+    return \@path;
+}
+
 sub _lex {
     my $self   = shift;
     my $record = shift;
@@ -317,7 +456,9 @@ sub _lex {
     my @path   = ();
     my $case   = '';
     my $qm     = '';
-    my $re     = $self->{lex};
+    my $re     = defined $self->{lex} ? $self->{lex}
+        : defined $Current_Lexer ? $Current_Lexer
+        : $Default_Lexer;
     my $debug  = $self->{debug} & DEBUG_LEX;
     $debug and print "# _lex <$record>\n";
     my ($token, $next_token, $diff, $token_len);
@@ -336,7 +477,9 @@ sub _lex {
             if( substr( $token, 0, 1 ) eq '\\' ) {
                 if( $token =~ /^\\([ELQU])$/ ) {
                     if( $1 eq 'E' ) {
-                        $re = $self->{lex} if $qm;
+                        $qm and $re = defined $self->{lex} ? $self->{lex}
+                            : defined $Current_Lexer ? $Current_Lexer
+                            : $Default_Lexer;
                         $case = $qm = '';
                     }
                     elsif( $1 eq 'Q' ) {
@@ -410,7 +553,7 @@ sub add {
         $debug and print "# add <$record>\n";
         $self->{stats_raw} += length $record;
         my $list = $record =~ /[+*?(\\\[{]/ # }]) restore equilibrium
-            ? $self->_lex($record)
+            ? $self->{lex} ? $self->_lex($record) : $self->_fastlex($record)
             : [split //, $record]
         ;
         next if $self->{filter} and not $self->{filter}->(@$list);
@@ -446,11 +589,17 @@ available.  The recognised keys are:
 
 =item file
 
-Reference to a list of file names
+Reference to a list of file names, or the name of a single
+file.
+
+  $r->add_file({file => ['file.1', 'file.2', 'file.3']});
+  $r->add_file({file => 'file.n'});
 
 =item input_record_separator
 
 If present, indicates what constitutes a line
+
+  $r->add_file({file => 'data.txt', input_record_separator => ':' });
 
 =item rs
 
@@ -476,7 +625,9 @@ sub add_file {
             || $arg->{input_record_separator}
             || $self->{input_record_separator}
             || $/;
-        @file = @{$arg->{file}};
+        @file = ref($arg->{file}) eq 'ARRAY'
+            ? @{$arg->{file}}
+            : $arg->{file};
     }
     else {
         $rs   = $self->{input_record_separator} || $/;
@@ -1298,7 +1449,7 @@ to 0 to disable.
 
 sub anchor_string {
     my $self  = shift;
-    my $state = shift;
+    my $state = defined($_[0]) ? $_[0] : 1;
     $self->anchor_string_begin($state)->anchor_string_end($state);
     return $self;
 }
@@ -1318,7 +1469,7 @@ to 0 to disable.
 
 sub anchor_string_absolute {
     my $self  = shift;
-    my $state = shift;
+    my $state = defined($_[0]) ? $_[0] : 1;
     $self->anchor_string_begin($state)->anchor_string_end_absolute($state);
     return $self;
 }
@@ -1636,9 +1787,9 @@ sub Default_Lexer {
             require Carp;
             Carp::croak("Cannot pass a $refname to Default_Lexer");
         }
-        $Default_Lexer = $_[0];
+        $Current_Lexer = $_[0];
     }
-    return $Default_Lexer;
+    return defined $Current_Lexer ? $Current_Lexer : $Default_Lexer;
 }
 
 # --- no user serviceable parts below ---
@@ -1737,13 +1888,11 @@ sub _insert_path {
             $debug and print "#   at (off=$offset len=@{[scalar @$path]}) ", _dump($path->[$offset]), "\n";
             my $node = $path->[$offset];
             if( exists( $node->{$token} )) {
-                $debug and print "#   found the token at this node\n";
-                if( $offset < $#$path and @in ) {
+                if ($offset < $#$path) {
                     my $new = {
                         $token => [$token, @in],
-                        _re_path([$node]) => [@{$path}[$offset..$#{$path}]],
+                        _re_path([$node]) => [@{$path}[$offset..$#$path]],
                     };
-                    $debug and print "#   wrap key=$token @{[_dump($new)]}\n";
                     splice @$path, $offset, @$path-$offset, $new;
                     last;
                 }
@@ -1856,43 +2005,31 @@ sub _insert_node {
                 my $new_path = [];
                 while( @$old_path and _node_eq( $old_path->[0], $token )) {
                     $debug and print "#  identical nodes in sub_path ",
-                        ref($token) ? _dump($token) : "$token", "\n";
+                        ref($token) ? _dump($token) : $token, "\n";
                     push @$new_path, shift(@$old_path);
                     $token = shift @_;
                 }
-                my $new;
                 if( @$new_path ) {
+                    my $new;
                     my $token_key = $token;
-                    $token = [$token, @_] if @_;
-                    if( ref($token) ) {
-                        if( @_ ) {
-                            $new = {
-                                _re_path($old_path) => $old_path,
-                                $token_key => $token,
-                            };
-                            $debug and print "#  insert_node(bifurc) n=@{[_dump([$new])]}\n";
-                        }
-                        else {
-                            $debug and print "#  insert_node(path) @{[_dump([$token])]} into @{[_dump($old_path)]}\n";
-                            $new = $self->_insert_path( $old_path, $debug, $token );
-                        }
+                    if( @_ ) {
+                        $new = {
+                            _re_path($old_path) => $old_path,
+                            $token_key => [$token, @_],
+                        };
+                        $debug and print "#  insert_node(bifurc) n=@{[_dump([$new])]}\n";
                     }
                     else {
                         $debug and print "#  insert $token into old path @{[_dump($old_path)]}\n";
                         if( @$old_path ) {
-                            my @path = ($token);
-                            $new = $self->_insert_path( $old_path, $debug, \@path );
-                            $new = $new->[0] if @$new == 1;
+                            $new = ($self->_insert_path( $old_path, $debug, [$token] ))->[0];
                         }
                         else {
                             $new = { '' => undef, $token => [$token] };
                         }
                     }
+                    push @$new_path, $new;
                 }
-                else {
-                    $new = $self->_insert_path( $old_path, $debug, \@_ );
-                }
-                push @$new_path, $new;
                 $path_end->[0]{$token_key} = $new_path;
                 $debug and print "#   +_insert_node result=@{[_dump($path_end)]}\n";
                 splice( @$path, $offset, @$path_end, @$path_end );
@@ -2021,11 +2158,6 @@ sub _reduce_path {
     my $tail = [];
     while( defined( my $p = pop @$path )) {
         if( ref($p) eq 'HASH' ) {
-            if( keys %$p == 2 and exists $p->{''} ) {
-                my ($key, $path) = each %$p;
-                ($key, $path) = each %$p if $key eq '';
-                $debug and print "#$indent| saw opt <@$path> after <@$tail>\n";
-            }
             my ($node_head, $node_tail) = _reduce_node($p, _descend($ctx) );
             $debug and print "#$indent| head=", _dump($node_head), " tail=", _dump($node_tail), "\n";
             push @$head, @$node_head if scalar @$node_head;
@@ -2054,39 +2186,14 @@ sub _reduce_path {
         while( my ($key, $path) = each %{$tail->[0]} ) {
             $debug and print "#$indent| scan k=$key p=@{[_dump($path)]}\n";
             next unless $path;
-            if( @$path == 1 and ref($path->[0]) eq 'HASH' and exists $path->[0]{''} ) {
+            if (@$path == 1 and ref($path->[0]) eq 'HASH') {
                 $opt = $path->[0];
             }
             else {
                 $fixed = $path;
             }
         }
-        if( 0 and $fixed and $opt ) {
-            my $path = [@{$tail}[1..$#{$tail}]];
-            my ($opt_key, $opt_path) = each %$opt;
-            ($opt_key, $opt_path) = each %$opt unless defined $opt_path;
-            $debug and print "#$indent| opt_key=$opt_key opt=@{[_dump($opt_path)]}",
-                " fixed=@{[_dump($fixed)]} path=", _dump($path), "\n";
-
-            while( $opt_path->[0] eq $fixed->[0] and $opt_path->[0] eq $path->[0] ) {
-                my $atom = shift @$opt_path;
-                push @$head, $atom;
-                push @$opt_path, $atom;
-                shift @$fixed;
-                shift @$path;
-                $debug and print "#$indent| multislide $head->[-1]\n";
-            }
-            $opt_key = $opt_path->[0];
-            my $fixed_key = $fixed->[0];
-            $tail = [
-                {
-                    $opt_key   => [ {'' => undef, $opt_key => [@$opt_path]} ],
-                    $fixed_key => [@$fixed],
-                },
-                @$path
-            ];
-        }
-        elsif( exists $tail->[0]{''} ) {
+        if( exists $tail->[0]{''} ) {
             my $path = [@{$tail}[1..$#{$tail}]];
             $tail = $tail->[0];
             ($head, $tail, $path) = _slide_tail( $head, $tail, $path, _descend($ctx) );
@@ -2229,7 +2336,7 @@ sub _scan_node {
             $debug and print "# $indent|_scan_node head=", _dump(\@path), ' tail=', _dump($end), "\n";
             my $new_path;
             # deal with sing, singing => s(?:ing)?ing
-            if( ref($end) eq 'HASH' and keys %$end == 2 and exists $end->{''} ) {
+            if( keys %$end == 2 and exists $end->{''} ) {
                 my ($key, $opt_path) = each %$end;
                 ($key, $opt_path) = each %$end if $key eq '';
                 $opt_path = [reverse @{$opt_path}];
@@ -2955,6 +3062,15 @@ very large sets of patterns.
 
 Fine grained analysis of regular expressions.
 
+=item Regexp::Trie
+
+Funnily enough, this was my working name for C<Regexp::Assemble>
+during its developement. I changed the name because I thought it
+was too obscure. Anyway, C<Regexp::Trie> does much the same as
+C<Regexp::Optimizer> and C<Regexp::Assemble> except that it runs
+much faster (according to the author). It does not recognise
+meta characters (that is, 'a+b' is interpreted as 'a\+b').
+
 =item Text::Trie
 
 C<Text::Trie> is well worth investigating. Tries can outperform very
@@ -3081,7 +3197,7 @@ discussed things over a few beers.
 
 Nicholas Clark pointed out that while what this module does
 (?:c|sh)ould be done in perl's core, as per the 2004 TODO, he
-encouraged to me continue with the development of this module. In
+encouraged me to continue with the development of this module. In
 any event, this module allows one to gauge the difficulty of
 undertaking the endeavour in C. I'd rather gouge my eyes out with
 a blunt pencil.
@@ -3096,13 +3212,17 @@ not convinced, try running the following one-liner:
 
 David Landgren
 
-Copyright (C) 2004-2006.
-All rights reserved.
+Copyright (C) 2004-2006. All rights reserved.
 
-http://www.landgren.net/perl/
+  http://www.landgren.net/perl/
 
 If you use this module, I'd love to hear about what you're using
 it for. If you want to be informed of updates, send me a note.
+
+You can look at the latest working copy in the following
+Subversion repository:
+
+  http://svnweb.mongueurs.net/Regexp-Assemble
 
 =head1 LICENSE
 

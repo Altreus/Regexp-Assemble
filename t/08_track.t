@@ -79,7 +79,7 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
     SKIP: {
         skip( "/?{...}/ and \\d+ cause a panic in this version of perl ($])", 2 ) if $PERL_VERSION_5_005;
         ok( !defined $re->match('foo'), 'match pattern-2 foo' );
-        ok( defined $re->match('a-22-44'), 'match pattern-2 a-22-44' );
+        ok( defined($re->match('a-22-44')), 'match pattern-2 a-22-44' );
     }
     SKIP: {
            skip( "/?{...}/ and \\d+ cause a panic in this version of perl ($])", 1 ) if $PERL_VERSION_5_005;
@@ -196,25 +196,25 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
         ok( !defined($re->capture), 'match p7 no prior capture' );
 
         ok( defined $re->match('nothing captured'), 'match p7-1' );
-        cmp_ok( scalar($re->capture), '==', 0, 'match p7-1 no capture' );
+        is( scalar($re->capture), 0, 'match p7-1 no capture' );
 
         ok( defined $re->match('ac-417 captured'), 'match p7-2' );
         @capture = $re->capture;
-        cmp_ok( scalar(@capture), '==', 1, 'match p7-2 capture' );
-        cmp_ok( $capture[0], '==', 417, "match p7-2 value 0 ok" );
+        is( scalar(@capture), 1, 'match p7-2 capture' );
+        is( $capture[0], 417, "match p7-2 value 0 ok" );
 
         ok( defined $re->match('ab-21-17 captured'), 'match p7-3' );
         @capture = $re->capture;
-        cmp_ok( scalar(@capture), '==', 2, 'match p7-3 capture' );
-        cmp_ok( $capture[0], '==', 21, "match p7-3 value 0 ok" );
-        cmp_ok( $capture[1], '==', 17, "match p7-3 value 1 ok" );
+        is( scalar(@capture), 2, 'match p7-3 capture' );
+        is( $capture[0], 21, "match p7-3 value 0 ok" );
+        is( $capture[1], 17, "match p7-3 value 1 ok" );
 
         ok( defined $re->match('ad-808-245 captured'), 'match p7-4' );
         @capture = $re->capture;
-        cmp_ok( scalar(@capture), '==', 3, 'match p7-4 capture' );
-        cmp_ok( $capture[0], 'eq', '808-245', "match p7-4 value 0 ok" );
-        cmp_ok( $capture[1], '==', 808, "match p7-4 value 1 ok" );
-        cmp_ok( $capture[2], '==', 245, "match p7-4 value 2 ok" );
+        is( scalar(@capture), 3, 'match p7-4 capture' );
+        is( $capture[0], '808-245', "match p7-4 value 0 ok" );
+        is( $capture[1], 808, "match p7-4 value 1 ok" );
+        is( $capture[2], 245, "match p7-4 value 2 ok" );
     }
 }
 

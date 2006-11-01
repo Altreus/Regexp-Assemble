@@ -2,7 +2,7 @@
 #
 # assemble - read lines from STDIN and assemble them into a pattern
 #
-# Copyright (C) David Landgren 2004-2005
+# Copyright (C) David Landgren 2004-2006
 
 use strict;
 use Getopt::Std;
@@ -11,11 +11,13 @@ use Regexp::Assemble;
 use Time::HiRes 'time';
 
 use vars '$VERSION';
-$VERSION = '0.7';
+$VERSION = '0.8';
 
-getopts( 'abcd:i:nprsSt:uvw', \my %opt );
+getopts( 'abcd:i:nprsSt:Tuvw', \my %opt );
 
 print "$VERSION\n" and exit if $opt{v};
+
+$opt{d} |= 8 if $opt{T};
 
 my $ra = Regexp::Assemble->new(
     chomp     => 1,
@@ -158,6 +160,11 @@ Lines that fail to match are printed. In other words, no output is
 good output. In this mode of operation, error status is 1 in the
 case of a failure, 0 if all lines matched.
 
+=item B<-T>
+
+Time. Print statistics on the time taken to reduce and assemble the
+pattern. (This is merely a lazy person's synonym for C<-d 8>).
+
 =item B<-u>
 
 Unique. Carp if duplicate patterns are found.
@@ -185,7 +192,7 @@ L<Regexp::Assemble>
 
 =head1 AUTHOR
 
-Copyright (C) 2004-2005 David Landgren. All rights reserved.
+Copyright (C) 2004-2006 David Landgren. All rights reserved.
 
 =head1 LICENSE
 

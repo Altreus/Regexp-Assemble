@@ -10,7 +10,7 @@ use Regexp::Assemble;
 
 use constant file_testcount => 3; # tests requiring Test::File::Contents
 
-eval qq{use Test::More tests => 14 + file_testcount};
+eval qq{use Test::More tests => 20 + file_testcount};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -37,7 +37,7 @@ my @re = <DATA>;
 # insert them all into an R::A object, chomping the lines
 my $ra = Regexp::Assemble->new->chomp(1)->add( @re );
 
-cmp_ok( ref($ra), 'eq', 'Regexp::Assemble', 'have a Regexp::Assemble object' );
+is( ref($ra), 'Regexp::Assemble', 'have a Regexp::Assemble object' );
 
 # now map each RE into its compiled form
 @re = map { chomp; qr/$_/ } @re;
@@ -94,10 +94,10 @@ close GOOD;
 close BAD;
 close ERROR;
 
-cmp_ok( NR_GOOD, '==', $good,   NR_GOOD.  ' good records not matched' );
-cmp_ok( NR_BAD, '==', $bad,    NR_BAD.   ' bad records matched' );
-cmp_ok( NR_ERROR, '==', $error, NR_ERROR. ' records in error' );
-cmp_ok( NR_GOOD+NR_BAD+NR_ERROR, '==', $., "$. total records" );
+is( NR_GOOD,  $good,   NR_GOOD.  ' good records not matched' );
+is( NR_BAD,   $bad,    NR_BAD.   ' bad records matched' );
+is( NR_ERROR, $error,  NR_ERROR. ' records in error' );
+is( NR_GOOD+NR_BAD+NR_ERROR, $., "$. total records" );
 
 SKIP: {
     skip( 'Test::File::Contents not installed on this system', file_testcount )
@@ -111,42 +111,76 @@ SKIP: {
 {
     my $r = Regexp::Assemble->new;
     $r->add_file('eg/file.1')->add_file('eg/file.2');
-    cmp_ok( $r->as_string, 'eq', '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
+    is( $r->as_string, '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
         q{add_file('file.1'), add_file('file.2')},
         'add_file() 2 calls'
     );
 
-    cmp_ok(
+    is(
         Regexp::Assemble->new->chomp->add_file( qw[eg/file.1 eg/file.2] )
         ->as_string,
-        'eq', '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
+        '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
         'add_file() multiple files'
     );
 
-    cmp_ok(
+    is(
         Regexp::Assemble->new->chomp->add_file({
             file => [qw[eg/file.1 eg/file.2]]
         })
         ->as_string,
-        'eq', '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
+        '(?:b(?:l(?:ea|o)|[eo]a)t|s[aiou]ng)',
         'add_file() alternate interface'
     );
 
+    my $str = Regexp::Assemble->new
+        ->add_file({ file => ['eg/file.4'], rs => '/', })
+        ->as_string;
+    is( $str, '(?:(?:do|pi)g|c(?:at|ow)|hen)',
+        'add_file with explicit record separator'
+    );
+
+    is( Regexp::Assemble->new( rs => '/' )
+        ->add_file({ file => ['eg/file.4'] })
+        ->as_string, $str, 'add_file hashref with record separator specified in new()'
+    );
+
+    is( Regexp::Assemble->new
+        ->add_file({ file => 'eg/file.4', input_record_separator => '/', })
+        ->as_string, $str, 'add_file hashref with record separator specified in new()'
+    );
+
+    is( Regexp::Assemble->new( rs => '/' )
+        ->add_file('eg/file.4')
+        ->as_string, $str, 'add_file with record separator specified in new()'
+    );
+
+    is(
+        Regexp::Assemble->new(
+            file => 'eg/file.4',
+            input_record_separator => '/',
+        )
+        ->as_string, $str,
+        'new file() and custom record separator'
+    );
+
+    eval { my $r = Regexp::Assemble->new( file => '/does/not/exist' ) };
+    is( substr($@,0,38), q{cannot open /does/not/exist for input:}, 'file does not exist for new()' );
+
     SKIP: {
         skip( 'ignore DOS line-ending tests on Win32', 1 ) if $^O =~ /^MSWin32/;
-        cmp_ok(
+        is(
             Regexp::Assemble->new->chomp->add_file({
                 file => [qw[eg/file.3]],
                 rs   => "\r\n",
             })
             ->as_string,
-            'eq', '(?:e[ns]|i[ls])',
+            '(?:e[ns]|i[ls])',
             'add_file() with DOS line endings'
         );
     }
 }
 
-cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
+is( $_, $fixed, '$_ has not been altered' );
 
 __DATA__
 m\d+-\d+-\d+-\d+\.andorpac\.ad

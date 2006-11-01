@@ -10,7 +10,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 329 };
+eval qq{use Test::More tests => 322 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -55,8 +55,8 @@ is( ref($rt), 'Regexp::Assemble', 'new() returns a Regexp::Assemble object' );
 cmp_ok( length(Regexp::Assemble::Default_Lexer), '>', 0,
     'default lexer is something' );
 
-cmp_ok( ref( $rt->_path ), 'eq', 'ARRAY', '_path() isa ARRAY' );
-cmp_ok( scalar @{$rt->_path}, '==', 0, '_path() is empty' );
+is( ref( $rt->_path ), 'ARRAY', '_path() isa ARRAY' );
+is( scalar @{$rt->_path}, 0, '_path() is empty' );
 
 {
     my $r = Regexp::Assemble->new( chomp => 1 );
@@ -148,210 +148,199 @@ cmp_ok( scalar @{$rt->_path}, '==', 0, '_path() is empty' );
 }
 
 {
-    my $r = Regexp::Assemble->new( debug => 15 );
-    is( $r->{debug}, 15, 'debug new(n)' );
-    $r->debug( 0 );
-    is( $r->{debug}, 0, 'debug(0)' );
-    $r->debug( 4 );
-    is( $r->{debug}, 4, 'debug(4)' );
-    $r->debug();
-    is( $r->{debug}, 0, 'debug()' );
-}
-
-{
     my $r = Regexp::Assemble->new( pre_filter => sub { undef } );
-    cmp_ok( ref($r->{pre_filter}), 'eq', 'CODE', 'pre_filter new(n)' );
+    is( ref($r->{pre_filter}), 'CODE', 'pre_filter new(n)' );
     $r->pre_filter( undef );
     ok( !defined $r->{pre_filter}, 'pre_filter(0)' );
 }
 
 {
     my $r = Regexp::Assemble->new( filter => sub { undef } );
-    cmp_ok( ref($r->{filter}), 'eq', 'CODE', 'filter new(n)' );
+    is( ref($r->{filter}), 'CODE', 'filter new(n)' );
     $r->filter( undef );
     ok( !defined $r->{filter}, 'filter(0)' );
 }
 
-cmp_ok( Regexp::Assemble::_node_key(
+is( Regexp::Assemble::_node_key(
         { a => 1, b=>2, c=>3 }
-    ), 'eq', 'a', '_node_key(1)'
+    ), 'a', '_node_key(1)'
 );
 
-cmp_ok( Regexp::Assemble::_node_key(
+is( Regexp::Assemble::_node_key(
         { b => 3, c=>2, z=>1 }
-    ), 'eq', 'b', '_node_key(2)'
+    ), 'b', '_node_key(2)'
 );
 
-cmp_ok( Regexp::Assemble::_node_key(
+is( Regexp::Assemble::_node_key(
         { a => 1, 'a.' => 2, b => 3 }
-    ), 'eq', 'a', '_node_key(3)'
+    ), 'a', '_node_key(3)'
 );
 
-cmp_ok( Regexp::Assemble::_node_key(
+is( Regexp::Assemble::_node_key(
         { '' => undef, a => 1, 'a.' => 2, b => 3 }
-    ), 'eq', 'a', '_node_key(4)'
+    ), 'a', '_node_key(4)'
 );
 
-cmp_ok( Regexp::Assemble::_node_key(
+is( Regexp::Assemble::_node_key(
         { '' => undef, abc => 1, def => 2, g => 3 }
-    ), 'eq', 'abc', '_node_key(5)'
+    ), 'abc', '_node_key(5)'
 );
 
-cmp_ok( Regexp::Assemble::_node_offset(
+is( Regexp::Assemble::_node_offset(
         [ 'a', 'b', '\\d+', 'e', '\\d' ]
-    ), '==', -1, '_node_offset(1)'
+    ), -1, '_node_offset(1)'
 );
 
-cmp_ok( Regexp::Assemble::_node_offset(
+is( Regexp::Assemble::_node_offset(
         [ {x => ['x'], '' => undef}, 'a', 'b', '\\d+', 'e', '\\d' ]
-    ), '==', 0, '_node_offset(2)'
+    ), 0, '_node_offset(2)'
 );
 
-cmp_ok( Regexp::Assemble::_node_offset(
+is( Regexp::Assemble::_node_offset(
         [ 'a', 'b', '\\d+', 'e', {a => 1, b => 2}, 'x', 'y', 'z' ]
-    ), '==', 4, '_node_offset(3)'
+    ), 4, '_node_offset(3)'
 );
 
-cmp_ok( Regexp::Assemble::_node_offset(
+is( Regexp::Assemble::_node_offset(
         [ { z => 1, x => 2 }, 'b', '\\d+', 'e', {a => 1, b => 2}, 'z' ]
-    ), '==', 0, '_node_offset(4)'
+    ), 0, '_node_offset(4)'
 );
 
-cmp_ok( Regexp::Assemble::_node_offset(
+is( Regexp::Assemble::_node_offset(
         [ [ 1, 2, 3, {a => ['a'], b=>['b']} ], 'a', { z => 1, x => 2 } ]
-    ), '==', 2, '_node_offset(5)'
+    ), 2, '_node_offset(5)'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(     {},     {}), '==', 1, '{} eq {}');
-cmp_ok( Regexp::Assemble::_node_eq(  undef,     {}), '==', 0, 'undef ne {}');
-cmp_ok( Regexp::Assemble::_node_eq(     {},  undef), '==', 0, '{} ne undef');
-cmp_ok( Regexp::Assemble::_node_eq(  undef,  undef), '==', 0, 'undef ne undef');
-cmp_ok( Regexp::Assemble::_node_eq(     [],     []), '==', 1, '[] eq []');
-cmp_ok( Regexp::Assemble::_node_eq(     [],     {}), '==', 0, '[] ne {}'); 
-cmp_ok( Regexp::Assemble::_node_eq(     {},     []), '==', 0, '{} ne []');
-cmp_ok( Regexp::Assemble::_node_eq(    [0],    [0]), '==', 1, 'eq [0]');
-cmp_ok( Regexp::Assemble::_node_eq([0,1,2],[0,1,2]), '==', 1, 'eq [0,1,2]');
-cmp_ok( Regexp::Assemble::_node_eq([0,1,2],[0,1,3]), '==', 0, 'ne [0,1,2]');
-cmp_ok( Regexp::Assemble::_node_eq(  [1,2],[0,1,2]), '==', 0, 'ne [1,2]');
+is( Regexp::Assemble::_node_eq(     {},     {}), 1, '{} eq {}');
+is( Regexp::Assemble::_node_eq(  undef,     {}), 0, 'undef ne {}');
+is( Regexp::Assemble::_node_eq(     {},  undef), 0, '{} ne undef');
+is( Regexp::Assemble::_node_eq(  undef,  undef), 0, 'undef ne undef');
+is( Regexp::Assemble::_node_eq(     [],     []), 1, '[] eq []');
+is( Regexp::Assemble::_node_eq(     [],     {}), 0, '[] ne {}'); 
+is( Regexp::Assemble::_node_eq(     {},     []), 0, '{} ne []');
+is( Regexp::Assemble::_node_eq(    [0],    [0]), 1, 'eq [0]');
+is( Regexp::Assemble::_node_eq([0,1,2],[0,1,2]), 1, 'eq [0,1,2]');
+is( Regexp::Assemble::_node_eq([0,1,2],[0,1,3]), '', 'ne [0,1,2]');
+is( Regexp::Assemble::_node_eq(  [1,2],[0,1,2]), '', 'ne [1,2]');
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         {'a'=>['a','b']},
         {'a'=>['a','b']},
-    ), '==', 1, 'eq {a}'
+    ), 1, 'eq {a}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         {'a'=>['a','b']},
         {'a'=>['a','b'], '' => undef},
-    ), '==', 0, 'ne {a}'
+    ), '', 'ne {a}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         {'a'=>['a','b'], 'b'=>['b','c']},
         {'a'=>['a','b'], 'b'=>['b','c']},
-    ), '==', 1, 'eq {a,b}'
+    ), 1, 'eq {a,b}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         {'a'=>['a','b'], 'b'=>['b','c']},
         {'a'=>['a','b'], 'b'=>['b','d']},
-    ), '==', 0, 'ne {a,b}'
+    ), '', 'ne {a,b}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         [{'a'=>['a','b'], 'b'=>['b','c']}, {'z'=>['z','y'], 'm'=>['m','n']}],
         [{'a'=>['a','b'], 'b'=>['b','c']}, {'z'=>['z','y'], 'm'=>['m','n']}],
-    ), '==', 1, 'eq {a,b},{z,m}'
+    ), 1, 'eq {a,b},{z,m}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         [{'a'=>['a','b'], 'b'=>['b','c']}, {'z'=>['z','y'], 'm'=>['m','n']}],
         [{'a'=>['a','b'], 'b'=>['b','c']}, {'z'=>['z','y'], 'm'=>['m','n','o']}],
-    ), '==', 0, 'ne {a,b},{z,m}'
+    ), '', 'ne {a,b},{z,m}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         {''=>undef, 'a'=>['a','b']},
         {''=>undef, 'a'=>['a','b']},
-    ), '==', 1, '{eq {* a}'
+    ), 1, '{eq {* a}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         {''=>undef, 'a'=>['a','b']},
         {''=>undef, 'a'=>['a','b','c']},
-    ), '==', 0, '{ne {* a}'
+    ), '', '{ne {* a}'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         ['z','\\d+', {'a'=>['a','b']}],
         ['z','\\d+', {'a'=>['a','b']}],
-    ), '==', 1, 'eq [z \d+ {a}]'
+    ), 1, 'eq [z \d+ {a}]'
 );
 
-cmp_ok( Regexp::Assemble::_node_eq(
+is( Regexp::Assemble::_node_eq(
         ['z','\\d+', {'a'=>['a','b'], 'z'=>['z','y','x']}],
         ['z','\\d+', {'a'=>['a','b'], 'z'=>['z','y','x']}],
-    ), '==', 1, 'eq [z \d+ {a,z}]'
+    ), 1, 'eq [z \d+ {a,z}]'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( qw/ a b c / ),
-    'eq', '[abc]', '_make_class a b c'
+is( Regexp::Assemble::_make_class( qw/ a b c / ),
+    '[abc]', '_make_class a b c'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( qw/ a a c / ),
-    'eq', '[ac]', '_make_class a a c'
+is( Regexp::Assemble::_make_class( qw/ a a c / ),
+    '[ac]', '_make_class a a c'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( qw/ 0 1 2 / ),
-    'eq', '[012]', '_make_class 0 1 2'
+is( Regexp::Assemble::_make_class( qw/ 0 1 2 / ),
+    '[012]', '_make_class 0 1 2'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( qw/ 0 1 2 3 4 5 6 7 8 9 / ),
-    'eq', '\\d', '_make_class 0 1 ... 9'
+is( Regexp::Assemble::_make_class( qw/ 0 1 2 3 4 5 6 7 8 9 / ),
+    '\\d', '_make_class 0 1 ... 9'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\d', '\\D' ),
-    'eq', '.', '_make_class \\d \\D'
+is( Regexp::Assemble::_make_class( '\\d', '\\D' ),
+    '.', '_make_class \\d \\D'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\s', '\\S' ),
-    'eq', '.', '_make_class \\s \\S'
+is( Regexp::Assemble::_make_class( '\\s', '\\S' ),
+    '.', '_make_class \\s \\S'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\w', '\\W' ),
-    'eq', '.', '_make_class \\w \\W'
+is( Regexp::Assemble::_make_class( '\\w', '\\W' ),
+    '.', '_make_class \\w \\W'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\w', '\\d' ),
-    'eq', '\\w', '_make_class \\w \\d'
+is( Regexp::Assemble::_make_class( '\\w', '\\d' ),
+    '\\w', '_make_class \\w \\d'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\W', '\\D' ),
-    'eq', '\\W', '_make_class \\W \\D'
+is( Regexp::Assemble::_make_class( '\\W', '\\D' ),
+    '\\W', '_make_class \\W \\D'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\W', '\\d' ),
-    'eq', '[\\W\\d]', '_make_class \\W \\d'
+is( Regexp::Assemble::_make_class( '\\W', '\\d' ),
+    '[\\W\\d]', '_make_class \\W \\d'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\d', qw/5 a / ),
-    'eq', '[\\da]', '_make_class \\d 5 a'
+is( Regexp::Assemble::_make_class( '\\d', qw/5 a / ),
+    '[\\da]', '_make_class \\d 5 a'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( qw/ a z - / ),
-    'eq', '[-az]', '_make_class a z -'
+is( Regexp::Assemble::_make_class( qw/ a z - / ),
+    '[-az]', '_make_class a z -'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( qw/ a z ^ / ),
-    'eq', '[az^]', '_make_class a z ^'
+is( Regexp::Assemble::_make_class( qw/ a z ^ / ),
+    '[az^]', '_make_class a z ^'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( qw/ a z ^ - / ),
-    'eq', '[-az^]', '_make_class a z ^ -'
+is( Regexp::Assemble::_make_class( qw/ a z ^ - / ),
+    '[-az^]', '_make_class a z ^ -'
 );
 
-cmp_ok( Regexp::Assemble::_make_class( '\\.', '\\+' ),
-    'eq', '[+.]', '_make_class \\. \\+'
+is( Regexp::Assemble::_make_class( '\\.', '\\+' ),
+    '[+.]', '_make_class \\. \\+'
 );
 
 
@@ -635,63 +624,15 @@ lcmp( '\\|{2,4}?', __LINE__ );
         "_lex $str",
     );
 
-    $str = '\t+b*c?';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
-        [ '\t+', 'b*', 'c?' ],
-        "_lex $str",
-    );
-
-    $str = '\Q[';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
-        [ '\\[' ],
-        "_lex $str",
-    );
-
-    $str = '\Q]';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
-        [ '\\]' ],
-        "_lex $str",
-    );
-
-    $str = '\Q(';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
-        [ '\\(' ],
-        "_lex $str",
-    );
-
-    $str = '\Q)';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
-        [ '\\)' ],
-        "_lex $str",
-    );
-
-    $str = '\Qa+b*c?';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str ),
-        [ 'a', '\+', 'b', '\*', 'c', '\?' ],
-        "_lex $str",
-    );
-
     $str = '\Qa+b*\Ec?';
     is_deeply( Regexp::Assemble->new->_lex( $str ),
         [ 'a', '\+', 'b', '\*', 'c?' ],
         "_lex $str",
     );
 
-    $str = 'a\\LBC\\Ude\\Ef\\Qg+';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str  ),
-        [ 'a', 'b', 'c', 'D', 'E', 'f', 'g', '\\+' ],
-        "_lex $str",
-    );
-
     $str = 'a\\ub';
     is_deeply( Regexp::Assemble->new->_lex( $str  ),
         [ 'a', 'B' ],
-        "_lex $str",
-    );
-
-    $str = 'a\\uC';
-    is_deeply( Regexp::Assemble->new(debug => 4) ->_lex( $str  ),
-        [ 'a', 'C' ],
         "_lex $str",
     );
 
@@ -721,9 +662,6 @@ lcmp( '\\|{2,4}?', __LINE__ );
 
     $str = 'a\\L\\Q\\Uz';
     is_deeply( Regexp::Assemble->new->_lex( $str  ), [ 'a', 'Z' ], "_lex $str" );
-
-    $str = '\Q\/?';
-    is_deeply( Regexp::Assemble->new->debug(4)->_lex( $str  ), [ '\/', '\?' ], "_lex $str" );
 
     $str = 'a\\Eb';
     is_deeply( Regexp::Assemble->new->_lex( $str  ), [ 'a', 'b', ], "_lex $str" );
@@ -760,17 +698,14 @@ lcmp( '\\|{2,4}?', __LINE__ );
     is_deeply( Regexp::Assemble->new->add( $str )->_path,
         [ 'a', '\\+', 'x', '\\*', 'b', '\\+' ], "add $str" );
 
+    my $out;
     $str = 'X\\LK+L{2,4}M\\EY';
-    is_deeply( Regexp::Assemble->new->add( $str )->_path,
-        [ 'X', 'k+', 'l{2,4}', 'm', 'Y' ], "add $str" );
+    is_deeply( $out = Regexp::Assemble->new->add( $str )->_path,
+        [ 'X', 'k+', 'l{2,4}', 'm', 'Y' ], "add $str" ) or diag("@$out");
 
     $str = 'p\\Q\\L\\Eq';
-    is_deeply( Regexp::Assemble->new->add( $str )->_path,
-        [ 'p', 'q' ], "add $str" );
-
-    $str = 'p\\L\\QA+\\EZ';
-    is_deeply( Regexp::Assemble->new->debug(4)->add( $str )->_path,
-        [ 'p', 'a', '\\+', 'Z' ], "add $str" );
+    is_deeply( $out = Regexp::Assemble->new->add( $str )->_path,
+        [ 'p', 'q' ], "add $str" ) or diag("@$out");
 
     $str = 'q\\U\\Qh{7,9}\\Ew';
     is_deeply( Regexp::Assemble->new->add( $str )->_path,
@@ -783,10 +718,6 @@ lcmp( '\\|{2,4}?', __LINE__ );
     $str = 'a\\LBL+\\uxy\\QZ+';
     is_deeply( Regexp::Assemble->new->add( $str )->_path,
         [ 'a', 'b', 'l+', 'X', 'y', 'z', '\+' ], "add $str" );
-
-    $str = '^\Qa[b[';
-    is_deeply( Regexp::Assemble->new->debug(15)->add( $str )->_path,
-        [ '^', 'a', '\\[', 'b', '\\[' ], "add $str" );
 
     $str = '\Q^a[b[';
     is_deeply( Regexp::Assemble->new->add( $str )->_path,
@@ -946,36 +877,48 @@ is_deeply( Regexp::Assemble::_unrev_path(
     );
 }
 
-cmp_ok( Regexp::Assemble::_dump( [1, 0, undef] ),
-    'eq', '[1 0 *]', 'dump 1'
+is( Regexp::Assemble::_dump( [1, 0, undef] ),
+    '[1 0 *]', 'dump undef'
 );
 
-cmp_ok( Regexp::Assemble::_dump( [1, 0, q{ }] ),
-    'eq', q{[1 0 ' ']}, 'dump 2'
+is( Regexp::Assemble::_dump( [1, 0, q{ }] ),
+    q{[1 0 ' ']}, 'dump space'
 );
 
-cmp_ok( Regexp::Assemble::_dump( {a => ['a', 'b'], b => ['b']} ),
-    'eq', '{a=>[a b] b=>[b]}', 'dump 3'
+is( Regexp::Assemble::_dump( {a => ['a', 'b'], b => ['b']} ),
+    '{a=>[a b] b=>[b]}', 'dump node'
 );
 
-cmp_ok( Regexp::Assemble::_combine( '?=', qw/ c a b / ),
-    'eq', '(?=[abc])', '_combine c a b'
+is( Regexp::Assemble::_dump( ['a', chr(7), 'b'] ),
+    '[a \\x07 b]', 'dump pretty'
 );
 
-cmp_ok( Regexp::Assemble::_combine( '?=', qw/ c ab de / ),
-    'eq', '(?=ab|de|c)', '_combine c ab de'
+is( Regexp::Assemble->new->insert(qw( ))->insert(qw( ))->dump,
+    '[\\x07 {\\x05=>[\\x05] \\x06=>[\\x06]}]', 'dump pretty node'
 );
 
-cmp_ok( Regexp::Assemble::_combine( '?=', qw/ in og / ),
-    'eq', '(?=in|og)', '_combine in og'
+is( Regexp::Assemble::_dump( ['a', chr(7), 'b'] ),
+    '[a \\x07 b]', 'dump pretty'
 );
 
-cmp_ok( Regexp::Assemble::_combine( '?=', qw/ in og j k l / ),
-    'eq', '(?=[jkl]|in|og)', '_combine in og j k l'
+is( Regexp::Assemble::_combine( '?=', qw/ c a b / ),
+    '(?=[abc])', '_combine c a b'
 );
 
-cmp_ok( Regexp::Assemble::_combine( '?=', qw/ in og 0 1 2 3 4 5 6 7 8 9 / ),
-    'eq', '(?=\d|in|og)', '_combine in og 0 1 ... 9'
+is( Regexp::Assemble::_combine( '?=', qw/ c ab de / ),
+    '(?=ab|de|c)', '_combine c ab de'
+);
+
+is( Regexp::Assemble::_combine( '?=', qw/ in og / ),
+    '(?=in|og)', '_combine in og'
+);
+
+is( Regexp::Assemble::_combine( '?=', qw/ in og j k l / ),
+    '(?=[jkl]|in|og)', '_combine in og j k l'
+);
+
+is( Regexp::Assemble::_combine( '?=', qw/ in og 0 1 2 3 4 5 6 7 8 9 / ),
+    '(?=\d|in|og)', '_combine in og 0 1 ... 9'
 );
 
 is_deeply( Regexp::Assemble::_unrev_path(
@@ -999,14 +942,36 @@ is_deeply( Regexp::Assemble::_unrev_path(
 
 eval {
     my $ra = Regexp::Assemble->new;
-    # $ra->Default_Lexer( qr/\d+/ );
+    $ra->Default_Lexer( qr/\d+/ );
 };
 
 like( $@,
-    qr//,
-    # qr/^Cannot pass a Regexp::Assemble to Default_Lexer at \S+ line \d+/m,
+    qr/^Cannot pass a Regexp::Assemble to Default_Lexer at \S+ line \d+/m,
     'Default_Lexer die'
 );
 
-cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );
+is_deeply( Regexp::Assemble->new->_fastlex('ab+c{2,4}'),
+    ['a', 'b+', 'c{2,4}'],
+    '_fastlex reg plus min-max'
+);
+
+my $x;
+is_deeply( $x = Regexp::Assemble->new->_fastlex('\\d+\\s{3,4}?\\Qa+\\E\\lL\\uu\\Ufoo\\E\\Lbar\\x40'),
+    ['\\d+', '\\s{3,4}?', 'a', '\\+', qw(l U F O O b a r @)],
+    '_fastlex backslash'
+) or diag("@$x");
+
+is_deeply( $x = Regexp::Assemble->new->_fastlex('\\Q\\L\\Ua+\\E\\Ub?\\Ec'),
+    [qw(a \\+ B? c)], '_fastlex in and out of quotemeta'
+) or diag("@$x");
+
+is_deeply( $x = Regexp::Assemble->new->_fastlex('\\A\\a\\e\\f\\r\\n\\t\\Z'),
+    [qw(\\A \\a \\e \\f \\r \\n \\t \\Z)], '_fastlex backslash letter'
+) or diag("@$x");
+
+is_deeply( $x = Regexp::Assemble->new->_fastlex('\\cG\\cd\\007*?\\041\\z'),
+    [qw(\\cG \\cD \\cG*? ! \\z)], '_fastlex backslash misc'
+) or diag("@$x");
+
+is( $_, $fixed, '$_ has not been altered' );
 

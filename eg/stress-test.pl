@@ -6,10 +6,10 @@ use Regexp::Assemble;
 use Data::PowerSet;
 use Algorithm::Combinatorics 'combinations';
 
-my $end = 'g'; # generate the power set of the elements 'a' .. $end
+my $end = shift || 'e'; # generate the power set of the elements 'a' .. $end
 
 my $set = [sort {join('' => @$a) cmp join('' => @$b)}
-    @{Data::PowerSet::powerset( {min=>1}, 'a'..$end' )}
+    @{Data::PowerSet::powerset( {min=>1}, 'a'..$end )}
 ];
 
 $| = 1;
@@ -30,7 +30,7 @@ for my $sel (@ARGV) {
         my $lg = $long->as_string;
 
         $s = [map {join '' => @$_} @$s];
-        printf "%9d %2d %s $lg\n", $nr, $sel, "@$s" unless $nr % 1000;
+        printf "%9d %2d %s $lg\n", $nr, $sel, "@$s" unless $nr % 10000;
 
         my %expected = map{($_,$_)} @$s;
         if( "^$sh\$" ne $lg ) {

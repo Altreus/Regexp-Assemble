@@ -4,10 +4,10 @@ use ExtUtils::MakeMaker qw( WriteMakefile prompt );
 
 eval "use ExtUtils::MakeMaker::Coverage";
 if( $@ ) {
-	print "Skipping testcover target, ExtUtils::MakeMaker::Coverage not found\n";
+    print "Skipping testcover target, ExtUtils::MakeMaker::Coverage not found\n";
 }
 else {
-	print "Adding testcover target\n";
+    print "Adding testcover target\n";
 }
 
 my $file = [];
@@ -16,7 +16,10 @@ my $file = [];
 #}
 
 WriteMakefile(
-    NAME         => 'Regexp::Assemble',
-    VERSION_FROM => 'Assemble.pm',
-    EXE_FILES    => $file,
+    NAME          => 'Regexp::Assemble',
+    ABSTRACT_FROM => 'Assemble.pm',
+    VERSION_FROM  => 'Assemble.pm',
+    AUTHOR        => 'David Landgren',
+    LICENSE       => 'perl',
+    EXE_FILES     => $file,
 );
