@@ -5,7 +5,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.27';
+$VERSION = '0.28';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.27 of Regexp::Assemble,
-released 2006-11-01.
+This document describes version 0.28 of Regexp::Assemble,
+released 2006-11-26.
 
 =head1 SYNOPSIS
 
@@ -329,7 +329,7 @@ sub _fastlex {
     my $qualifier;
     $debug and print "# _lex <$record>\n";
     my $modifier        = q{(?:[*+?]\\??|\\{(?:\\d+(?:,\d*)?|,\d+)\\}\\??)?};
-    my $class_matcher   = qr/\[.*?(?<!\\)\]$modifier/;
+    my $class_matcher   = qr/\[.*?(?<!\\)\]/;
     my $paren_matcher   = qr/\(.*?(?<!\\)\)$modifier/;
     my $misc_matcher    = qr/(?:(c)(.)|(0)(\d{2}))($modifier)/;
     my $regular_matcher = qr/([^\\[(])($modifier)/;
@@ -357,7 +357,7 @@ sub _fastlex {
                 $token =~ s/^\\([^\w$()*+.?@\[\\\]^|{}\/])$/$1/;
             }
             else {
-                $token =~ s{\A([][{}*+.?@|\\/])\Z}{\\$1};
+                $token =~ s{\A([][{}*+?@|\\/])\Z}{\\$1};
             }
             $debug and print " clean <$token>\n";
             push @path,
@@ -431,10 +431,18 @@ sub _fastlex {
             redo;
         }
 
-        elsif ($record =~ /\G($class_matcher)/gc) {
+        elsif ($record =~ /\G($class_matcher)($modifier)/gc) {
             # [class] followed by a modifer
-            $debug and print "#  class <$1>\n";
-            push @path, $1;
+            my $class     = $1;
+            my $qualifier = defined $2 ? $2 : '';
+            $debug and print "#  class begin <$class> <$qualifier>\n";
+            if ($class =~ /\A\[\\?(.)]\Z/) {
+                $class = quotemeta $1;
+                $class =~ s{\A\\([!@%])\Z}{$1};
+                $debug and print "#  class unwrap $class\n";
+            }
+            $debug and print "#  class end <$class> <$qualifier>\n";
+            push @path, "$class$qualifier";
             redo;
         }
 
@@ -3161,7 +3169,7 @@ If you are feeling brave, extensive debugging traces are available to
 figure out where assembly goes wrong.
 
 Please report all bugs at
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Regexp-Assemble|rt.cpan.org>
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Regexp-Assemble>
 
 Make sure you include the output from the following two commands:
 

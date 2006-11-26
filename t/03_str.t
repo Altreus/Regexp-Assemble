@@ -7,7 +7,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 193};
+eval qq{use Test::More tests => 201};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -96,6 +96,14 @@ for my $test (
     [ '(?-xism:(?:^|0)a)',    qw(^a 0a) ],
     [ '(?-xism:(?:[m^]|^)a)', qw(^a ma), '\\^a' ],
     [ '(?-xism:(?:ma|^)a)',   qw(^a maa) ],
+    [ '(?-xism:a.+)',         qw(a.+) ],
+    [ '(?-xism:b?)',          '[b]?' ],
+    [ '(?-xism:\\.)',         '[.]' ],
+    [ '(?-xism:\\.+)',        '[.]+' ],
+    [ '(?-xism:\\.+)'  ,      '[\\.]+' ],
+    [ '(?-xism:\\^+)',        '[\\^]+' ],
+    [ '(?-xism:%)',           '[%]' ],
+    [ '(?-xism:%)',           '[\\%]' ],
     [ '(?-xism:b(?:$|e))',    qw(b$ be) ],
     [ '(?-xism:b(?:[ae]|$))', qw(b$ be ba) ],
     [ '(?-xism:b(?:$|\\$))',  qw(b$), 'b\\$' ],
