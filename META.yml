@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:                Regexp-Assemble
-version:             0.28
+version:             0.29
 abstract:            Assemble multiple Regular Expressions into a single RE
 license:             perl
-generated_by:        ExtUtils::MakeMaker version 6.31
+generated_by:        ExtUtils::MakeMaker version 6.32
 distribution_type:   module
 requires:     
 meta-spec:

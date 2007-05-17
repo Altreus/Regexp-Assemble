@@ -1,11 +1,11 @@
 # Regexp::Assemple.pm
-# Copyright (c) 2004-2006 David Landgren
+# Copyright (c) 2004-2007 David Landgren
 # All rights reserved
 
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.28';
+$VERSION = '0.29';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.28 of Regexp::Assemble,
-released 2006-11-26.
+This document describes version 0.29 of Regexp::Assemble, released
+2007-05-17.
 
 =head1 SYNOPSIS
 
@@ -128,8 +128,9 @@ of targets to see which way the benefits lie.
 
 B<track>, controls whether you want know which of the initial
 patterns was the one that matched. See the C<matched> method for
-more details.  Note that in this mode of operation YOU SHOULD BE
-AWARE OF THE SECURITY IMPLICATIONS that this entails.
+more details. Note for version 5.8 of Perl and below, in this mode
+of operation YOU SHOULD BE AWARE OF THE SECURITY IMPLICATIONS that
+this entails. Perl 5.10 does not suffer from any such restriction.
 
 B<indent>, the number of spaces used to indent nested grouping of
 a pattern. Use this to produce a pretty-printed pattern. See the
@@ -146,10 +147,12 @@ the pattern being loaded. This callback is triggered after the
 pattern has been split apart by the lexer.
 
 B<mutable>, controls whether new patterns can be added to the object
-after the RE is generated. Its main purpose is when you have a
-long-running program, and a set of patterns that builds up over
-time, and when a new pattern is added you want to build a new
-assembly in the shortest possible time.
+after the assembled pattern is generated. DEPRECATED.
+
+This method/attribute will be removed in a future release. It doesn't
+really serve any purpose, and may be more effectively replaced by
+cloning an existing C<Regexp::Assemble> object and spinning out a
+pattern from that instead.
 
 B<reduce>, controls whether tail reduction occurs or not. If set,
 patterns like C<a(?:bc+d|ec+d)> will be reduced to C<a[be]c+d>.
@@ -204,6 +207,7 @@ sub new {
         anchor_string_end_absolute
         debug
         dup_warn
+        fold_meta_pairs
         indent
         lookahead
         mutable
@@ -253,10 +257,16 @@ sub _init_time_func {
 Clones the contents of a Regexp::Assemble object and creates a new
 object (in other words it performs a deep copy).
 
-  my $copy = $ra->clone();
-
 If the Storable module is installed, its dclone method will be used,
 otherwise the cloning will be performed using a pure perl approach.
+
+You can use this method to take a snapshot of the patterns that have
+been added so far to an object, and generate an assembly from the
+clone. Additional patterns may to be added to the original object
+afterwards.
+
+  my $re = $main->clone->re();
+  $main->add( 'another-pattern-\\d+' );
 
 =cut
 
@@ -831,15 +841,13 @@ is enabled.
 The B<indent> argument takes precedence over the C<indent>
 method/attribute of the object.
 
-If you have not set the B<mutable> attribute on the object, calling this
+Calling this
 method will drain the internal data structure. Large numbers of patterns
 can eat a significant amount of memory, and this lets perl recover the
-memory used. Mutable means that you want to keep the internal data
-structure lying around in order to add additional patterns to the object
-after an assembled pattern has been produced.
+memory used for other purposes.
 
 If you want to reduce the pattern I<and> continue to add new patterns,
-clone the object and reduce the clone, leaving the original object alone.
+clone the object and reduce the clone, leaving the original object intact.
 
 =cut
 
@@ -899,8 +907,7 @@ Assembles the pattern and return it as a compiled RE, using the
 C<qr//> operator.
 
 As with C<as_string>, calling this method will reset the internal data
-structures to free the memory used in assembling the RE. This behaviour
-can be controlled with the C<mutable> attribute.
+structures to free the memory used in assembling the RE.
 
 The B<indent> attribute, documented in the C<as_string> method, can be
 used here (it will be ignored if tracking is enabled).
@@ -972,6 +979,9 @@ sub _build_re {
 
 =item match(SCALAR)
 
+The following information applies to Perl 5.8 and below. See
+the section that follows for information on Perl 5.10.
+
 If pattern tracking is in use, you must C<use re 'eval'> in order
 to make things work correctly. At a minimum, this will make your
 code look like this:
@@ -982,9 +992,10 @@ code look like this:
     }
 
 (The main reason is that the C<$^R> variable is currently broken
-and an ugly workaround is required. See Perl bug #32840 for more
-information if you are curious. The README also contains more
-information).
+and an ugly workaround that runs some Perl code during the match
+is required, in order to simulate what C<$^R> should be doing. See
+Perl bug #32840 for more information if you are curious. The README
+also contains more information). This bug has been fixed in 5.10.
 
 The important thing to note is that with C<use re 'eval'>, THERE
 ARE SECURITY IMPLICATIONS WHICH YOU IGNORE AT YOUR PERIL. The problem
@@ -1017,6 +1028,10 @@ you will want to get at the captures. See the C<mbegin>, C<mend>,
 C<mvar> and C<capture> methods. If you are not using captures
 then you may safely ignore this section.
 
+In 5.10, since the bug concerning C<$^R> has been resolved, there
+is no need to use C<re 'eval'> and the assembled pattern does
+not require any Perl code to be executed during the match.
+
 =cut
 
 sub match {
@@ -1030,6 +1045,7 @@ sub match {
         $self->{mend}   = [];
         return undef;
     }
+    $self->{m}      = $^R if $] >= 5.009005;
     $self->{mbegin} = _path_copy([@-]);
     $self->{mend}   = _path_copy([@+]);
     my $n = 0;
@@ -1043,6 +1059,35 @@ sub match {
     else {
         return 1;
     }
+}
+
+=item source
+
+When using tracked mode, after a successful match is made, returns
+the original source pattern that caused the match. In Perl 5.10,
+the C<$^R> variable can be used to as an index to fetch the correct
+pattern from the object.
+
+If no successful match has been performed, or the object is not in
+tracked mode, this method returns C<undef>.
+
+  my $r = Regexp::Assemble->new->track(1)->add(qw(foo? bar{2} [Rr]at));
+
+  for my $w (qw(this food is rather barren)) {
+    if ($w =~ /$r/) {
+      print "$w matched by ", $r->source($^R), $/;
+    }
+    else {
+      print "$w no match\n";
+    }
+  }
+
+=cut
+
+sub source {
+    my $self = shift;
+    return unless $self->{track};
+    return $self->{mlist}[defined $_[0] ? $_[0] : $self->{m}];
 }
 
 =item mbegin
@@ -1099,7 +1144,7 @@ array back that contains C<$1, $2, $3, ...>.
 If no captures were found in the match, an empty array is
 returned, rather than C<undef>. You are therefore guaranteed
 to be able to use C<< for my $c ($re->capture) { ... >>
-without have to check whether C<capture> returns a valid array.
+without have to check whether anything was captured.
 
 =cut
 
@@ -1596,6 +1641,28 @@ sub chomp {
     return $self;
 }
 
+=item fold_meta_pairs(NUMBER)
+
+Determines whether C<\s>, C<\S> and C<\w>, C<\W> and C<\d>, C<\D>
+are folded into a C<.> (dot). By default, no such folding occurs
+(due to the interactions between C<\n> and the C</s> expression
+modifier).
+
+  $re->add( '\\w', '\\W' );
+  my $clone = $re->clone;
+
+  $clone->fold_meta_pairs();
+  print $clone->as_string; # prints '.'
+  print $re->as_string;    # print '[\W\w]'
+
+=cut
+
+sub fold_meta_pairs {
+    my $self = shift;
+    $self->{fold_meta_pairs} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
 =item indent(NUMBER)
 
 Sets the level of indent for pretty-printing nested groups
@@ -1715,31 +1782,9 @@ sub reduce {
 
 =item mutable(0|1)
 
-When the C<re> or C<as_string> methods are called the reduction
-algorithm kicks in and takes the current data structure and fold
-the common portions of the patterns that have been stored in the
-object. Once this occurs, it is no longer possible to add any more
-patterns.
-
-In fact, the internal structures are release to free up memory. If
-you have a program that adds additional patterns to an object over
-a long period, you can set the mutable attribute. This will stop the
-internal structure from being drained and you can continue to add
-patterns.
-
-The main consequence is that it the assembled pattern will not
-undergo any reduction (as the internal data structure undergoes
-such a transformation as that it becomes very difficult to cope
-with the change that adding a new pattern would bring about. If
-this is a problem, the solution is to create a non-mutable object,
-continue adding to it as long as needed, and each time a new
-assembled regular expression is required, clone the object, turn
-the mutable attribute off and proceed as usual.
-
-By default the mutable attribute defaults to zero. The
-method can be chained.
-
-  $r->add( 'abcdef\\d+' )->mutable(0);
+This method has been marked as DEPRECATED. It will be removed
+in a future release. See the C<clone> method for a technique
+to replace its functionality.
 
 =cut
 
@@ -2747,7 +2792,10 @@ sub _re_path_track {
                 or $n == @$in - 1
             ) {
                 push @{$self->{mlist}}, $normal . $simple ;
-                $augment .= "(?{\$self->{m}=$self->{mcount}})";
+                $augment .= $] < 5.009005
+                    ? "(?{\$self->{m}=$self->{mcount}})"
+                    : "(?{$self->{mcount}})"
+                ;
                 ++$self->{mcount};
             }
         }
@@ -3112,8 +3160,8 @@ instead).
 You cannot remove a pattern that has been added to an object. You'll
 just have to start over again. Adding a pattern is difficult enough,
 I'd need a solid argument to convince me to add a C<remove> method.
-If you need to do this you should read the documentation on the
-C<mutable> and C<clone> methods.
+If you need to do this you should read the documentation for the
+C<clone> method.
 
 C<Regexp::Assemble> does not (yet)? employ the C<(?E<gt>...)>
 construct.
@@ -3123,11 +3171,16 @@ would be quite easy to add, if there was a demand for it.
 
 =head1 BUGS
 
+Patterns that generate look-ahead assertions sometimes produce
+incorrect patterns in certain obscure corner cases. If you
+suspect that this is occurring in your pattern, disable
+lookaheads.
+
 Tracking doesn't really work at all with 5.6.0. It works better
 in subsequent 5.6 releases. For maximum reliability, the use of
 a 5.8 release is strongly recommended. Tracking barely works with
 5.005_04. Of note, using C<\d>-style meta-characters invariably
-causes panics.
+causes panics. Tracking really comes into its own in Perl 5.10.
 
 If you feed C<Regexp::Assemble> patterns with nested parentheses,
 there is a chance that the resulting pattern will be uncompilable
@@ -3140,18 +3193,18 @@ be able to use the script directly, the general approach is easy to
 implement.
 
 The algorithm used to assemble the regular expressions makes extensive
-use of mutually-recursive functions (that is, A calls B, B calls A,
-...) For deeply similar expressions, it may be possible to provoke
+use of mutually-recursive functions (that is, A calls B, B calls
+A, ...) For deeply similar expressions, it may be possible to provoke
 "Deep recursion" warnings.
 
 The module has been tested extensively, and has an extensive test
-suite (that achieves 100% statement coverage), but you never know...
-A bug may manifest itself in two ways: creating a pattern that cannot
-be compiled, such as C<a\(bc)>, or a pattern that compiles correctly
-but that either matches things it shouldn't, or doesn't match things
-it should. It is assumed that Such problems will occur when the reduction
-algorithm encounters some sort of edge case. A temporary work-around
-is to disable reductions:
+suite (that achieves close to 100% statement coverage), but you
+never know...  A bug may manifest itself in two ways: creating a
+pattern that cannot be compiled, such as C<a\(bc)>, or a pattern
+that compiles correctly but that either matches things it shouldn't,
+or doesn't match things it should. It is assumed that Such problems
+will occur when the reduction algorithm encounters some sort of
+edge case. A temporary work-around is to disable reductions:
 
   my $pattern = $assembler->reduce(0)->re;
 
@@ -3178,7 +3231,7 @@ Make sure you include the output from the following two commands:
 
 There is a mailing list for the discussion of C<Regexp::Assemble>.
 Subscription details are available at
-L<http://www.mongueurs.net/mailman/Regexp::Assemble>.
+L<http://listes.mongueurs.net/mailman/listinfo/regexp-assemble>.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -3220,7 +3273,7 @@ not convinced, try running the following one-liner:
 
 David Landgren
 
-Copyright (C) 2004-2006. All rights reserved.
+Copyright (C) 2004-2007. All rights reserved.
 
   http://www.landgren.net/perl/
 

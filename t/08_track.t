@@ -67,8 +67,14 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
         skip( "matched() is not implemented in this version of perl ($])", 1 ) if $PERL_VERSION_TOO_LOW;
         ok( !defined($re->matched), 're pattern-1 foolish-\\d+ 5' );
     }
-    ok( do {use re 'eval'; 'cat' !~ /$re/}, 're pattern-1 cat' );
-    ok( do {use re 'eval'; 'foolish-808' =~ /$re/}, 're pattern-1 foolish-808' );
+    if ($] < 5.009005) {
+        ok( do {use re 'eval'; 'cat' !~ /$re/}, 're pattern-1 cat <5.10' );
+        ok( do {use re 'eval'; 'foolish-808' =~ /$re/}, 're pattern-1 foolish-808 <5.10' );
+    }
+    else {
+        ok( 'cat' !~ /$re/, 're pattern-1 cat 5.10' );
+        ok(  'foolish-808' =~ /$re/, 're pattern-1 foolish-808 5.10' );
+    }
 }
 
 {

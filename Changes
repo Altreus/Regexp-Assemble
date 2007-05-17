@@ -1,8 +1,16 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.29
+    - Tracked patterns enhanced to take advantage of 5.10
+	  (and works again with blead).
+    - The mutable() functionality has been marked as
+      deprecated.
+    - mailing list web page was incorrect (noted by Kai
+      Carver)
+
 0.28 2006-11-26 21:49:26 UTC
     - Fixed a.+ bug (interpreted as a\.+) (bug #23623)
-	- Handle /[a]/ => /a/
+    - Handle /[a]/ => /a/
 
 0.27 2006-11-01 23:43:35 UTC
     - rewrote the lexing of patterns in _fastlex(). Unfortunately

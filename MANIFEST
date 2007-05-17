@@ -23,6 +23,7 @@ eg/naive
 eg/roman
 eg/stress-test.pl
 eg/tld
+eg/track-5.10
 eg/unquotemeta
 t/00_basic.t
 t/01_insert.t
