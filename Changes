@@ -1,8 +1,12 @@
 Revision history for Perl extension Regexp::Assemble.
 
-0.29
+0.30 2007-05-18 15:39:37 UTC
+    - Fixup _fastlex() bug in 5.6 (unable to discriminate \cX).
+      This allows bug #27138 to be closed.
+
+0.29 2007-05-17 10:48:42 UTC
     - Tracked patterns enhanced to take advantage of 5.10
-	  (and works again with blead).
+      (and works again with blead).
     - The mutable() functionality has been marked as
       deprecated.
     - mailing list web page was incorrect (noted by Kai

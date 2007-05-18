@@ -5,7 +5,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.29';
+$VERSION = '0.30';
 
 =head1 NAME
 
@@ -13,8 +13,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.29 of Regexp::Assemble, released
-2007-05-17.
+This document describes version 0.30 of Regexp::Assemble, released
+2007-05-18.
 
 =head1 SYNOPSIS
 
@@ -413,6 +413,12 @@ sub _fastlex {
                 push @path, $1 eq 'l' ? lc($2) : uc($2);
             }
             elsif (my @arg = grep {defined} $record =~ /\G$misc_matcher/gc) {
+                if ($] < 5.007) {
+                    my $len = 0;
+                    $len += length($_) for @arg;
+                    $debug and print "#  pos ", pos($record), " fixup add $len\n";
+                    pos($record) = pos($record) + $len;
+                }
                 my $directive = shift @arg;
                 if ($directive eq 'c') {
                     $debug and print "#  ctrl <@arg>\n";
