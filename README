@@ -1,4 +1,4 @@
-This file is the README for Regexp::Assemble version 0.30
+This file is the README for Regexp::Assemble version 0.31
 
 INSTALLATION
 
@@ -11,11 +11,13 @@ TESTING
 
 This module requires the following modules for thorough testing:
 
-  Test::File::Contents
   Test::More
+  Test::File::Contents
   Test::Pod
   Test::Pod::Coverage
   Test::Warn
+
+The test suite will make allowances for their eventual absence.
 
 It can also make use of Devel::Cover if available.
 
@@ -457,7 +459,7 @@ This module is under active development. The module is managed in
 a Subversion repository, and thus, the latest working copy is
 available at
 
-  http://svnweb.mongueurs.net/Regexp-Assemble
+  http://svnweb.mongueurs.net/Regexp-Assemble/trunk
 
 AUTHOR
 

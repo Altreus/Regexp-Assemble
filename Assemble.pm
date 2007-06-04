@@ -1,11 +1,12 @@
 # Regexp::Assemple.pm
+#
 # Copyright (c) 2004-2007 David Landgren
 # All rights reserved
 
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.30';
+$VERSION = '0.31';
 
 =head1 NAME
 
@@ -13,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.30 of Regexp::Assemble, released
-2007-05-18.
+This document describes version 0.31 of Regexp::Assemble, released
+2007-06-04.
 
 =head1 SYNOPSIS
 
@@ -207,7 +208,6 @@ sub new {
         anchor_string_end_absolute
         debug
         dup_warn
-        fold_meta_pairs
         indent
         lookahead
         mutable
@@ -215,6 +215,7 @@ sub new {
     );
 
     exists $args{$_} or $args{$_} = 1 for qw(
+        fold_meta_pairs
         reduce
         chomp
     );
@@ -873,13 +874,13 @@ sub as_string {
                 if not exists $arg->{indent} and $self->{indent} > 0;
             if( exists $arg->{indent} and $arg->{indent} > 0 ) {
                 $arg->{depth} = 0;
-                $self->{str}  = _re_path_pretty($self->_path, $arg);
+                $self->{str}  = _re_path_pretty($self, $self->_path, $arg);
             }
             elsif( $self->{lookahead} ) {
-                $self->{str}  = _re_path_lookahead($self->_path);
+                $self->{str}  = _re_path_lookahead($self, $self->_path);
             }
             else {
-                $self->{str}  = _re_path($self->_path);
+                $self->{str}  = _re_path($self, $self->_path);
             }
         }
         if (not length $self->{str}) {
@@ -1650,14 +1651,18 @@ sub chomp {
 =item fold_meta_pairs(NUMBER)
 
 Determines whether C<\s>, C<\S> and C<\w>, C<\W> and C<\d>, C<\D>
-are folded into a C<.> (dot). By default, no such folding occurs
-(due to the interactions between C<\n> and the C</s> expression
-modifier).
+are folded into a C<.> (dot). Folding happens by default (for
+reasons of backwards compatibility, even though it is wrong when
+the C</s> expression modifier is active).
+
+Call this method with a false value to prevent this behaviour (which
+is only a problem when dealing with C<\n> if the C</s> expression
+modifier is also set).
 
   $re->add( '\\w', '\\W' );
   my $clone = $re->clone;
 
-  $clone->fold_meta_pairs();
+  $clone->fold_meta_pairs(0);
   print $clone->as_string; # prints '.'
   print $re->as_string;    # print '[\W\w]'
 
@@ -1950,7 +1955,7 @@ sub _insert_path {
                 if ($offset < $#$path) {
                     my $new = {
                         $token => [$token, @in],
-                        _re_path([$node]) => [@{$path}[$offset..$#$path]],
+                        _re_path($self, [$node]) => [@{$path}[$offset..$#$path]],
                     };
                     splice @$path, $offset, @$path-$offset, $new;
                     last;
@@ -2045,13 +2050,13 @@ sub _insert_node {
     my $debug  = shift;
     my $path_end = [@{$path}[$offset..$#{$path}]];
     # NB: $path->[$offset] and $[path_end->[0] are equivalent
-    my $token_key = _re_path([$token]);
+    my $token_key = _re_path($self, [$token]);
     $debug and print "#  insert node(@{[_dump($token)]}:@{[_dump(\@_)]}) (key=$token_key)",
         " at path=@{[_dump($path_end)]}\n";
     if( ref($path_end->[0]) eq 'HASH' ) {
         if( exists($path_end->[0]{$token_key}) ) {
             if( @$path_end > 1 ) {
-                my $path_key = _re_path([$path_end->[0]]);
+                my $path_key = _re_path($self, [$path_end->[0]]);
                 my $new = {
                     $path_key  => [ @$path_end ],
                     $token_key => [ $token, @_ ],
@@ -2073,7 +2078,7 @@ sub _insert_node {
                     my $token_key = $token;
                     if( @_ ) {
                         $new = {
-                            _re_path($old_path) => $old_path,
+                            _re_path($self, $old_path) => $old_path,
                             $token_key => [$token, @_],
                         };
                         $debug and print "#  insert_node(bifurc) n=@{[_dump([$new])]}\n";
@@ -2096,7 +2101,7 @@ sub _insert_node {
         }
         elsif( not _node_eq( $path_end->[0], $token )) {
             if( @$path_end > 1 ) {
-                my $path_key = _re_path([$path_end->[0]]);
+                my $path_key = _re_path($self, [$path_end->[0]]);
                 my $new = {
                     $path_key  => [ @$path_end ],
                     $token_key => [ $token, @_ ],
@@ -2579,13 +2584,16 @@ sub _descend {
 #####################################################################
 
 sub _make_class {
+    my $self = shift;
     my %set = map { ($_,1) } @_;
     delete $set{'\\d'} if exists $set{'\\w'};
     delete $set{'\\D'} if exists $set{'\\W'};
     return '.' if exists $set{'.'}
-        or (exists $set{'\\d'} and exists $set{'\\D'})
-        or (exists $set{'\\s'} and exists $set{'\\S'})
-        or (exists $set{'\\w'} and exists $set{'\\W'})
+        or ($self->{fold_meta_pairs} and (
+               (exists $set{'\\d'} and exists $set{'\\D'})
+            or (exists $set{'\\s'} and exists $set{'\\S'})
+            or (exists $set{'\\w'} and exists $set{'\\W'})
+        ))
     ;
     for my $meta( q/\\d/, q/\\D/, q/\\s/, q/\\S/, q/\\w/, q/\\W/ ) {
         if( exists $set{$meta} ) {
@@ -2607,6 +2615,7 @@ sub _make_class {
 }
 
 sub _combine {
+    my $self = shift;
     my $type = shift;
     # print "c in = @{[_dump(\@_)]}\n";
     # my $combine = 
@@ -2620,7 +2629,7 @@ sub _combine {
         }
         elsif( @short > 1 ) {
             # yucky but true
-            my @combine = (_make_class(@short), sort( _re_sort @long ));
+            my @combine = (_make_class($self, @short), sort( _re_sort @long ));
             @long = @combine;
         }
         else {
@@ -2634,19 +2643,20 @@ sub _combine {
 }
 
 sub _combine_new {
+    my $self = shift;
     my( @short, @long );
     push @{ /^$Single_Char$/ ? \@short : \@long}, $_ for @_;
     if( @short == 1 and @long == 0 ) {
         return $short[0];
     }
     elsif( @short > 1 and @short == @_ ) {
-        return _make_class(@short);
+        return _make_class($self, @short);
     }
     else {
         return '(?:'
             . join( '|' =>
                 @short > 1
-                    ? ( _make_class(@short), sort(_re_sort @long))
+                    ? ( _make_class($self, @short), sort(_re_sort @long))
                     : ( (sort _re_sort( @long )), @short )
             )
         . ')';
@@ -2654,6 +2664,7 @@ sub _combine_new {
 }
 
 sub _re_path {
+    my $self = shift;
     # in shorter assemblies, _re_path() is the second hottest
     # routine. after insert().
     return join( '', @_ ) unless grep { length ref $_ } @_;
@@ -2668,12 +2679,12 @@ sub _re_path {
             # grep when it isn't necessary.
             $p = $_;
             exists $_->{''}
-            ?  _combine_new(
-                map { _re_path( $p->{$_} ) } grep { $_ ne '' } keys %$_
+            ?  _combine_new( $self,
+                map { _re_path( $self, $p->{$_} ) } grep { $_ ne '' } keys %$_
             ) . '?'
-            : _combine_new( map { _re_path( $p->{$_} ) } keys %$_ )
+            : _combine_new($self, map { _re_path( $self, $p->{$_} ) } keys %$_ )
         }
-        : _re_path($_) # ref($_) eq 'ARRAY'
+        : _re_path($self, $_) # ref($_) eq 'ARRAY'
     } @{$_[0]}
 }
 
@@ -2718,6 +2729,7 @@ sub _lookahead {
 }
 
 sub _re_path_lookahead {
+    my $self = shift;
     my $in  = shift;
     # print "_re_path_la in ", _dump($in), "\n";
     my $out = '';
@@ -2727,19 +2739,17 @@ sub _re_path_lookahead {
             next;
         }
         elsif( ref($in->[$p]) eq 'ARRAY' ) {
-            $out .= _re_path_lookahead($in->[$p]);
+            $out .= _re_path_lookahead($self, $in->[$p]);
             next;
         }
         # print "$p ", _dump($in->[$p]), "\n";
         my $path = [
-            map { _re_path_lookahead( $in->[$p]{$_} ) }
+            map { _re_path_lookahead($self, $in->[$p]{$_} ) }
             grep { $_ ne '' }
             keys %{$in->[$p]}
         ];
         my $ahead = _lookahead($in->[$p]);
-        # print "ref($p): ", ref($in->[$p]), ' ', join( ',' => sort keys %$ahead ), "\n";
         my $more = 0;
-        # if( ref($in->[$p]) eq 'HASH' and exists $in->[$p]{''} and $p + 1 < @$in ) {
         if( exists $in->[$p]{''} and $p + 1 < @$in ) {
             my $next = 1;
             while( $p + $next < @$in ) {
@@ -2758,14 +2768,14 @@ sub _re_path_lookahead {
         my $nr_one = grep { /^$Single_Char$/ } @$path;
         my $nr     = @$path;
         if( $nr_one > 1 and $nr_one == $nr ) {
-            $out .= _make_class(@$path);
+            $out .= _make_class($self, @$path);
             $out .= '?' if exists $in->[$p]{''};
         }
         else {
             my $zwla = keys(%$ahead) > 1
-                ?  _combine( '?=', grep { s/\+$//; $_ } keys %$ahead )
+                ?  _combine($self, '?=', grep { s/\+$//; $_ } keys %$ahead )
                 : '';
-            my $patt = $nr > 1 ? _combine( '?:', @$path ) : $path->[0];
+            my $patt = $nr > 1 ? _combine($self, '?:', @$path ) : $path->[0];
             # print "have nr=$nr n1=$nr_one n=", _dump($in->[$p]), ' a=', _dump([keys %$ahead]), " zwla=$zwla patt=$patt @{[_dump($path)]}\n";
             if( exists $in->[$p]{''} ) {
                 $out .=  $more ? "$zwla(?:$patt)?" : "(?:$zwla$patt)?";
@@ -2821,6 +2831,7 @@ sub _re_path_track {
 }
 
 sub _re_path_pretty {
+    my $self = shift;
     my $in  = shift;
     my $arg = shift;
     my $pre    = ' ' x (($arg->{depth}+0) * $arg->{indent});
@@ -2835,11 +2846,11 @@ sub _re_path_pretty {
             $prev_was_paren = 0;
         }
         elsif( ref($in->[$p]) eq 'ARRAY' ) {
-            $out .= _re_path($in->[$p]);
+            $out .= _re_path($self, $in->[$p]);
         }
         else {
             my $path = [
-                map { _re_path_pretty( $in->[$p]{$_}, $arg ) }
+                map { _re_path_pretty($self, $in->[$p]{$_}, $arg ) }
                 grep { $_ ne '' }
                 keys %{$in->[$p]}
             ];
@@ -2847,7 +2858,7 @@ sub _re_path_pretty {
             my( @short, @long );
             push @{/^$Single_Char$/ ? \@short : \@long}, $_ for @$path;
             if( @short == $nr ) {
-                $out .=  $nr == 1 ? $path->[0] : _make_class(@short);
+                $out .=  $nr == 1 ? $path->[0] : _make_class($self, @short);
                 $out .= '?' if exists $in->[$p]{''};
             }
             else {
@@ -2864,7 +2875,7 @@ sub _re_path_pretty {
                     );
                 }
                 else {
-                    $out .= join( "\n$indent|" => ( sort( _re_sort @long ), _make_class(@short) ));
+                    $out .= join( "\n$indent|" => ( sort( _re_sort @long ), _make_class($self, @short) ));
                 }
                 $out .= "\n$pre)";
                 if( exists $in->[$p]{''} ) {
@@ -2897,12 +2908,12 @@ sub _node_eq {
         # does this short-circuit to avoid _re_path() cost more than it saves?
         join( '|' => sort keys %{$_[0]}) eq join( '|' => sort keys %{$_[1]})
             and
-        _re_path( [$_[0]] ) eq _re_path( [$_[1]] );
+        _re_path(undef, [$_[0]] ) eq _re_path(undef, [$_[1]] );
     }
     elsif( ref($_[0]) eq 'ARRAY' ) {
         scalar @{$_[0]} == scalar @{$_[1]}
             and
-        _re_path($_[0]) eq _re_path($_[1]);
+        _re_path(undef, $_[0]) eq _re_path(undef, $_[1]);
     }
     else {
         $_[0] eq $_[1];
@@ -3232,7 +3243,7 @@ L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Regexp-Assemble>
 
 Make sure you include the output from the following two commands:
 
-  perl -MRegexp::Assemble -le 'print Regexp::Assemble::VERSION'
+  perl -MRegexp::Assemble -le 'print $Regexp::Assemble::VERSION'
   perl -V
 
 There is a mailing list for the discussion of C<Regexp::Assemble>.
@@ -3274,6 +3285,10 @@ live in the Regex:: namespace, or Regexp:: namespace. If you're
 not convinced, try running the following one-liner:
 
   perl -le 'print ref qr//'
+
+Philippe Bruhat found a couple of corner cases where this module
+could produce incorrect results. Such feedback is invaluable,
+and only improves the module's quality.
 
 =head1 AUTHOR
 

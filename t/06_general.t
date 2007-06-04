@@ -8,7 +8,7 @@
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 99 };
+eval qq{use Test::More tests => 129 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -328,6 +328,48 @@ SKIP: {
     my $str = $re->as_string;
     cmp_ok( $str, 'eq', '\\.[*+]', "stats str 2" );
     cmp_ok( $re->stats_length, '==', 6, "stats len 2 <$str>" );
+}
+
+{
+    # CPAN bug #24171
+    # given a list of strings
+    my @str = ( 'a b', 'awb', 'a1b', 'bar', "a\nb" );
+
+    for my $meta (qw( s w d )) {
+
+        # given a list of patterns
+        my @re = ( "a\\${meta}b", "a\\@{[uc$meta]}b" );
+
+        # produce an assembled pattern
+        my $re = Regexp::Assemble->new()->add(@re)->re();
+
+        my $re_fold = Regexp::Assemble->new()->fold_meta_pairs(0)->add(@re)->re();
+
+        # test it against the strings
+        for my $str (@str) {
+
+            # any match?
+            my $ok = 0;
+            $str =~ $_ && ( $ok = 1 ) for @re;
+
+            # does the assemble regexp match as well?
+            my $ptr = $str;
+            $ptr =~ s/\\/\\\\/;
+            $ptr =~ s/\n/\\n/;
+
+            my $bug_success = ($str =~ /\n/) ? 0 : 1;
+            my $bug_fail    = 1 - $bug_success;
+
+            is( ($str =~ $re) ? $bug_success : $bug_fail, $ok,
+                "Folded meta pairs behave as list for \\$meta ($ptr,ok=$ok/$bug_success/$bug_fail)"
+            );
+
+            is( ($str =~ $re_fold) ? 1 : 0, $ok,
+                "Unfolded meta pairs behave as list for \\$meta ($ptr,ok=$ok)"
+            );
+
+        }
+    }
 }
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

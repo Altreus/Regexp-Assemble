@@ -10,7 +10,7 @@
 
 use strict;
 
-eval qq{use Test::More tests => 322 };
+eval qq{use Test::More tests => 325 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -283,66 +283,81 @@ is( Regexp::Assemble::_node_eq(
     ), 1, 'eq [z \d+ {a,z}]'
 );
 
-is( Regexp::Assemble::_make_class( qw/ a b c / ),
+my $stub = Regexp::Assemble->new;
+
+is( Regexp::Assemble::_make_class($stub, qw/ a b c / ),
     '[abc]', '_make_class a b c'
 );
 
-is( Regexp::Assemble::_make_class( qw/ a a c / ),
+is( Regexp::Assemble::_make_class($stub, qw/ a a c / ),
     '[ac]', '_make_class a a c'
 );
 
-is( Regexp::Assemble::_make_class( qw/ 0 1 2 / ),
+is( Regexp::Assemble::_make_class($stub, qw/ 0 1 2 / ),
     '[012]', '_make_class 0 1 2'
 );
 
-is( Regexp::Assemble::_make_class( qw/ 0 1 2 3 4 5 6 7 8 9 / ),
+is( Regexp::Assemble::_make_class($stub, qw/ 0 1 2 3 4 5 6 7 8 9 / ),
     '\\d', '_make_class 0 1 ... 9'
 );
 
-is( Regexp::Assemble::_make_class( '\\d', '\\D' ),
+is( Regexp::Assemble::_make_class($stub, '\\d', '\\D' ),
     '.', '_make_class \\d \\D'
 );
 
-is( Regexp::Assemble::_make_class( '\\s', '\\S' ),
+is( Regexp::Assemble::_make_class($stub, '\\s', '\\S' ),
     '.', '_make_class \\s \\S'
 );
 
-is( Regexp::Assemble::_make_class( '\\w', '\\W' ),
+is( Regexp::Assemble::_make_class($stub, '\\w', '\\W' ),
     '.', '_make_class \\w \\W'
 );
 
-is( Regexp::Assemble::_make_class( '\\w', '\\d' ),
+is( Regexp::Assemble::_make_class($stub, '\\w', '\\d' ),
     '\\w', '_make_class \\w \\d'
 );
 
-is( Regexp::Assemble::_make_class( '\\W', '\\D' ),
+is( Regexp::Assemble::_make_class($stub, '\\W', '\\D' ),
     '\\W', '_make_class \\W \\D'
 );
 
-is( Regexp::Assemble::_make_class( '\\W', '\\d' ),
+is( Regexp::Assemble::_make_class($stub, '\\W', '\\d' ),
     '[\\W\\d]', '_make_class \\W \\d'
 );
 
-is( Regexp::Assemble::_make_class( '\\d', qw/5 a / ),
+is( Regexp::Assemble::_make_class($stub, '\\d', qw/5 a / ),
     '[\\da]', '_make_class \\d 5 a'
 );
 
-is( Regexp::Assemble::_make_class( qw/ a z - / ),
+is( Regexp::Assemble::_make_class($stub, qw/ a z - / ),
     '[-az]', '_make_class a z -'
 );
 
-is( Regexp::Assemble::_make_class( qw/ a z ^ / ),
+is( Regexp::Assemble::_make_class($stub, qw/ a z ^ / ),
     '[az^]', '_make_class a z ^'
 );
 
-is( Regexp::Assemble::_make_class( qw/ a z ^ - / ),
+is( Regexp::Assemble::_make_class($stub, qw/ a z ^ - / ),
     '[-az^]', '_make_class a z ^ -'
 );
 
-is( Regexp::Assemble::_make_class( '\\.', '\\+' ),
+is( Regexp::Assemble::_make_class($stub, '\\.', '\\+' ),
     '[+.]', '_make_class \\. \\+'
 );
 
+$stub->fold_meta_pairs(0);
+
+is( Regexp::Assemble::_make_class($stub, '\\d', '\\D' ),
+    '[\\D\\d]', '_make_class \\d \\D no fold meta pairs'
+);
+
+is( Regexp::Assemble::_make_class($stub, '\\s', '\\S' ),
+    '[\\S\\s]', '_make_class \\s \\S no fold meta pairs'
+);
+
+is( Regexp::Assemble::_make_class($stub, '\\w', '\\W' ),
+    '[\\W\\w]', '_make_class \\w \\W no fold meta pairs'
+);
 
 sub xcmp {
     my $r = Regexp::Assemble->new;
@@ -901,23 +916,23 @@ is( Regexp::Assemble::_dump( ['a', chr(7), 'b'] ),
     '[a \\x07 b]', 'dump pretty'
 );
 
-is( Regexp::Assemble::_combine( '?=', qw/ c a b / ),
+is( Regexp::Assemble::_combine($stub, '?=', qw/ c a b / ),
     '(?=[abc])', '_combine c a b'
 );
 
-is( Regexp::Assemble::_combine( '?=', qw/ c ab de / ),
+is( Regexp::Assemble::_combine($stub, '?=', qw/ c ab de / ),
     '(?=ab|de|c)', '_combine c ab de'
 );
 
-is( Regexp::Assemble::_combine( '?=', qw/ in og / ),
+is( Regexp::Assemble::_combine($stub, '?=', qw/ in og / ),
     '(?=in|og)', '_combine in og'
 );
 
-is( Regexp::Assemble::_combine( '?=', qw/ in og j k l / ),
+is( Regexp::Assemble::_combine($stub, '?=', qw/ in og j k l / ),
     '(?=[jkl]|in|og)', '_combine in og j k l'
 );
 
-is( Regexp::Assemble::_combine( '?=', qw/ in og 0 1 2 3 4 5 6 7 8 9 / ),
+is( Regexp::Assemble::_combine($stub, '?=', qw/ in og 0 1 2 3 4 5 6 7 8 9 / ),
     '(?=\d|in|og)', '_combine in og 0 1 ... 9'
 );
 
