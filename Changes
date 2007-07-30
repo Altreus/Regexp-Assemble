@@ -1,5 +1,19 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.32 2007-07-30 17:47:39 UTC
+    - Backed out the change introduced in 0.25 (that created
+      slimmer regexps when custom flags are used). As things
+      stood, it meant that '/' could not appear in a pattern
+      with flags (and could possibly dump core). Bug #28554
+      noted by David Morel.
+    - Allow a+b to be unrolled into aa*b, as that may allow
+      further reductions (bug #20847 noted by Philippe Bruhat).
+      Not completely implemented, but bug #28554 is sufficient
+      to push out a new release.
+    - eg/assemble understands -U to enable plus unrollings.
+    - Extended campaign of coverage improvements made to the
+      test suite caught a minor flaw in source().
+
 0.31 2007-06-04 20:40:33 UTC
     - Add a fold_meta_pairs flag to control the behaviour of
       [\S\s] (and [\D\d], [\W\w]) being folded to '.' (bug

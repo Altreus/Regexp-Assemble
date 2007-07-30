@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.31';
+$VERSION = '0.32';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.31 of Regexp::Assemble, released
-2007-06-04.
+This document describes version 0.32 of Regexp::Assemble, released
+2007-07-30.
 
 =head1 SYNOPSIS
 
@@ -147,13 +147,9 @@ B<filter>, allows you to add a callback to enable sanity checks on
 the pattern being loaded. This callback is triggered after the
 pattern has been split apart by the lexer.
 
-B<mutable>, controls whether new patterns can be added to the object
-after the assembled pattern is generated. DEPRECATED.
-
-This method/attribute will be removed in a future release. It doesn't
-really serve any purpose, and may be more effectively replaced by
-cloning an existing C<Regexp::Assemble> object and spinning out a
-pattern from that instead.
+B<unroll_plus>, controls whether to unroll, for example, C<x+> into
+C<x>, C<x*>, which may allow additional reductions in the
+resulting assembled pattern.
 
 B<reduce>, controls whether tail reduction occurs or not. If set,
 patterns like C<a(?:bc+d|ec+d)> will be reduced to C<a[be]c+d>.
@@ -171,6 +167,14 @@ during the loading stage or the reducing stage of assembly.
 
   my $ra = Regexp::Assemble->new;
   my $rb = Regexp::Assemble->new( chomp => 1, debug => 3 );
+
+B<mutable>, controls whether new patterns can be added to the object
+after the assembled pattern is generated. DEPRECATED.
+
+This method/attribute will be removed in a future release. It doesn't
+really serve any purpose, and may be more effectively replaced by
+cloning an existing C<Regexp::Assemble> object and spinning out a
+pattern from that instead.
 
 A more detailed explanation of these attributes follows.
 
@@ -212,6 +216,7 @@ sub new {
         lookahead
         mutable
         track
+        unroll_plus
     );
 
     exists $args{$_} or $args{$_} = 1 for qw(
@@ -335,7 +340,10 @@ sub _fastlex {
     my @path   = ();
     my $case   = '';
     my $qm     = '';
-    my $debug  = $self->{debug} & DEBUG_LEX;
+
+    my $debug       = $self->{debug} & DEBUG_LEX;
+    my $unroll_plus = $self->{unroll_plus};
+
     my $token;
     my $qualifier;
     $debug and print "# _lex <$record>\n";
@@ -370,21 +378,32 @@ sub _fastlex {
             else {
                 $token =~ s{\A([][{}*+?@|\\/])\Z}{\\$1};
             }
-            $debug and print " clean <$token>\n";
-            push @path,
-                  $case eq 'L' ? lc($token).$qualifier
-                : $case eq 'U' ? uc($token).$qualifier
-                :                   $token.$qualifier
-                ;
+            if ($unroll_plus and $qualifier =~ s/\A\+(\?)?\Z/*/) {
+                $1 and $qualifier .= $1;
+                $debug and print " unroll <$token><$token><$qualifier>\n";
+                $case and $token = $case eq 'L' ? lc($token) : uc($token);
+                push @path, $token, "$token$qualifier";
+            }
+            else {
+                $debug and print " clean <$token>\n";
+                push @path,
+                      $case eq 'L' ? lc($token).$qualifier
+                    : $case eq 'U' ? uc($token).$qualifier
+                    :                   $token.$qualifier
+                    ;
+            }
             redo;
         }
 
         elsif ($record =~ /\G\\/gc) {
             $debug and print "#  backslash\n";
             # backslash
-            if ($record =~ /\G([sdwSDW]$modifier)/gc) {
-                $debug and print "#   meta $1\n";
-                push @path, "\\$1";
+            if ($record =~ /\G([sdwSDW])($modifier)/gc) {
+                ($token, $qualifier) = ($1, $2);
+                $debug and print "#   meta <$token> <$qualifier>\n";
+                push @path, ($unroll_plus and $qualifier =~ s/\A\+(\?)?\Z/*/)
+                    ? ("\\$token", "\\$token$qualifier" . (defined $1 ? $1 : ''))
+                    : "\\$token$qualifier";
             }
             elsif ($record =~ /\Gx([\da-fA-F]{2})($modifier)/gc) {
                 $debug and print "#   x $1\n";
@@ -393,7 +412,9 @@ sub _fastlex {
                 $debug and print "#  cooked <$token>\n";
                 $token =~ s/^\\([^\w$()*+.?\[\\\]^|{\/])$/$1/; # } balance
                 $debug and print "#   giving <$token>\n";
-                push @path, "$token$qualifier";
+                push @path, ($unroll_plus and $qualifier =~ s/\A\+(\?)?\Z/*/)
+                    ? ($token, "$token$qualifier" . (defined $1 ? $1 : ''))
+                    : "$token$qualifier";
             }
             elsif ($record =~ /\GQ/gc) {
                 $debug and print "#   Q\n";
@@ -433,7 +454,7 @@ sub _fastlex {
                         : chr($ascii)
                     ;
                 }
-                $path[-1] .= join( '', @arg ) if @arg;
+                $path[-1] .= join( '', @arg ); # if @arg;
                 redo;
             }
             elsif ($record =~ /\G(.)/gc) {
@@ -459,7 +480,9 @@ sub _fastlex {
                 $debug and print "#  class unwrap $class\n";
             }
             $debug and print "#  class end <$class> <$qualifier>\n";
-            push @path, "$class$qualifier";
+            push @path, ($unroll_plus and $qualifier =~ s/\A\+(\?)?\Z/*/)
+                ? ($class, "$class$qualifier" . (defined $1 ? $1 : ''))
+                : "$class$qualifier";
             redo;
         }
 
@@ -978,7 +1001,7 @@ sub _build_re {
     else {
         # how could I not repeat myself?
         $self->{re} = length $self->{flags}
-            ? eval "qr/$str/$self->{flags}"
+            ? qr/(?$self->{flags}:$str)/
             : qr/$str/
         ;
     }
@@ -1094,7 +1117,9 @@ tracked mode, this method returns C<undef>.
 sub source {
     my $self = shift;
     return unless $self->{track};
-    return $self->{mlist}[defined $_[0] ? $_[0] : $self->{m}];
+    defined($_[0]) and return $self->{mlist}[$_[0]];
+    return unless defined $self->{m};
+    return $self->{mlist}[$self->{m}];
 }
 
 =item mbegin
@@ -1759,6 +1784,21 @@ sub track {
     return $self;
 }
 
+=item unroll_plus(0|1)
+
+Turns the unrolling of plus metacharacters on or off. When
+a pattern is broken up, C<a+> becomes C<a>, C<a*> (and
+C<b+?> becomes C<b>, C<b*?>. This may allow the freed C<a>
+to assemble with other patterns. Not enabled by default.
+
+=cut
+
+sub unroll_plus {
+    my $self = shift;
+    $self->{unroll_plus} = defined($_[0]) ? $_[0] : 1;
+    return $self;
+}
+
 =item lex(SCALAR)
 
 Change the pattern used to break a string apart into tokens.
@@ -1989,9 +2029,10 @@ sub _insert_path {
             my $n;
             for( $n = 0; $n < @$path; ++$n ) {
                 $msg .= ' ' if $n;
-                my $atom = length(ref($path->[$n]))
-                    ? (ref($path->[$n]) eq 'HASH' ? '{'.join( ' ', keys(%{$path->[$n]})).'}' : $path->[$n])
-                    : $path->[$n];
+                my $atom = ref($path->[$n]) eq 'HASH'
+                    ? '{'.join( ' ', keys(%{$path->[$n]})).'}'
+                    : $path->[$n]
+                ;
                 $msg .= $n == $offset ? "<$atom>" : $atom;
             }
             print "# at path ($msg)\n";
@@ -2666,7 +2707,39 @@ sub _combine_new {
 sub _re_path {
     my $self = shift;
     # in shorter assemblies, _re_path() is the second hottest
-    # routine. after insert().
+    # routine. after insert(), so make it fast.
+
+    if ($self->{unroll_plus}) {
+        # but we can't easily make this blockless
+        my @arr = @{$_[0]};
+        my $str = '';
+        my $skip = 0;
+        for my $i (0..$#arr) {
+            if (ref($arr[$i]) eq 'ARRAY') {
+                $str .= _re_path($self, $arr[$i]);
+            }
+            elsif (ref($arr[$i]) eq 'HASH') {
+                $str .= exists $arr[$i]->{''}
+                    ? _combine_new( $self,
+                        map { _re_path( $self, $arr[$i]->{$_} ) } grep { $_ ne '' } keys %{$arr[$i]}
+                    ) . '?'
+                    : _combine_new($self, map { _re_path( $self, $arr[$i]->{$_} ) } keys %{$arr[$i]})
+                ;
+            }
+            elsif ($i < $#arr and $arr[$i+1] =~ /\A$arr[$i]\*(\??)\Z/) {
+                $str .= "$arr[$i]+" . (defined $1 ? $1 : '');
+                ++$skip;
+            }
+            elsif ($skip) {
+                $skip = 0;
+            }
+            else {
+                $str .= $arr[$i];
+            }
+        }
+        return $str;
+    }
+
     return join( '', @_ ) unless grep { length ref $_ } @_;
     my $p;
     return join '', map {

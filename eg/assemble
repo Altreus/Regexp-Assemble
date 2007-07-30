@@ -2,7 +2,7 @@
 #
 # assemble - read lines from STDIN and assemble them into a pattern
 #
-# Copyright (C) David Landgren 2004-2006
+# Copyright (C) David Landgren 2004-2007
 
 use strict;
 use Getopt::Std;
@@ -11,9 +11,9 @@ use Regexp::Assemble;
 use Time::HiRes 'time';
 
 use vars '$VERSION';
-$VERSION = '0.90';
+$VERSION = '0.91';
 
-getopts( 'abcd:f:i:nprsSt:Tuvw', \my %opt );
+getopts( 'abcd:f:i:nprsSt:TuUvw', \my %opt );
 
 print "$VERSION\n" and exit if $opt{v};
 
@@ -26,6 +26,7 @@ my $ra = Regexp::Assemble->new(
     reduce           => exists $opt{r} ? 0 : 1,
     dup_warn         => exists $opt{u} ? 1 : 0,
     lookahead        => exists $opt{a} ? 1 : 0,
+    unroll_plus      => exists $opt{U} ? 1 : 0,
 );
 
 if( $opt{b} or $opt{c} ) {
@@ -170,6 +171,11 @@ pattern. (This is merely a lazy person's synonym for C<-d 8>).
 
 Unique. Carp if duplicate patterns are found.
 
+=item B<-U>
+
+Unroll. Transform C<a+> I<et al> into C<a>, C<a*> (which may
+allow additional reductions.
+
 =item B<-v>
 
 Version. Print the version of the assemble script.
@@ -193,7 +199,7 @@ L<Regexp::Assemble>
 
 =head1 AUTHOR
 
-Copyright (C) 2004-2006 David Landgren. All rights reserved.
+Copyright (C) 2004-2007 David Landgren. All rights reserved.
 
 =head1 LICENSE
 

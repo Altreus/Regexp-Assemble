@@ -3,10 +3,10 @@
 # Test suite for Regexp::Assemble
 # Tests to see that tracked patterns behave themselves
 #
-# copyright (C) 2004-2006 David Landgren
+# copyright (C) 2004-2007 David Landgren
 
 use strict;
-use constant TESTS => 71;
+use constant TESTS => 75;
 
 eval qq{use Test::More tests => TESTS + 4};
 if( $@ ) {
@@ -39,7 +39,11 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
 }
 
 {
-    my $re = Regexp::Assemble->new( track=>1 )
+    my $re = Regexp::Assemble->new->track(1)->add(q(dog));
+    ok( $re->match('dog'), 're pattern-0 dog match' );
+    is( $re->source(0), 'dog', 'source is dog' );
+
+    $re = Regexp::Assemble->new( track=>1 )
         ->add( qw/dog dogged fish fetish flash fresh/ );
     $re->add('foolish-\\d+');
     ok( $re->match('dog'), 're pattern-1 dog match' );
@@ -59,10 +63,13 @@ is_deeply( $ra->mend,   [], 'mend is [] on non-tracked R::A object' );
     }
     ok( $re->match('foolish-245'), 're pattern-1 foolish-\\d+ match' );
     SKIP: {
-        skip( "matched() is not implemented in this version of perl ($])", 1 ) if $PERL_VERSION_TOO_LOW;
+        skip( "matched() is not implemented in this version of perl ($])", 2 ) if $PERL_VERSION_TOO_LOW;
         cmp_ok( $re->matched, 'eq', 'foolish-\\d+', 're pattern-1 foolish-\\d+ matched' );
+        is ($re->source, 'foolish-\\d+', 're pattern-1 foolish source');
     }
     ok( !defined($re->match('foolish-')), 're pattern-1 foolish-\\d+ 4' );
+    ok( !defined($re->source), 're pattern-1 foolish-\\d+ source' );
+
     SKIP: {
         skip( "matched() is not implemented in this version of perl ($])", 1 ) if $PERL_VERSION_TOO_LOW;
         ok( !defined($re->matched), 're pattern-1 foolish-\\d+ 5' );

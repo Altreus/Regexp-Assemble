@@ -6,11 +6,11 @@
 # The fact that many of these tests access object internals directly
 # does not constitute a coding recommendation.
 #
-# copyright (C) 2004-2006 David Landgren
+# copyright (C) 2004-2007 David Landgren
 
 use strict;
 
-eval qq{use Test::More tests => 325 };
+eval qq{use Test::More tests => 327 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -357,6 +357,12 @@ is( Regexp::Assemble::_make_class($stub, '\\s', '\\S' ),
 
 is( Regexp::Assemble::_make_class($stub, '\\w', '\\W' ),
     '[\\W\\w]', '_make_class \\w \\W no fold meta pairs'
+);
+
+$stub->fold_meta_pairs();
+
+is( Regexp::Assemble::_make_class($stub, '\\s', '\\S' ),
+    '.', '_make_class \\s \\S implicit fold_meta_pairs'
 );
 
 sub xcmp {
@@ -987,6 +993,14 @@ is_deeply( $x = Regexp::Assemble->new->_fastlex('\\A\\a\\e\\f\\r\\n\\t\\Z'),
 is_deeply( $x = Regexp::Assemble->new->_fastlex('\\cG\\cd\\007*?\\041\\z'),
     [qw(\\cG \\cD \\cG*? ! \\z)], '_fastlex backslash misc'
 ) or diag("@$x");
+
+package Regexp::Assemble;
+my @list = ('a', 'a');
+my @out  = sort _re_sort @list;
+package main;
+
+is_deeply( [@list], [@out], 'bogus coverage improvements rulez' );
+
 
 is( $_, $fixed, '$_ has not been altered' );
 

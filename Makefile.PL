@@ -15,11 +15,18 @@ my $file = [];
 #    push @$file, "eg/assemble" if $response =~ /^\s*y/im,
 #}
 
+my @license = $ExtUtils::MakeMaker::VERSION > 6.30
+    ? qw(LICENSE perl)
+    : ();
+
 WriteMakefile(
     NAME          => 'Regexp::Assemble',
     ABSTRACT_FROM => 'Assemble.pm',
     VERSION_FROM  => 'Assemble.pm',
     AUTHOR        => 'David Landgren',
-    LICENSE       => 'perl',
     EXE_FILES     => $file,
+    clean => {
+        FILES => 'cover_db',
+    },
+    @license,
 );

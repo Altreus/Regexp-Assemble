@@ -72,4 +72,11 @@ I'm rewriting the reduction code using this technique.
 26. _lex() swamps the overall run-time. It stems from the decision
     to use a single regexp to pull apart any pattern. A suite of
     simpler regexp to pick of parens, char classes, quantifiers
-    and bare tokens may be faster.
+    and bare tokens may be faster. (This has been implemented as
+	_fastlex(), but it's only marginally faster. Perhaps split-by-
+	char and lex a la C?
+
+27. We don't, as yet, unroll_plus a paren e.g. (abc)+?
+
+28. We don't reroll unrolled a a* to a+ in indented or tracked
+    output

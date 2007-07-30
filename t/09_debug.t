@@ -3,11 +3,11 @@
 # Test suite for Regexp::Assemble
 # Exercise the debug parts
 #
-# copyright (C) 2006 David Landgren
+# copyright (C) 2006-2007 David Landgren
 
 use strict;
 
-eval qq{use Test::More tests => 57};
+eval qq{use Test::More tests => 68};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -28,6 +28,55 @@ $_ = $fixed;
     is( $r->{debug}, 4, 'debug(4)' );
     $r->debug();
     is( $r->{debug}, 0, 'debug()' );
+}
+
+{
+    my $u = Regexp::Assemble->new(unroll_plus => 1)->debug(4);
+    my $str;
+
+    $u->add( "[a]", );
+    $str = $u->as_string;
+    is( $str, 'a', '[a] -> a' );
+
+    $u->add( "a+b", 'ac' );
+    $str = $u->as_string;
+    is( $str, 'a(?:a*b|c)', 'unroll plus a+b ac' );
+
+    $u->add( "\\LA+B", "ac" );
+    $str = $u->as_string;
+    is( $str, 'a(?:a*b|c)', 'unroll plus \\LA+B ac' );
+
+    $u->add( '\\Ua+?b', "AC" );
+    $str = $u->as_string;
+    is( $str, 'A(?:A*?B|C)', 'unroll plus \\Ua+?b AC' );
+
+    $u->add( "\\d+d", "\\de" );
+    $str = $u->as_string;
+    is( $str, '\\d(?:\d*d|e)', 'unroll plus \\d+d \\de' );
+
+    $u->add( "\\xab+f", "\\xabg" );
+    $str = $u->as_string;
+    is( $str, "\xab(?:\xab*f|g)", 'unroll plus \\xab+f \\xabg' );
+
+    $u->add( "[a-e]+h", "[a-e]i" );
+    $str = $u->as_string;
+    is( $str, "[a-e](?:[a-e]*h|i)", 'unroll plus [a-e]+h [a-e]i' );
+
+    $u->add( "a+b" );
+    $str = $u->as_string;
+    is( $str, "a+b", 'reroll a+b' );
+
+    $u->add( "a+b", "a+" );
+    $str = $u->as_string;
+    is( $str, "a+b?", 'reroll a+b?' );
+
+    $u->add( "a+?b", "a+?" );
+    $str = $u->as_string;
+    is( $str, "a+?b?", 'reroll a+?b?' );
+
+    $u->add( qw(defused fused used) );
+    $str = $u->as_string;
+    is( $str, "(?:(?:de)?f)?used", 'big debug block in _insert_path()' );
 }
 
 {

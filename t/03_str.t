@@ -3,11 +3,11 @@
 # Test suite for Regexp::Assemble
 # Ensure the the generated patterns seem reasonable.
 #
-# copyright (C) 2004-2006 David Landgren
+# copyright (C) 2004-2007 David Landgren
 
 use strict;
 
-eval qq{use Test::More tests => 201};
+eval qq{use Test::More tests => 207};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -104,12 +104,17 @@ for my $test (
     [ '(?-xism:\\^+)',        '[\\^]+' ],
     [ '(?-xism:%)',           '[%]' ],
     [ '(?-xism:%)',           '[\\%]' ],
+    [ '(?-xism:!)',           '[!]' ],
+    [ '(?-xism:!)',           '[\\!]' ],
+    [ '(?-xism:@)',           '[@]' ],
+    [ '(?-xism:@)',           '[\\@]' ],
     [ '(?-xism:b(?:$|e))',    qw(b$ be) ],
     [ '(?-xism:b(?:[ae]|$))', qw(b$ be ba) ],
     [ '(?-xism:b(?:$|\\$))',  qw(b$), 'b\\$' ],
     [ '(?-xism:(?:^a[bc]|de))', qw(^ab ^ac de) ],
-    [ '(?i-xsm:(?:^a[bc]|de))', qw(^ab ^ac de), {flags => 'i'} ],
-    [ '(?mi-xs:(?:^a[bc]|de))', qw(^ab ^ac de), {flags => 'im'} ],
+    [ '(?-xism:(?i:/))',              qw(/),          {flags => 'i'} ],
+    [ '(?-xism:(?i:(?:^a[bc]|de)))',  qw(^ab ^ac de), {flags => 'i'} ],
+    [ '(?-xism:(?im:(?:^a[bc]|de)))', qw(^ab ^ac de), {flags => 'im'} ],
     [ '(?-xism:a(?:%[de]|=[bc]))',
         quotemeta('a%d'), quotemeta('a=b'), quotemeta('a%e'), quotemeta('a=c') ],
     [ '(?-xism:\\^[,:])',     quotemeta('^:'), quotemeta('^,') ],
@@ -356,6 +361,10 @@ is( $red->as_string, 'dog', 'mute dog 2' );
 
 $red->add( 'dig' );
 is( $red->as_string, 'dig', 'mute dig 2' );
+
+is( Regexp::Assemble->new->add(qw(ab cd))->as_string(indent => 0),
+    '(?:ab|cd)', 'indent 0'
+);
 
 is( Regexp::Assemble->new
     ->add( qw/ dldrt dndrt dldt dndt dx / )

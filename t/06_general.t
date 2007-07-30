@@ -3,12 +3,12 @@
 # Test suite for Regexp::Assemble
 # Check out the general functionality, now that all the subsystems have been exercised
 #
-# copyright (C) 2004-2006 David Landgren
+# copyright (C) 2004-2007 David Landgren
 
 use strict;
 use Regexp::Assemble;
 
-eval qq{use Test::More tests => 129 };
+eval qq{use Test::More tests => 142 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -28,6 +28,8 @@ my $ra = Regexp::Assemble->new->add( qw/foo bar rat/ );
 for $target( qw/unfooled disembark vibration/ ) {
     like( $target, qr/$ra/, "match ok $target" )
 }
+
+ok( !defined($ra->source()), 'source() undefined' );
 
 for $target( qw/unfooled disembark vibration/ ) {
     unlike( $target, qr/^$ra/, "anchored match not ok $target" )
@@ -370,6 +372,59 @@ SKIP: {
 
         }
     }
+}
+
+{
+    my $u = Regexp::Assemble->new(unroll_plus => 1);
+    my $str;
+
+    $u->add( "a+b", 'ac' );
+    $str = $u->as_string;
+    is( $str, 'a(?:a*b|c)', 'unroll plus a+b ac' );
+
+    $u->add( "\\LA+B", "ac" );
+    $str = $u->as_string;
+    is( $str, 'a(?:a*b|c)', 'unroll plus \\LA+B ac' );
+
+    $u->add( '\\Ua+?b', "AC" );
+    $str = $u->as_string;
+    is( $str, 'A(?:A*?B|C)', 'unroll plus \\Ua+?b AC' );
+
+    $u->add( qw(\\d+d \\de \\w+?x \\wy ));
+    $str = $u->as_string;
+    is( $str, '(?:\\w(?:\\w*?x|y)|\\d(?:\d*d|e))', 'unroll plus \\d and \\w' );
+
+    $u->add( qw( \\xab+f \\xabg \\xcd+?h \\xcdi ));
+    $str = $u->as_string;
+    is( $str, "(?:\xcd(?:\xcd*?h|i)|\xab(?:\xab*f|g))", 'unroll plus meta x' );
+
+    $u->add( qw([a-e]+h [a-e]i [f-j]+?k [f-j]m ));
+    $str = $u->as_string;
+    is( $str, "(?:[f-j](?:[f-j]*?k|m)|[a-e](?:[a-e]*h|i))", 'unroll plus class' );
+
+    $u->add( "a+b" );
+    $str = $u->as_string;
+    is( $str, "a+b", 'reroll a+b' );
+
+    $u->add( "a+b", "a+" );
+    $str = $u->as_string;
+    is( $str, "a+b?", 'reroll a+b?' );
+
+    $u->add( "a+?b", "a+?" );
+    $str = $u->as_string;
+    is( $str, "a+?b?", 'reroll a+?b?' );
+
+    $u->unroll_plus(0)->add( qw(1+2 13) );
+    $str = $u->as_string;
+    is( $str, "(?:1+2|13)", 'no unrolling' );
+
+    $u->unroll_plus()->add( qw(1+2 13) );
+    $str = $u->as_string;
+    is( $str, "1(?:1*2|3)", 'unrolling again via implicit' );
+
+    $u->add(qw(d+ldrt d+ndrt d+ldt d+ndt d+x));
+    $str = $u->as_string;
+    is( $str, 'd+(?:[ln]dr?t|x)', 'visit ARRAY codepath' );
 }
 
 cmp_ok( $_, 'eq', $fixed, '$_ has not been altered' );

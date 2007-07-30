@@ -3,14 +3,14 @@
 # Test suite for Regexp::Assemble
 # Test a mini-application that you can build with Regexp::Assemble
 #
-# copyright (C) 2004-2006 David Landgren
+# copyright (C) 2004-2007 David Landgren
 
 use strict;
 use Regexp::Assemble;
 
 use constant file_testcount => 3; # tests requiring Test::File::Contents
 
-eval qq{use Test::More tests => 20 + file_testcount};
+eval qq{use Test::More tests => 22 + file_testcount};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -160,8 +160,24 @@ SKIP: {
             input_record_separator => '/',
         )
         ->as_string, $str,
-        'new file() and custom record separator'
+        'new() file and custom record separator'
     );
+
+    {
+        local $/ = undef;
+        my $raw_contents = 'cat/dog/cow/pig/hen';
+
+        is( Regexp::Assemble->new
+            ->add_file({file => 'eg/file.4'})
+            ->as_string, $raw_contents, 'add_file with no record separator'
+        );
+
+        is(
+            Regexp::Assemble->new(file => 'eg/file.4')->as_string,
+                $raw_contents,
+                'new() file and no record separator'
+        );
+    }
 
     eval { my $r = Regexp::Assemble->new( file => '/does/not/exist' ) };
     is( substr($@,0,38), q{cannot open /does/not/exist for input:}, 'file does not exist for new()' );
