@@ -1,13 +1,13 @@
 --- #YAML:1.0
 name:                Regexp-Assemble
-version:             0.32
+version:             0.33
 abstract:            Assemble multiple Regular Expressions into a single RE
 license:             perl
-generated_by:        ExtUtils::MakeMaker version 6.32
+author:              
+    - David Landgren
+generated_by:        ExtUtils::MakeMaker version 6.44
 distribution_type:   module
 requires:     
 meta-spec:
-    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
-    version: 1.2
-author:
-    - David Landgren
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

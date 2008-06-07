@@ -29,8 +29,6 @@ I'm rewriting the reduction code using this technique.
 
 6. Store callbacks per tracked pattern.
 
-7. Deal with [:punct:] et al character classes
-
 12. utf-8... hmmmm...
 
 14. Adding qr//'ed patterns. For example, consider
@@ -80,3 +78,6 @@ I'm rewriting the reduction code using this technique.
 
 28. We don't reroll unrolled a a* to a+ in indented or tracked
     output
+
+29. Use (*MARK n) in blead for tracked patterns, and use (*FAIL) for
+    the unmatchable pattern.

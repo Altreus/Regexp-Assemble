@@ -3,11 +3,11 @@
 # Test suite for Regexp::Assemble
 # Ensure the the generated patterns seem reasonable.
 #
-# copyright (C) 2004-2007 David Landgren
+# copyright (C) 2004-2008 David Landgren
 
 use strict;
 
-eval qq{use Test::More tests => 207};
+eval qq{use Test::More tests => 210};
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
     print "1..1\nok 1\n";
@@ -108,6 +108,8 @@ for my $test (
     [ '(?-xism:!)',           '[\\!]' ],
     [ '(?-xism:@)',           '[@]' ],
     [ '(?-xism:@)',           '[\\@]' ],
+    [ '(?-xism:a|[bc])',      'a|[bc]' ],
+    [ '(?-xism:ad?|[bc])',    'ad?|[bc]' ],
     [ '(?-xism:b(?:$|e))',    qw(b$ be) ],
     [ '(?-xism:b(?:[ae]|$))', qw(b$ be ba) ],
     [ '(?-xism:b(?:$|\\$))',  qw(b$), 'b\\$' ],
@@ -185,13 +187,13 @@ for my $test (
     [ '(?-xism:^(?:b(?:cde?|d?e)f|a(?:bc?|e)?)$)',
         qw(^a$ ^ab$ ^abc$ ^ae$ ^bcdef$ ^bcdf$ ^bdef$ ^bef$) ],
     [ '(?-xism:\\b(?:c[de]|ab)\\b)', qw(ab cd ce), {anchor_word => 1} ],
-    [ '(?-xism:\\b(?:c[de]|ab))', qw(ab cd ce), {anchor_word_begin => 1} ],
-    [ '(?-xism:^(?:c[de]|ab)$)', qw(ab cd ce), {anchor_line => 1} ],
-    [ '(?-xism:(?:c[de]|ab))', qw(ab cd ce), {anchor_line => 0} ],
-    [ '(?-xism:(?:c[de]|ab)$)', qw(ab cd ce), {anchor_line_end => 1} ],
+    [ '(?-xism:\\b(?:c[de]|ab))',    qw(ab cd ce), {anchor_word_begin => 1} ],
+    [ '(?-xism:^(?:c[de]|ab)$)',     qw(ab cd ce), {anchor_line => 1} ],
+    [ '(?-xism:(?:c[de]|ab))',       qw(ab cd ce), {anchor_line => 0} ],
+    [ '(?-xism:(?:c[de]|ab)$)',      qw(ab cd ce), {anchor_line_end => 1} ],
     [ '(?-xism:\\A(?:c[de]|ab)\\Z)', qw(ab cd ce), {anchor_string => 1} ],
-    [ '(?-xism:(?:c[de]|ab))', qw(ab cd ce), {anchor_string => 0} ],
-    # [ '(?-xism:)', qw(), {} ],
+    [ '(?-xism:(?:c[de]|ab))',       qw(ab cd ce), {anchor_string => 0} ],
+    [ '(?-xism:x[[:punct:]][yz])',   qw(x[[:punct:]]y x[[:punct:]]z) ],
 ) {
     my $result = shift @$test;
     my $param = ref($test->[-1]) eq 'HASH' ? pop @$test : {};

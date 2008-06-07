@@ -7,7 +7,7 @@
 
 use strict;
 eval qq{
-    use Test::More tests => 1365;
+    use Test::More tests => 1381;
 };
 if( $@ ) {
     warn "# Test::More not available, no tests performed\n";
@@ -136,6 +136,8 @@ match_list( 'lookahead car.*',
 );
 
 match_list( 'a.x', [qw[ abx adx a.x ]] , [qw[ aax abx acx azx a4x a%x a+x a?x ]] );
+
+match_list( 'POSIX', [qw[ X[0[:alpha:]%] Y[1-4[:punct:]a-c] ]] , [qw(X0 X% Xa Xf Y1 Y; Y! yc)] );
 
 match_list( 'c.z', [qw[ c^z c-z c5z cmz ]] , [qw[ c^z c-z c5z cmz ]] );
 

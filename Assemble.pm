@@ -1,12 +1,12 @@
 # Regexp::Assemple.pm
 #
-# Copyright (c) 2004-2007 David Landgren
+# Copyright (c) 2004-2008 David Landgren
 # All rights reserved
 
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.32';
+$VERSION = '0.33';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.32 of Regexp::Assemble, released
-2007-07-30.
+This document describes version 0.33 of Regexp::Assemble, released
+2008-xx-xx.
 
 =head1 SYNOPSIS
 
@@ -348,7 +348,7 @@ sub _fastlex {
     my $qualifier;
     $debug and print "# _lex <$record>\n";
     my $modifier        = q{(?:[*+?]\\??|\\{(?:\\d+(?:,\d*)?|,\d+)\\}\\??)?};
-    my $class_matcher   = qr/\[.*?(?<!\\)\]/;
+    my $class_matcher   = qr/\[(?:\[:[a-z]+:\]|\\?.)*?\]/;
     my $paren_matcher   = qr/\(.*?(?<!\\)\)$modifier/;
     my $misc_matcher    = qr/(?:(c)(.)|(0)(\d{2}))($modifier)/;
     my $regular_matcher = qr/([^\\[(])($modifier)/;
@@ -376,7 +376,7 @@ sub _fastlex {
                 $token =~ s/^\\([^\w$()*+.?@\[\\\]^|{}\/])$/$1/;
             }
             else {
-                $token =~ s{\A([][{}*+?@|\\/])\Z}{\\$1};
+                $token =~ s{\A([][{}*+?@\\/])\Z}{\\$1};
             }
             if ($unroll_plus and $qualifier =~ s/\A\+(\?)?\Z/*/) {
                 $1 and $qualifier .= $1;
@@ -3367,7 +3367,7 @@ and only improves the module's quality.
 
 David Landgren
 
-Copyright (C) 2004-2007. All rights reserved.
+Copyright (C) 2004-2008. All rights reserved.
 
   http://www.landgren.net/perl/
 

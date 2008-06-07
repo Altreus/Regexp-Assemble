@@ -1,5 +1,11 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.33 2008-06-07 14:40:57 UTC
+    - Tweaked _fastlex() to fix bug #36399 spotted by Yves
+      Blusseau ('a|[bc]' becomes 'a\|[bc]').
+    - Recognise POSIX character classes (e.g. [[:alpha:]].
+      Bug also spotted by Ybes Blusseau (bug #36465).
+
 0.32 2007-07-30 17:47:39 UTC
     - Backed out the change introduced in 0.25 (that created
       slimmer regexps when custom flags are used). As things
