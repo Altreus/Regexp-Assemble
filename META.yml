@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Regexp-Assemble
-version:             0.33
+version:             0.34
 abstract:            Assemble multiple Regular Expressions into a single RE
 license:             perl
 author:              

@@ -6,7 +6,7 @@
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.33';
+$VERSION = '0.34';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.33 of Regexp::Assemble, released
-2008-xx-xx.
+This document describes version 0.34 of Regexp::Assemble, released
+2008-06-17.
 
 =head1 SYNOPSIS
 
@@ -2655,6 +2655,10 @@ sub _make_class {
     return "[$dash$class$caret]";
 }
 
+sub _re_sort {
+    return length $b <=> length $a || $a cmp $b
+}
+
 sub _combine {
     my $self = shift;
     my $type = shift;
@@ -2666,11 +2670,11 @@ sub _combine {
         my( @short, @long );
         push @{ /^$Single_Char$/ ? \@short : \@long}, $_ for @_;
         if( @short == 1 ) {
-            @long = (sort( _re_sort @long ), @short );
+            @long = sort _re_sort @long, @short;
         }
         elsif( @short > 1 ) {
             # yucky but true
-            my @combine = (_make_class($self, @short), sort( _re_sort @long ));
+            my @combine = (_make_class($self, @short), sort _re_sort @long);
             @long = @combine;
         }
         else {
@@ -2697,7 +2701,7 @@ sub _combine_new {
         return '(?:'
             . join( '|' =>
                 @short > 1
-                    ? ( _make_class($self, @short), sort(_re_sort @long))
+                    ? ( _make_class($self, @short), sort _re_sort @long)
                     : ( (sort _re_sort( @long )), @short )
             )
         . ')';
@@ -2948,7 +2952,7 @@ sub _re_path_pretty {
                     );
                 }
                 else {
-                    $out .= join( "\n$indent|" => ( sort( _re_sort @long ), _make_class($self, @short) ));
+                    $out .= join( "\n$indent|" => ( (sort _re_sort @long), _make_class($self, @short) ));
                 }
                 $out .= "\n$pre)";
                 if( exists $in->[$p]{''} ) {
@@ -2963,10 +2967,6 @@ sub _re_path_pretty {
     }
     $arg->{depth}--;
     return $out;
-}
-
-sub _re_sort {
-    return length $b <=> length $a || $a cmp $b
 }
 
 sub _node_eq {

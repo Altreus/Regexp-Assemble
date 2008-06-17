@@ -2,7 +2,7 @@
 #
 # assemble - read lines from STDIN and assemble them into a pattern
 #
-# Copyright (C) David Landgren 2004-2007
+# Copyright (C) David Landgren 2004-2008
 
 use strict;
 use Getopt::Std;
@@ -11,7 +11,7 @@ use Regexp::Assemble;
 use Time::HiRes 'time';
 
 use vars '$VERSION';
-$VERSION = '0.91';
+$VERSION = '0.92';
 
 getopts( 'abcd:f:i:nprsSt:TuUvw', \my %opt );
 
@@ -88,7 +88,7 @@ assemble - Assemble a list of regular expressions from a file
 
 =head1 SYNOPSIS
 
-B<assemble> [B<-bcdinprt>] file [...]
+  assemble -abcdfinprsStTuUvw file [...]
 
 =head1 DESCRIPTION
 
@@ -173,8 +173,8 @@ Unique. Carp if duplicate patterns are found.
 
 =item B<-U>
 
-Unroll. Transform C<a+> I<et al> into C<a>, C<a*> (which may
-allow additional reductions.
+Unroll. Transform C<a+> I<et al> into C<aa*> (which may
+allow additional reductions).
 
 =item B<-v>
 
@@ -199,7 +199,7 @@ L<Regexp::Assemble>
 
 =head1 AUTHOR
 
-Copyright (C) 2004-2007 David Landgren. All rights reserved.
+Copyright (C) 2004-2008 David Landgren. All rights reserved.
 
 =head1 LICENSE
 
