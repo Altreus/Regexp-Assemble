@@ -1,9 +1,13 @@
 Revision history for Perl extension Regexp::Assemble.
 
+0.35 2011-04-07 13:18:48 UTC
+    - Update test suite to take into account the regexp
+      engine changes for 5.14. No functional differences.
+
 0.34 2008-06-17 20:20:14 UTC
     - Rewrite the usage of _re_sort() in order to deal
       with blead change #33874. Bug smoked out by Andreas
-	  König.
+      König.
 
 0.33 2008-06-07 14:40:57 UTC
     - Tweaked _fastlex() to fix bug #36399 spotted by Yves

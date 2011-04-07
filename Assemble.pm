@@ -1,12 +1,12 @@
 # Regexp::Assemple.pm
 #
-# Copyright (c) 2004-2008 David Landgren
+# Copyright (c) 2004-2011 David Landgren
 # All rights reserved
 
 package Regexp::Assemble;
 
 use vars qw/$VERSION $have_Storable $Current_Lexer $Default_Lexer $Single_Char $Always_Fail/;
-$VERSION = '0.34';
+$VERSION = '0.35';
 
 =head1 NAME
 
@@ -14,8 +14,8 @@ Regexp::Assemble - Assemble multiple Regular Expressions into a single RE
 
 =head1 VERSION
 
-This document describes version 0.34 of Regexp::Assemble, released
-2008-06-17.
+This document describes version 0.35 of Regexp::Assemble, released
+2011-04-07.
 
 =head1 SYNOPSIS
 
@@ -3367,7 +3367,7 @@ and only improves the module's quality.
 
 David Landgren
 
-Copyright (C) 2004-2008. All rights reserved.
+Copyright (C) 2004-2011. All rights reserved.
 
   http://www.landgren.net/perl/
 

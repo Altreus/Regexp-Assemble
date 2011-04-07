@@ -35,3 +35,4 @@ t/06_general.t
 t/07_warning.t
 t/08_track.t
 t/09_debug.t
+t/10_perl514.t

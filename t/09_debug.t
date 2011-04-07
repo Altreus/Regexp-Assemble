@@ -3,7 +3,7 @@
 # Test suite for Regexp::Assemble
 # Exercise the debug parts
 #
-# copyright (C) 2006-2007 David Landgren
+# copyright (C) 2006-2011 David Landgren
 
 use strict;
 
@@ -15,6 +15,8 @@ if( $@ ) {
 }
 
 use Regexp::Assemble;
+
+my $PERL_VERSION_TOO_HIGH = ($] >= 5.013);
 
 my $fixed = 'The scalar remains the same';
 $_ = $fixed;
@@ -301,16 +303,19 @@ is( Regexp::Assemble->new->debug(1)->add( qw/
         '(?:a?bc?)?d', 'abcd abd bcd bd d' );
 }
 
-{
-    my $r = Regexp::Assemble->new->debug(8)->add(qw(this that));
-    my $re = $r->re;
-    is( $re, '(?-xism:th(?:at|is))', 'time debug' );
-}
+SKIP: {
+    skip("perl version too recent ($]), 5.012+ max", 2) if $PERL_VERSION_TOO_HIGH;
+    {
+        my $r = Regexp::Assemble->new->debug(8)->add(qw(this that));
+        my $re = $r->re;
+        is( $re, '(?-xism:th(?:at|is))', 'time debug' );
+    }
 
-{
-    my $r = Regexp::Assemble->new->add(qw(this that))->debug(8)->add('those');
-    my $re = $r->re;
-    is( $re, '(?-xism:th(?:ose|at|is))', 'deferred time debug' );
+    {
+        my $r = Regexp::Assemble->new->add(qw(this that))->debug(8)->add('those');
+        my $re = $r->re;
+        is( $re, '(?-xism:th(?:ose|at|is))', 'deferred time debug' );
+    }
 }
 
 {
