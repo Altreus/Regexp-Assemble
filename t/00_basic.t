@@ -29,7 +29,11 @@ my $have_Test_Pod = do {
     $@ ? 0 : 1;
 };
 
+my $author_tests = $ENV{AUTHOR_TESTING} || $ENV{RELEASE_TESTING};
+
 SKIP: {
+    skip( 'Not running author tests', 3 )
+        unless $author_tests;
     skip( 'Test::Pod not installed on this system', 3 )
         unless $have_Test_Pod;
 
@@ -44,6 +48,8 @@ my $have_Test_Pod_Coverage = do {
 };
 
 SKIP: {
+    skip( 'Not running author tests', 1 )
+        unless $author_tests;
     skip( 'Test::Pod::Coverage not installed on this system', 1 )
         unless $have_Test_Pod_Coverage;
     pod_coverage_ok( "Regexp::Assemble", "POD coverage is go!" );
